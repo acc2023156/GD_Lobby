@@ -1,7 +1,7 @@
 /* Every address and setting that points at LKS lives in this file.
  * Change a value here and reload the lobby; nothing else needs editing.
  *
- *   mainUrl  the LKS website: Storm of Seth and Plinko are opened on it
+ *   mainUrl  the LKS website: Storm of Seth is opened on it
  *   apiUrl   the LKS game service: the lobby calls CreateMember / CreateGameToken here for the six legacy slots
  *   partner  who this lobby is, as far as the LKS API is concerned
  *
