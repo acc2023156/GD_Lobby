@@ -77,6 +77,13 @@
     .modal-head,.shop-title,.gift-title,.clan-title,.wallet-title,.player-head{background:linear-gradient(100deg,#783dff,#ff3d9e 60%,#ff8a3d);color:#fff}.modal-offer,.event-card,.rank-row,.player-card,.payment-method,.pay-detail,.tool-row,.clan-row,.unlock-row{background:#151d42;color:#f8faff;border-color:#4d5688;box-shadow:0 4px 12px #0005}.modal-offer b,.event-card footer b,.rank-score,.shop-balance b,.credit-option b,.gift-state,.clan-rep,.unlock-row>strong{color:#ffd166}
     .profile-tabs,.activity-tabs,.rank-tabs,.gift-tabs,.clan-tabs{background:#111838;border-color:#35406d}.profile-tab,.activity-tab,.rank-tab,.gift-tab,.clan-tab{color:#aeb8e8}.profile-tab.active,.activity-tab.active,.rank-tab.active,.gift-tab.active,.clan-tab.active{color:#ff6ec7}.profile-tab.active:after,.activity-tab.active:after,.rank-tab.active:after,.gift-tab.active:after,.clan-tab.active:after{background:#ff3d9e;box-shadow:0 0 8px #ff3d9e}
     .motto,.detail-box,.selected-plan,.gift-status,.wallet-summary{background:linear-gradient(135deg,#783dff,#ff3d9e 65%,#ff8a3d);color:#fff}.credit-option{background:linear-gradient(135deg,#202956,#121936);color:#f8faff;box-shadow:0 3px 0 #090e25;border:1px solid #555e91}.credit-option small,.shop-note,.payment-method small,.gift-info,.wallet-note{color:#aeb8e8}.play,.payment-demo,.person-actions button,.player-back{background:linear-gradient(90deg,#783dff,#ff3d9e);color:#fff}.cancel,.mini-action,.redeem,.activity-back,.shop-back,.gift-password,.tool-back,.clan-back{background:#222b57;color:#ffd166;border-color:#ffd166}
+    /* Plinko-style 26-character marquee below the member bar. */
+    .marquee-bar{padding:9px 12px 0;font-size:13px;font-weight:900;line-height:1.8;color:#ffd166}
+    .marquee{display:block;width:26em;max-width:100%;margin:0 auto;overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent);mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent)}
+    .marquee-track{display:inline-flex;white-space:nowrap;animation:gdMarquee 24s linear infinite;will-change:transform}
+    .marquee-track span{background:linear-gradient(180deg,#fff6b7,#ffd166 55%,#ff9f3d);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:0 0 12px #ff8a3d22}
+    @keyframes gdMarquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+    @media(prefers-reduced-motion:reduce){.marquee-track{animation-duration:60s}}
   </style>
 </head>
 <body>
@@ -85,6 +92,7 @@
     <button class="avatar" id="openProfileAvatar" aria-label="開啟會員中心">GD</button><button class="account" id="openProfile"><b>GD會員</b><span class="account-meta"><small>VIP 1</small><span class="vip-progress" role="progressbar" aria-label="VIP 進度 90%" aria-valuenow="90" aria-valuemin="0" aria-valuemax="100"><i></i></span></span></button>
     <button class="wallet" id="openWallet" aria-label="開啟 G幣錢包"><span class="coin">G</span><span id="balance">588</span></button><button class="refresh" aria-label="更新餘額">↻</button><button class="menu" id="openTools" aria-label="會員選單">☰</button>
   </header>
+  <div class="marquee-bar" aria-label="金龍娛樂城最新消息"><div class="marquee"><span class="marquee-track" id="gdMarquee"></span></div></div>
   <section class="hero" aria-label="活動輪播">
     <article class="hero-slide active"><div class="hero-copy"><small>全民回饋無上限！</small><h1>邀好友賺獎勵</h1><strong>最高回饋 0.88%</strong></div></article>
     <article class="hero-slide"><div class="hero-copy"><small>新會員限定活動</small><h1>首儲豪禮加碼</h1><strong>限定優惠等你領取</strong></div></article>
@@ -238,6 +246,36 @@
   const bottomReturns=[['#openActivity','.activity-close'],['#openRank','.rank-close'],['#openShop','.shop-close'],['#openGift','.gift-close'],['#openClan','.clan-close']];function popBottom(target){target.classList.remove('return-pop');requestAnimationFrame(()=>target.classList.add('return-pop'));setTimeout(()=>target.classList.remove('return-pop'),500)}bottomFx.forEach(button=>button.addEventListener('click',()=>{button.classList.add('nav-press');setTimeout(()=>button.classList.remove('nav-press'),180)}));bottomReturns.forEach(([nav,close])=>document.querySelector(close).addEventListener('click',()=>popBottom(document.querySelector(nav))));
 </script>
 <script>
+  (() => {
+    const track = document.querySelector('#gdMarquee');
+    if (!track) return;
+    const brand = '歡迎加入金龍娛樂城';
+    const cheers = [
+      '恭喜玩家 GD***168 喜獲超級大獎',
+      '恭喜玩家 龍***88 贏得 8,888 G幣',
+      '恭喜玩家 Lucky***7 幸運連莊',
+      '金龍獻瑞・好運連連',
+      '大吉大利・手氣長紅',
+      '財源滾滾・喜事連連',
+      '祝各位貴賓旗開得勝',
+      '金運當頭・好禮滿載'
+    ];
+    const separator = '　✦　';
+    const build = () => {
+      const shuffled = cheers.slice().sort(() => Math.random() - 0.5);
+      const message = [brand, shuffled[0], shuffled[1], brand, shuffled[2], shuffled[3]].join(separator) + separator;
+      track.replaceChildren();
+      for (let i = 0; i < 2; i++) {
+        const copy = document.createElement('span');
+        copy.textContent = message;
+        track.appendChild(copy);
+      }
+      track.style.animationDuration = `${Math.max(24, message.length * 0.32)}s`;
+    };
+    track.addEventListener('animationiteration', build);
+    build();
+  })();
+
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => navigator.serviceWorker.register('./service-worker.js', {scope: './'}));
   }
