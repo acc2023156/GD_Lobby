@@ -3,8 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0B1026">
+  <meta name="application-name" content="金龍娛樂城">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="GD Casino">
   <title>金龍娛樂城｜Golden Dragon Casino</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon-180.png">
   <style>
     :root{--red:#cf161d;--red2:#951015;--cream:#fff8e9;--gold:#ffc641;--ink:#4b251b;--rail:82px;--bottom:78px}
     *{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#19100d;font-family:"Noto Sans TC","Microsoft JhengHei",sans-serif;color:var(--ink)}
@@ -229,6 +236,11 @@
   const bottomFx=[document.querySelector('#openActivity'),document.querySelector('#openRank'),document.querySelector('#openShop'),document.querySelector('#openGift'),document.querySelector('#openClan')];
   function playBottomFx(){const target=bottomFx[Math.floor(Math.random()*bottomFx.length)];target.classList.add('fx-active');setTimeout(()=>target.classList.remove('fx-active'),900);setTimeout(playBottomFx,5200+Math.random()*4200);}setTimeout(playBottomFx,2200);
   const bottomReturns=[['#openActivity','.activity-close'],['#openRank','.rank-close'],['#openShop','.shop-close'],['#openGift','.gift-close'],['#openClan','.clan-close']];function popBottom(target){target.classList.remove('return-pop');requestAnimationFrame(()=>target.classList.add('return-pop'));setTimeout(()=>target.classList.remove('return-pop'),500)}bottomFx.forEach(button=>button.addEventListener('click',()=>{button.classList.add('nav-press');setTimeout(()=>button.classList.remove('nav-press'),180)}));bottomReturns.forEach(([nav,close])=>document.querySelector(close).addEventListener('click',()=>popBottom(document.querySelector(nav))));
+</script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('./service-worker.js', {scope: './'}));
+  }
 </script>
 </body>
 </html>
