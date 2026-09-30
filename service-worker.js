@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gd-lobby-v9';
+const CACHE_NAME = 'gd-lobby-v10';
 const APP_SHELL = [
   './',
   './index.html',
