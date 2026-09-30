@@ -1,10 +1,15 @@
-const CACHE_NAME = 'gd-lobby-v6';
+const CACHE_NAME = 'gd-lobby-v7';
 const APP_SHELL = [
   './',
   './index.html',
   './boss88-mobile-lobby.html',
   './manifest.webmanifest',
   './favicon.svg',
+  './icons/nav/rewards.png',
+  './icons/nav/glory.png',
+  './icons/nav/shop.png',
+  './icons/nav/gift.png',
+  './icons/nav/clan.png',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/icon-maskable-512.png',
