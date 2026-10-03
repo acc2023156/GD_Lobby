@@ -22,6 +22,11 @@ window.GD_API = (() => {
     ERR_GIFT_NOT_PENDING: '這筆禮物已處理',
     ERR_MEMBER_NOT_ACTIVE: '帳號已停用，請聯絡客服',
     ERR_VALIDATION: '輸入資料有誤',
+    ERR_CODE_INVALID: '兌換碼無效或已過期',
+    ERR_CODE_ALREADY_REDEEMED: '這個兌換碼已經用過了',
+    ERR_CODE_EXHAUSTED: '兌換碼已被領完',
+    ERR_CODE_VIP_REQUIRED: 'VIP 等級不足，無法使用這個兌換碼',
+    ERR_NOTHING_TO_CLAIM: '這封信沒有可領取的獎勵',
   };
 
   async function call(path, { method = 'GET', body, idempotent } = {}) {
