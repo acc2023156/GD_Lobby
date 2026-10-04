@@ -32,6 +32,9 @@ window.GD_API = (() => {
     ERR_PROMOTION_ALREADY_TAKEN: '這個優惠已經領過了',
     ERR_PROMOTION_NOT_CLAIMABLE: '流水尚未達標，暫時不能領取',
     ERR_PROMOTION_VIP_TOO_LOW: 'VIP 等級不足，無法參加這個優惠',
+    ERR_MISSION_NOT_COMPLETE: '任務尚未完成',
+    ERR_MISSION_ALREADY_CLAIMED: '這個任務的獎勵已經領過了',
+    ERR_ALREADY_CHECKED_IN: '今天已經簽到過了',
   };
 
   async function call(path, { method = 'GET', body, idempotent } = {}) {

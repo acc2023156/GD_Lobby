@@ -274,6 +274,7 @@
     .gd-claim:disabled{animation:none;opacity:.6}
     @keyframes gdPulse{0%,100%{transform:scale(1);box-shadow:0 0 0 #ffc64100}50%{transform:scale(1.04);box-shadow:0 0 14px #ffc641cc}}
     .modal-offer label{display:flex;gap:6px;align-items:center;margin-top:8px;font-size:13px;font-weight:800}
+    .modal-offer .gd-short{display:block;margin-top:8px;color:#ff6e8a;font-weight:900}
     .gd-coin{position:fixed;z-index:100;width:24px;height:24px;margin:-12px 0 0 -12px;border-radius:50%;pointer-events:none;background:radial-gradient(circle at 35% 30%,#fff7b0,#ffd23f 45%,#d48a0b);border:2px solid #fff0a0;box-shadow:0 2px 6px #0006}`;
   document.head.appendChild(promoStyle);
 
@@ -299,7 +300,7 @@
   async function prepareOffer() {
     pendingOffer = null;
     const gameId = HASH_GAMES[selectedGame];
-    demoOffer.hidden = Boolean(gameId);
+    demoOffer.hidden = true;
     offerCard.hidden = true;
     if (!gameId || !me) return;
     try {
@@ -311,14 +312,22 @@
         return;
       }
       const { offers } = await api.call(`/promotions/offers?provider=${HASH_PROVIDER}&gameId=${gameId}`);
-      for (const o of offers) {
-        // 不讓玩家選金額：主錢包付得起的最高方案
-        const tier = [...o.tiers].sort((a, b) => b.principal - a.principal).find((t) => t.principal <= me.mainAvailable);
-        if (!tier) continue;
-        pendingOffer = { promotionId: o.id, tierIdx: tier.idx };
-        offerCard.innerHTML = `<b>${esc(o.name)}</b><small>本金 ${coins(tier.principal)} ＋ 優惠 ${coins(tier.bonus)}，流水達 ${coins(tier.wagerTarget)} 可領回</small><strong>${coins(tier.principal + tier.bonus)}</strong><label><input type="checkbox" checked> 使用此優惠（主錢包扣 ${coins(tier.principal)}）</label><em>下注先扣優惠金幣；開始下注後不可退回，完成流水才能領回主錢包。</em>`;
+      const offerHead = (o, tier) => `<b>${esc(o.name)}</b><small>本金 ${coins(tier.principal)} ＋ 優惠 ${coins(tier.bonus)}，流水達 ${coins(tier.wagerTarget)} 可領回</small><strong>${coins(tier.principal + tier.bonus)}</strong>`;
+      // 不讓玩家選金額：主錢包付得起的最高方案
+      const options = offers.map((o) => ({ o, tiers: [...o.tiers].sort((a, b) => b.principal - a.principal) }));
+      const pick = options.map(({ o, tiers }) => ({ o, tier: tiers.find((t) => t.principal <= me.mainAvailable) })).find((x) => x.tier);
+      if (pick) {
+        pendingOffer = { promotionId: pick.o.id, tierIdx: pick.tier.idx };
+        offerCard.innerHTML = `${offerHead(pick.o, pick.tier)}<label><input type="checkbox" checked> 使用此優惠（主錢包扣 ${coins(pick.tier.principal)}）</label><em>下注先扣優惠金幣；開始下注後不可退回，完成流水才能領回主錢包。</em>`;
         offerCard.hidden = false;
         return;
+      }
+      // 都付不起：仍顯示最低方案，提示主錢包不足，不帶入優惠
+      if (options.length) {
+        const { o, tiers } = options[0];
+        const tier = tiers[tiers.length - 1];
+        offerCard.innerHTML = `${offerHead(o, tier)}<em class="gd-short">主錢包不足，需 ${coins(tier.principal)}（目前 ${coins(me.mainAvailable)}）</em>`;
+        offerCard.hidden = false;
       }
     } catch (err) { console.warn('offers', err); }
   }
@@ -425,7 +434,7 @@
     if (byCategory[active]) renderHero(active);
   }
 
-  const period = (item) => [item.starts_at, item.ends_at].map((t) => (t ? time(t) : '')).join('～') || '常態活動';
+  const period = (item) => (item.starts_at || item.ends_at ? [item.starts_at, item.ends_at].map((t) => (t ? time(t) : '')).join('～') : '常態活動');
   function showEvent(e) {
     const hero = $('.detail-hero', eventDetail);
     $('.detail-title', eventDetail).textContent = e.title;
@@ -448,11 +457,21 @@
     $$('[data-gd-event]', activityList).forEach((card) => (card.onclick = () => showEvent(events[Number(card.dataset.gdEvent)])));
   }
 
+  // 公告：設定選單裡的一頁
+  const noticeItem = document.createElement('button');
+  noticeItem.className = 'tool-item';
+  noticeItem.innerHTML = '<span>📢</span>公告';
+  $('.tool-grid').appendChild(noticeItem);
+  const noticePage = document.createElement('section');
+  noticePage.className = 'tool-page';
+  noticePage.dataset.toolPage = 'notices';
+  $('[data-tool-page="mail"]').after(noticePage);
+  noticeItem.onclick = () => { showTool('notices'); loadNotices().catch(() => {}); };
   async function loadNotices() {
     const { notices } = await api.call('/notices');
-    const panel = $('[data-activity-panel="notices"]');
-    if (!notices.length) return;
-    panel.innerHTML = notices.map((n) => `<div class="tool-row" data-notice="${esc(n.id)}"><b>${n.pinned ? '📌 ' : ''}${esc(n.title)}${me && !n.read ? ' <small style="display:inline;color:#ff6ec7">NEW</small>' : ''}</b>${n.starts_at ? `<small>${time(n.starts_at)}</small>` : ''}<p style="margin:8px 0 0;white-space:pre-wrap">${esc(n.body)}</p></div>`).join('');
+    const panel = noticePage;
+    panel.innerHTML = '<button class="tool-back">← 返回設定</button><h3>公告</h3>' + (notices.map((n) => `<div class="tool-row" data-notice="${esc(n.id)}"><b>${n.pinned ? '📌 ' : ''}${esc(n.title)}${me && !n.read ? ' <small style="display:inline;color:#ff6ec7">NEW</small>' : ''}</b>${n.starts_at ? `<small>${time(n.starts_at)}</small>` : ''}<p style="margin:8px 0 0;white-space:pre-wrap">${esc(n.body)}</p></div>`).join('') || '<div class="tool-empty">目前尚無公告</div>');
+    $('.tool-back', panel).onclick = () => showTool('');
     if (me) notices.filter((n) => !n.read).forEach((n) => api.call(`/notices/${n.id}/read`, { method: 'POST' }).catch(() => {}));
     const popup = me && notices.find((n) => n.popup && !n.read);
     if (popup) toast(`【公告】${popup.title}\n\n${popup.body || ''}`);
@@ -503,6 +522,122 @@
       if (accept) accept.onclick = async () => { try { await api.call(`/legal/${doc.id}/accept`, { method: 'POST' }); accept.replaceWith('已同意'); } catch (err) { toast(err.message); } };
     } catch { /* 後台尚未發布時保留原本說明 */ }
   }));
+
+  // ---------- 獎勵中心：每日簽到、每日任務／本週加碼、家族任務 ----------
+  const msStyle = document.createElement('style');
+  msStyle.textContent = `
+    .activity-tabs{grid-template-columns:repeat(auto-fit,minmax(0,1fr));padding:0 24px}
+    .gd-ms{display:grid;gap:12px}
+    .gd-checkin{border:1px solid #35406d;border-radius:16px;padding:12px;background:linear-gradient(135deg,#1c2557,#121a40)}
+    .gd-checkin header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+    .gd-checkin header b{color:#ffd166;font-size:17px}
+    .gd-days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+    .gd-day{border-radius:10px;padding:6px 2px;text-align:center;background:#0d1430;border:1px solid #2b3566;font-size:11px;color:#aeb8e8}
+    .gd-day b{display:block;color:#ffd166;font-size:13px;margin-top:2px}
+    .gd-day.done{opacity:.55}.gd-day.done b:after{content:" ✓";color:#7ff0c4}
+    .gd-day.today{border-color:#ff3d9e;box-shadow:0 0 10px #ff3d9e88;color:#fff}
+    .gd-seg{display:grid;grid-template-columns:1fr 1fr;background:#111838;border:1px solid #35406d;border-radius:14px;padding:4px}
+    .gd-seg button{border:0;border-radius:10px;padding:10px;font:inherit;font-weight:900;background:none;color:#aeb8e8;cursor:pointer}
+    .gd-seg button.on{background:linear-gradient(180deg,#ffd166,#f2a516);color:#3a1d05}
+    .gd-ms-card{display:grid;grid-template-columns:76px minmax(0,1fr) 92px;gap:10px;align-items:center;padding:10px;border-radius:16px;background:#151b3d;border:1px solid #2b3566}
+    .gd-ms-card>img,.gd-ms-card>span{width:76px;height:76px;border-radius:12px;object-fit:cover;display:grid;place-items:center;font-size:34px;background:#0d1430}
+    .gd-ms-card b{display:block;color:#fff;font-size:15px;line-height:1.3}
+    .gd-ms-bar{position:relative;height:22px;border-radius:11px;background:#0b1026;border:1px solid #35406d;margin:6px 0 4px;overflow:hidden}
+    .gd-ms-bar span{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,#783dff,#ff3d9e)}
+    .gd-ms-bar em{position:relative;display:block;text-align:center;font-style:normal;font-size:12px;font-weight:900;line-height:20px;color:#fff}
+    .gd-ms-card small{color:#8d97c7;font-size:11px}
+    .gd-ms-reward{text-align:center;border-left:1px solid #2b3566;padding-left:8px}
+    .gd-ms-reward strong{display:block;color:#ffd166;font-size:17px;margin:2px 0 6px}
+    .gd-ms-reward .coin{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff7b0,#ffd23f 45%,#d48a0b);color:#7a4300;font-weight:1000;font-style:normal}
+    .gd-ms-btn{width:100%;border:0;border-radius:999px;padding:7px 0;font:inherit;font-weight:900;cursor:pointer;background:#2e3a78;color:#d6dcff}
+    .gd-ms-btn.claim{background:linear-gradient(180deg,#ffd166,#f2a516);color:#3a1d05;animation:gdPulse 1.4s ease-in-out infinite}
+    .gd-ms-btn:disabled{opacity:.5;cursor:default;animation:none}
+    .gd-ms-all{justify-self:center;min-width:150px;border:0;border-radius:999px;padding:11px 28px;font:inherit;font-weight:900;cursor:pointer;background:linear-gradient(180deg,#ff6ec7,#ff3d9e);color:#fff}
+    .gd-ms-all:disabled{background:#3b4472;color:#9aa3cf;cursor:default}
+    .gd-ms-empty{text-align:center;color:#8d97c7;padding:24px 0}`;
+  document.head.appendChild(msStyle);
+
+  const missionPanel = $('[data-activity-panel="missions"]');
+  const familyPanel = $('[data-activity-panel="family"]');
+  const familyTab = $('[data-activity-tab="family"]');
+  let msData = null, msTab = 'daily';
+  const day = (iso) => { const d = new Date(iso); return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`; };
+  /** 任務圖示：後台上傳的圖 → 大廳遊戲圖示 → 預設。 */
+  const missionIcon = (m) => {
+    const src = m.imageUrl || catalog.find((g) => g[0] === m.gameName)?.[7];
+    return src ? `<img src="${esc(src)}" alt="">` : '<span>🎯</span>';
+  };
+  const missionCard = (m) => {
+    const pct = Math.min(100, Math.floor((m.progress / m.target) * 100));
+    const unit = m.metric === 'WAGER' ? coins : num;
+    const button = m.state === 'CLAIMABLE' ? `<button class="gd-ms-btn claim" data-ms-claim="${esc(m.id)}">領取</button>`
+      : m.state === 'CLAIMED' ? '<button class="gd-ms-btn" disabled>已領取</button>' : `<button class="gd-ms-btn" data-ms-go="${esc(m.gameName || '')}">前往</button>`;
+    return `<article class="gd-ms-card">${missionIcon(m)}<div><b>${esc(m.title)}</b><div class="gd-ms-bar"><span style="width:${pct}%"></span><em>${unit(m.progress)}/${unit(m.target)}</em></div><small>截止日期 ${day(new Date(new Date(m.deadline).getTime() - 1).toISOString())}</small></div><div class="gd-ms-reward"><i class="coin">G</i><strong>${coins(m.reward)}</strong>${button}</div></article>`;
+  };
+  const missionList = (list, tab) => `${list.length ? list.map(missionCard).join('') : '<div class="gd-ms-empty">目前沒有任務</div>'}<button class="gd-ms-all" data-ms-all="${tab}" ${list.some((m) => m.state === 'CLAIMABLE') ? '' : 'disabled'}>全領取</button>`;
+
+  function renderCheckin(c) {
+    const cells = c.rewards.map((r) => {
+      const state = r.day < c.day || (r.day === c.day && c.checkedIn) ? 'done' : r.day === c.day ? 'today' : '';
+      return `<div class="gd-day ${state}">第${r.day}天<b>${coins(r.coins)}</b></div>`;
+    }).join('');
+    return `<section class="gd-checkin"><header><b>每日簽到</b><button class="gd-ms-btn ${c.checkedIn ? '' : 'claim'}" style="width:auto;padding:7px 18px" data-checkin ${c.checkedIn ? 'disabled' : ''}>${c.checkedIn ? '今日已簽到' : '簽到'}</button></header><div class="gd-days">${cells}</div></section>`;
+  }
+
+  function renderMissions() {
+    if (!msData) return;
+    missionPanel.innerHTML = `<div class="gd-ms">${renderCheckin(msData.checkin)}<div class="gd-seg"><button data-ms-tab="daily" class="${msTab === 'daily' ? 'on' : ''}">每日任務</button><button data-ms-tab="weekly" class="${msTab === 'weekly' ? 'on' : ''}">本週加碼</button></div>${missionList(msData[msTab], msTab)}</div>`;
+    familyTab.hidden = !msData.family;
+    familyPanel.innerHTML = msData.family ? `<div class="gd-ms">${missionList(msData.family, 'family')}</div>` : '';
+    $$('[data-ms-tab]', missionPanel).forEach((b) => (b.onclick = () => { msTab = b.dataset.msTab; renderMissions(); }));
+    $$('[data-ms-claim]').forEach((b) => (b.onclick = () => claimMissions(b, `/missions/${b.dataset.msClaim}/claim`)));
+    $$('[data-ms-all]').forEach((b) => (b.onclick = () => claimMissions(b, '/missions/claim-all', { tab: b.dataset.msAll })));
+    $$('[data-ms-go]').forEach((b) => (b.onclick = () => goToGame(b.dataset.msGo)));
+    const checkinButton = $('[data-checkin]', missionPanel);
+    if (checkinButton) checkinButton.onclick = () => claimMissions(checkinButton, '/missions/checkin');
+  }
+
+  async function loadMissions() {
+    if (!me) return;
+    msData = await api.call('/missions');
+    renderMissions();
+  }
+
+  /** 領取任務、全領取、簽到共用：入帳後金幣飛到錢包並重新整理。 */
+  async function claimMissions(button, path, body) {
+    button.disabled = true;
+    try {
+      const from = me.mainAvailable;
+      const r = await api.call(path, { method: 'POST', body });
+      if (Number(r.coins) > 0) {
+        if (!matchMedia('(prefers-reduced-motion: reduce)').matches) await Promise.race([coinBurst(button, $('#openWallet .coin')), new Promise((ok) => setTimeout(ok, 2500))]);
+        countUp($('#balance'), from, from + Number(r.coins));
+      }
+      await refresh();
+      await loadMissions();
+    } catch (err) { toast(err.message); button.disabled = false; }
+  }
+
+  /** 前往：開啟任務指定的遊戲；不限遊戲時回到大廳。 */
+  function goToGame(name) {
+    activityLayer.hidden = true;
+    const g = catalog.find((x) => x[0] === name);
+    if (g) openGame(g);
+  }
+
+  $('#openActivity').addEventListener('click', () => { if (me) loadMissions().catch((err) => console.warn('missions', err)); });
+  $('[data-activity-tab="missions"]').addEventListener('click', () => { if (requireLogin()) loadMissions().catch((err) => toast(err.message)); });
+
+  // ---------- 會員中心：遊戲紀錄 ----------
+  const RECORD_PERIODS = ['today', 'yesterday', 'week', 'lastweek'];
+  async function loadRecords(period = 'today') {
+    if (!me) return;
+    const { records } = await api.call('/me/game-records?period=' + period);
+    $('#recordRows').innerHTML = records.map((r) => `<tr><td>${esc(r.gameName)}<br><small>${num(r.rounds)} 局</small></td><td>${coins(r.wager)}</td></tr>`).join('') || '<tr><td colspan="2">這段期間沒有遊戲紀錄</td></tr>';
+  }
+  $('[data-panel="records"] .page-note').textContent = '遊戲紀錄即時更新（台灣時間）';
+  $$('.periods button').forEach((b, i) => b.addEventListener('click', () => loadRecords(RECORD_PERIODS[i]).catch(() => {})));
+  $('[data-page="records"]').addEventListener('click', () => loadRecords(RECORD_PERIODS[$$('.periods button').findIndex((b) => b.classList.contains('active'))] || 'today').catch(() => {}));
 
   // ---------- 會員選單：登出 ----------
   const logout = document.createElement('div');
