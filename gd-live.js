@@ -353,4 +353,8 @@
 
   // 先取得會員資料，公告才有已讀狀態
   if (api.isLoggedIn()) refresh().then(loadContent); else { loadContent(); showLogin(); }
+
+  // 從遊戲返回大廳（瀏覽器返回鍵會還原快取頁面）或切回此分頁時，重新取得餘額
+  window.addEventListener('pageshow', (e) => { if (e.persisted) refresh(); });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') refresh(); });
 })();

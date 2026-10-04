@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gd-lobby-v11';
+const CACHE_NAME = 'gd-lobby-v12';
 const APP_SHELL = [
   './',
   './index.html',
@@ -49,6 +49,22 @@ self.addEventListener('fetch', event => {
           return response;
         })
         .catch(() => caches.match(request).then(response => response || caches.match('./index.html')))
+    );
+    return;
+  }
+
+  // 程式檔（js）走網路優先：部署新版後手機立刻拿到，離線時才用快取
+  if (request.destination === 'script' || url.pathname.endsWith('.js')) {
+    event.respondWith(
+      fetch(request)
+        .then(response => {
+          if (response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(request, copy));
+          }
+          return response;
+        })
+        .catch(() => caches.match(request))
     );
     return;
   }
