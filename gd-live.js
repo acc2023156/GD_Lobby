@@ -350,7 +350,10 @@
     try {
       const from = me.mainAvailable;
       const r = await api.call(`/promotions/me/${p.id}/claim`, { method: 'POST' });
-      await coinBurst(button, $('#openWallet .coin'));
+      // 動畫被暫停（背景分頁）或玩家開了「減少動態效果」時不等動畫，入帳照常
+      if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        await Promise.race([coinBurst(button, $('#openWallet .coin')), new Promise((r) => setTimeout(r, 2500))]);
+      }
       countUp($('#balance'), from, from + Number(r.returned));
       await refresh();
     } catch (err) { toast(err.message); button.disabled = false; }
