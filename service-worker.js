@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gd-lobby-v11';
+const CACHE_NAME = 'gd-lobby-v12';
 const APP_SHELL = [
   './',
   './index.html',
@@ -40,7 +40,8 @@ self.addEventListener('fetch', event => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
-  if (request.mode === 'navigate') {
+  // 頁面與程式先抓網路最新版，離線時才用快取；圖片等素材才用快取優先
+  if (request.mode === 'navigate' || request.destination === 'script' || request.destination === 'style') {
     event.respondWith(
       fetch(request)
         .then(response => {
@@ -48,7 +49,7 @@ self.addEventListener('fetch', event => {
           caches.open(CACHE_NAME).then(cache => cache.put(request, copy));
           return response;
         })
-        .catch(() => caches.match(request).then(response => response || caches.match('./index.html')))
+        .catch(() => caches.match(request).then(response => response || (request.mode === 'navigate' ? caches.match('./index.html') : Response.error())))
     );
     return;
   }
