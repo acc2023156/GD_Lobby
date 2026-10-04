@@ -112,6 +112,7 @@
     $('.wallet-summary b').textContent = coins(me.mainAvailable);
     $('.shop-balance span').textContent = 'VIP ' + level;
     $('.shop-balance b').textContent = 'G ' + coins(me.mainAvailable);
+    if (!$('#walletLayer').hidden) renderWallet();
     // 所屬家族
     loadMail().catch(() => {});
     api.call('/families/me').then((f) => { me.family = f; rows[4].textContent = f.name; renderMyClan(); }).catch(() => { me.family = null; rows[4].textContent = '無'; renderMyClan(); });
@@ -244,6 +245,12 @@
     modalStatus.textContent = '正在取得遊戲連線…';
     modalStatus.hidden = false;
     try {
+      if (pendingOffer && $('input', offerCard)?.checked) {
+        modalStatus.textContent = '正在鎖定優惠錢包…';
+        await api.call(`/promotions/${pendingOffer.promotionId}/accept`, { method: 'POST', body: { tierIdx: pendingOffer.tierIdx, gameId }, idempotent: true });
+        pendingOffer = null;
+        modalStatus.textContent = '正在取得遊戲連線…';
+      }
       const { url } = await api.call('/game-sessions', { method: 'POST', body: { gameId, returnUrl: location.origin + location.pathname } });
       location.href = url;
     } catch (err) {
@@ -251,6 +258,161 @@
       playButton.disabled = false;
     }
   }, true);
+
+  // ---------- 優惠鎖定錢包：進遊戲前確認、錢包頁進度與領取 ----------
+  const HASH_PROVIDER = 'sha';
+  const GAME_NAMES = Object.fromEntries(Object.entries(HASH_GAMES).map(([name, id]) => [id, name]));
+  const OPEN_PROMO = ['ACTIVE', 'ACTIVE_STARTED', 'CLAIMABLE'];
+  const PROMO_STATUS = { ACTIVE: '尚未投注', ACTIVE_STARTED: '流水解鎖中', CLAIMABLE: '已達標，可領取' };
+  const promoStyle = document.createElement('style');
+  promoStyle.textContent = `
+    .gd-promo .progress span,.modal-progress span{transition:width 1.1s cubic-bezier(.34,1.56,.64,1)}
+    .gd-grow{animation:gdStretch .9s ease-out}
+    @keyframes gdStretch{0%{transform:scaleY(1)}35%{transform:scaleY(1.9)}60%{transform:scaleY(.8)}100%{transform:scaleY(1)}}
+    .gd-promo .wallet-config span{white-space:nowrap}
+    .gd-claim{display:block;width:100%;margin-top:10px;font:inherit;font-weight:900;border:0;border-radius:10px;padding:10px;cursor:pointer;background:linear-gradient(180deg,var(--gold),#e39b16);color:#4b251b;animation:gdPulse 1.4s ease-in-out infinite}
+    .gd-claim:disabled{animation:none;opacity:.6}
+    @keyframes gdPulse{0%,100%{transform:scale(1);box-shadow:0 0 0 #ffc64100}50%{transform:scale(1.04);box-shadow:0 0 14px #ffc641cc}}
+    .modal-offer label{display:flex;gap:6px;align-items:center;margin-top:8px;font-size:13px;font-weight:800}
+    .gd-coin{position:fixed;z-index:100;width:24px;height:24px;margin:-12px 0 0 -12px;border-radius:50%;pointer-events:none;background:radial-gradient(circle at 35% 30%,#fff7b0,#ffd23f 45%,#d48a0b);border:2px solid #fff0a0;box-shadow:0 2px 6px #0006}`;
+  document.head.appendChild(promoStyle);
+
+  const myPromotions = async () => (await api.call('/promotions/me')).promotions.filter((p) => OPEN_PROMO.includes(p.status));
+  const progressText = (p) => `進度 ${p.percent}%　${coins(p.progress)} / ${coins(p.wagerTarget)}`;
+  /** 進度條從上次的寬度伸縮到目前進度；有增加時加一下彈跳。 */
+  function growBar(bar, from, to) {
+    bar.style.width = from + '%';
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      bar.style.width = to + '%';
+      if (to > from) { bar.classList.remove('gd-grow'); void bar.offsetWidth; bar.classList.add('gd-grow'); }
+    }));
+  }
+
+  // 進遊戲前的確認：已有鎖定錢包就顯示進度；否則顯示可領優惠，預設勾選，進入遊戲時鎖定
+  // 原本的展示卡片留給其他遊戲；有串後端的遊戲改用這張
+  const demoOffer = $('.modal-offer');
+  const offerCard = document.createElement('article');
+  offerCard.className = 'modal-offer';
+  offerCard.hidden = true;
+  demoOffer.after(offerCard);
+  let pendingOffer = null;
+  async function prepareOffer() {
+    pendingOffer = null;
+    const gameId = HASH_GAMES[selectedGame];
+    demoOffer.hidden = Boolean(gameId);
+    offerCard.hidden = true;
+    if (!gameId || !me) return;
+    try {
+      const locked = (await myPromotions()).find((p) => p.provider === HASH_PROVIDER && p.gameId === gameId);
+      if (locked) {
+        offerCard.innerHTML = `<b>${esc(locked.promotion)}</b><small>鎖定錢包・${PROMO_STATUS[locked.status]}</small><strong>${coins(locked.balance.total)}</strong><div class="modal-progress"><span></span></div><em>${progressText(locked)}</em>`;
+        offerCard.hidden = false;
+        growBar($('.modal-progress span', offerCard), 0, locked.percent);
+        return;
+      }
+      const { offers } = await api.call(`/promotions/offers?provider=${HASH_PROVIDER}&gameId=${gameId}`);
+      for (const o of offers) {
+        // 不讓玩家選金額：主錢包付得起的最高方案
+        const tier = [...o.tiers].sort((a, b) => b.principal - a.principal).find((t) => t.principal <= me.mainAvailable);
+        if (!tier) continue;
+        pendingOffer = { promotionId: o.id, tierIdx: tier.idx };
+        offerCard.innerHTML = `<b>${esc(o.name)}</b><small>本金 ${coins(tier.principal)} ＋ 優惠 ${coins(tier.bonus)}，流水達 ${coins(tier.wagerTarget)} 可領回</small><strong>${coins(tier.principal + tier.bonus)}</strong><label><input type="checkbox" checked> 使用此優惠（主錢包扣 ${coins(tier.principal)}）</label><em>下注先扣優惠金幣；開始下注後不可退回，完成流水才能領回主錢包。</em>`;
+        offerCard.hidden = false;
+        return;
+      }
+    } catch (err) { console.warn('offers', err); }
+  }
+  new MutationObserver(() => { if (dialog.open) prepareOffer(); }).observe(dialog, { attributes: true, attributeFilter: ['open'] });
+
+  // 錢包頁：鎖定錢包列表、進度、領取
+  const walletLayer = $('#walletLayer');
+  const walletNote = $('.wallet-note', walletLayer);
+  const lastPercent = new Map();
+  async function renderWallet() {
+    if (!me) return;
+    let list;
+    try { list = await myPromotions(); } catch (err) { console.warn('promotions', err); return; }
+    $$('.unlock-row', walletLayer).forEach((row) => row.remove());
+    walletNote.textContent = list.length ? '優惠金幣只能在指定遊戲使用；下注先扣優惠金幣，完成流水後可領回主錢包。' : '目前沒有進行中的優惠。進入有優惠的遊戲時可以領取。';
+    walletNote.insertAdjacentHTML('beforebegin', list.map((p) => `<article class="unlock-row gd-promo" data-promo="${esc(p.id)}"><div><b>${esc(GAME_NAMES[p.gameId] || p.gameId)}</b><small>${esc(p.promotion)}・${PROMO_STATUS[p.status]}</small></div><strong>${coins(p.balance.total)}</strong><div class="progress"><span></span></div><em>${progressText(p)}</em><div class="wallet-config"><span>本金 ${coins(p.balance.cash)}</span><span>優惠 ${coins(p.balance.bonus)}</span><span>派彩 ${coins(p.balance.winnings)}</span></div>${
+      p.status === 'CLAIMABLE' ? `<button class="gd-claim">領取 ${coins(p.balance.total)} G幣</button>` : p.activationDeadline ? `<small>${time(p.activationDeadline)} 前未下注，將退回本金並收回優惠</small>` : ''}</article>`).join(''));
+    list.forEach((p) => {
+      const row = $(`[data-promo="${p.id}"]`, walletLayer);
+      growBar($('.progress span', row), lastPercent.get(p.id) ?? 0, p.percent);
+      lastPercent.set(p.id, p.percent);
+      const claim = $('.gd-claim', row);
+      if (claim) claim.onclick = () => claimPromotion(p, claim);
+    });
+  }
+
+  async function claimPromotion(p, button) {
+    button.disabled = true;
+    try {
+      const from = me.mainAvailable;
+      const r = await api.call(`/promotions/me/${p.id}/claim`, { method: 'POST' });
+      // 動畫被暫停（背景分頁）或玩家開了「減少動態效果」時不等動畫，入帳照常
+      if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        await Promise.race([coinBurst(button, $('#openWallet .coin')), new Promise((r) => setTimeout(r, 2500))]);
+      }
+      countUp($('#balance'), from, from + Number(r.returned));
+      await refresh();
+    } catch (err) { toast(err.message); button.disabled = false; }
+  }
+
+  /** 金幣從領取按鈕飛到右上角錢包，每顆落地有音效。 */
+  function coinBurst(fromEl, toEl, count = 12) {
+    const a = fromEl.getBoundingClientRect(), b = toEl.getBoundingClientRect();
+    const start = { x: a.left + a.width / 2, y: a.top + a.height / 2 }, end = { x: b.left + b.width / 2, y: b.top + b.height / 2 };
+    const flights = Array.from({ length: count }, (_, i) => {
+      const coin = document.createElement('i');
+      coin.className = 'gd-coin';
+      coin.style.left = start.x + 'px';
+      coin.style.top = start.y + 'px';
+      document.body.appendChild(coin);
+      const spread = (Math.random() - 0.5) * 140, lift = 60 + Math.random() * 60;
+      const dx = end.x - start.x, dy = end.y - start.y;
+      const anim = coin.animate([
+        { transform: 'translate(0,0) scale(.6)', opacity: 0 },
+        { transform: `translate(${spread}px,${-lift}px) scale(1.15)`, opacity: 1, offset: 0.35 },
+        { transform: `translate(${dx}px,${dy}px) scale(.7)`, opacity: 1 },
+      ], { duration: 750 + Math.random() * 250, delay: i * 55, easing: 'cubic-bezier(.5,0,.6,1)' });
+      return anim.finished.then(() => { coin.remove(); coinSound(); popCoin(toEl); });
+    });
+    return Promise.all(flights);
+  }
+
+  function popCoin(el) { el.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.35)' }, { transform: 'scale(1)' }], { duration: 220 }); }
+
+  let audio;
+  function coinSound() {
+    if (!$('#musicSwitch')?.classList.contains('on')) return;
+    try {
+      audio ||= new (window.AudioContext || window.webkitAudioContext)();
+      const t = audio.currentTime;
+      [[988, 0], [1319, 0.07]].forEach(([freq, at]) => {
+        const osc = audio.createOscillator(), gain = audio.createGain();
+        osc.type = 'square';
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.06, t + at);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + at + 0.18);
+        osc.connect(gain).connect(audio.destination);
+        osc.start(t + at);
+        osc.stop(t + at + 0.2);
+      });
+    } catch { /* 瀏覽器不支援音效時略過 */ }
+  }
+
+  function countUp(el, from, to, ms = 800) {
+    const t0 = performance.now();
+    const step = (now) => {
+      const k = Math.min(1, (now - t0) / ms);
+      el.textContent = coins(Math.floor((from + (to - from) * (1 - (1 - k) ** 3)) * 100) / 100);
+      if (k < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+
+  $('#openWallet').addEventListener('click', () => renderWallet());
 
   // ---------- 活動輪播、獎勵活動、公告（後台有資料才取代展示內容） ----------
   async function loadBanners() {

@@ -27,6 +27,11 @@ window.GD_API = (() => {
     ERR_CODE_EXHAUSTED: '兌換碼已被領完',
     ERR_CODE_VIP_REQUIRED: 'VIP 等級不足，無法使用這個兌換碼',
     ERR_NOTHING_TO_CLAIM: '這封信沒有可領取的獎勵',
+    ERR_PROMOTION_NOT_AVAILABLE: '這個優惠已結束或不符資格',
+    ERR_PROMOTION_LIMIT: '進行中的優惠已達上限',
+    ERR_PROMOTION_ALREADY_TAKEN: '這個優惠已經領過了',
+    ERR_PROMOTION_NOT_CLAIMABLE: '流水尚未達標，暫時不能領取',
+    ERR_PROMOTION_VIP_TOO_LOW: 'VIP 等級不足，無法參加這個優惠',
   };
 
   async function call(path, { method = 'GET', body, idempotent } = {}) {
