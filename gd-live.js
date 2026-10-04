@@ -241,6 +241,10 @@
     e.stopImmediatePropagation();
     if (!requireLogin()) { dialog.close(); return; }
     playButton.disabled = true;
+    // 有這款遊戲的優惠時先讓玩家確認（gd-promo.js）；查詢失敗不擋玩家進遊戲
+    try {
+      if (window.GD_PROMO && !(await window.GD_PROMO.confirmPromotion('sha', gameId, selectedGame))) { playButton.disabled = false; return; }
+    } catch { /* 略過優惠，直接進遊戲 */ }
     modalStatus.textContent = '正在取得遊戲連線…';
     modalStatus.hidden = false;
     try {
@@ -353,6 +357,9 @@
 
   // 先取得會員資料，公告才有已讀狀態
   if (api.isLoggedIn()) refresh().then(loadContent); else { loadContent(); showLogin(); }
+
+  // 優惠領回等其他模組更新餘額時通知
+  document.addEventListener('gd:refresh', () => refresh());
 
   // 從遊戲返回大廳（瀏覽器返回鍵會還原快取頁面）或切回此分頁時，重新取得餘額
   window.addEventListener('pageshow', (e) => { if (e.persisted) refresh(); });
