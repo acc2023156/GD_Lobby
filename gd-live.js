@@ -109,9 +109,8 @@
     const v = me.vipProgress;
     const level = v.level;
     me.vip.level = level; // /me/vip 已依最新儲值與投注重算
-    // 儲值或有效投注任一達標即升級：進度取兩者較高者
-    const ratio = (have, need) => (need > 0 ? have / need : 0);
-    const pct = v.next ? Math.min(100, Math.floor(Math.max(ratio(v.rollingDepositNtd, v.next.thresholdNtd), ratio(v.rollingWager, v.next.wagerThreshold)) * 100)) : 100;
+    // VIP 只看近 60 日有效投注
+    const pct = v.next ? Math.min(100, Math.floor((v.rollingWager / v.next.wagerThreshold) * 100)) : 100;
     // Header
     $('#openProfile b').textContent = name;
     $('#openProfile small').textContent = 'VIP ' + level;
@@ -128,7 +127,7 @@
     rows[0].textContent = me.profile.aid;
     rows[1].textContent = coins(me.mainAvailable);
     rows[2].textContent = me.profile.phone;
-    if (rows[5]) rows[5].innerHTML = v.next ? `儲值 ${num(v.rollingDepositNtd)} / ${num(v.next.thresholdNtd)}<br>投注 ${coins(v.rollingWager)} / ${num(v.next.wagerThreshold)}<br><small>任一達標升 VIP ${v.next.level}</small>` : '已達最高等級';
+    rows[5].innerHTML = v.next ? `投注 ${coins(v.rollingWager)} / ${num(v.next.wagerThreshold)}<br><small>達標升 VIP ${v.next.level}</small>` : `投注 ${coins(v.rollingWager)}<br><small>已達最高等級</small>`;
     $('.profile-list li button').onclick = () => navigator.clipboard?.writeText(me.profile.aid);
     // 錢包與商城
     $('.wallet-summary b').textContent = coins(me.mainAvailable);
@@ -280,6 +279,9 @@
     .gd-chat .conv small{display:block;color:#aeb8e8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:240px}
     .gd-chat form{display:flex;gap:8px;padding:10px;border-top:1px solid #35406d}
     .gd-chat form input{flex:1;width:0;font:inherit;padding:10px;border-radius:10px;border:1px solid #4d5688;background:#0d1430;color:#f8faff}
+    .clan-detail .clan-back{position:static;display:block;margin:10px 12px}
+    .promo-bar{height:8px;border-radius:99px;background:#ffffff1f;overflow:hidden;margin:2px 0}
+    .promo-bar i{display:block;height:100%;background:linear-gradient(90deg,#783dff,#ff3d9e)}
     .gd-chat .msg.sys{align-self:center;max-width:90%;background:#ffffff14;border-radius:999px;padding:5px 12px;font-size:12px;color:#c9d0f5;text-align:center}
     .gd-chat .msg.sys.join{background:linear-gradient(90deg,#783dff55,#ff3d9e55);color:#ffe7a3}
     .gd-chat .msg.sys small{display:inline;margin:0 0 0 6px}
@@ -313,6 +315,7 @@
     .gw-card{background:#151d42;border-radius:12px;padding:10px 12px;text-align:left;display:grid;gap:6px}
     .gw-card div{display:flex;justify-content:space-between;gap:8px}.gw-card small{color:#aeb8e8}.gw-card b{color:#ffd166}`;
   document.head.appendChild(familyStyle);
+  clanDetail.prepend($('#clanBack'));
 
   /** 後端家族資料轉成主程式 clans 的格式（多一欄 id 供查詢明細）。 */
   async function loadClans() {
@@ -484,6 +487,7 @@
   async function loadMyFamily() {
     me.family = await api.call('/families/me').catch(() => null);
     $$('.profile-list li strong')[4].textContent = me.family ? me.family.name : '無';
+    $$('.profile-list li button')[4].textContent = me.family ? '管理' : '加入';
     await renderMyClan().catch(() => {});
   }
 
@@ -517,7 +521,6 @@
         <button class="fam-btn" data-room>💬 家族聊天${chat.unread ? `<span class="fam-badge">${chat.unread}</span>` : ''}</button>
         <button class="fam-btn ghost" data-inbox>關注／私訊</button>
         ${officer ? '<button class="fam-btn" data-invite>＋ 邀請成員</button>' : ''}
-        <button class="fam-btn danger" data-leave>${f.myRole === 'LEADER' && f.members.length === 1 ? '解散家族' : '退出家族'}</button>
       </div>
       <div class="fam-section"><h4>我的貢獻 <small>加入後累計有效投注 ${coins(c.total)}</small></h4><div class="fam-contrib">${CONTRIB.map(([k, t]) => `<div><small>${t}</small><b>${coins(c[k])}</b></div>`).join('')}</div></div>
       ${applications.length ? `<div class="fam-section"><h4>入族申請（${applications.length}）</h4>${applications.map((a) => `<div class="fam-apply"><span>${esc(a.nickname || 'GD會員')} <small>UID ${esc(a.aid)}・VIP ${a.vip_level}</small></span><span><button class="gd-act" data-decide="${esc(a.id)}" data-to="approve">同意</button><button class="gd-act gray" data-decide="${esc(a.id)}" data-to="reject">拒絕</button></span></div>`).join('')}</div>` : ''}
@@ -527,7 +530,6 @@
     $('[data-inbox]', panel).onclick = () => openInbox();
     if ($('[data-notice]', panel)) $('[data-notice]', panel).onclick = () => noticeSheet(f);
     if ($('[data-invite]', panel)) $('[data-invite]', panel).onclick = () => inviteSheet().catch((err) => toast(err.message));
-    $('[data-leave]', panel).onclick = () => { if (confirm(f.myRole === 'LEADER' && f.members.length > 1 ? '家族長需先移交職位才能退出。仍要繼續？' : '確定退出家族？')) familyAction('/families/me/leave', { method: 'POST' }, '已退出家族'); };
     $$('[data-decide]', panel).forEach((b) => (b.onclick = () => familyAction(`/families/me/applications/${b.dataset.decide}/${b.dataset.to}`, { method: 'POST' }, b.dataset.to === 'approve' ? '已同意加入' : '已拒絕')));
   }
 
@@ -1106,20 +1108,24 @@
   let referral = null;
   async function loadReferral() {
     referral = await api.call('/referrals/me');
-    $$('.profile-list li strong')[3].textContent = referral.referrer ? `${referral.referrer.nickname || 'GD會員'}（${referral.referrer.aid}）` : '無';
-    renderReferralTable();
+    const r = referral;
+    $$('.profile-list li strong')[3].textContent = r.referrer ? `${r.referrer.nickname || 'GD會員'}（${r.referrer.aid}）` : '無';
+    $$('.profile-list li button')[3].hidden = Boolean(r.referrer) || !r.canBind;
   }
 
-  /** 推薦表：我推薦的會員、首儲與獎勵。 */
-  function renderReferralTable() {
-    const page = $('[data-panel="referral"]');
-    const r = referral;
-    $('.ref-tools', page).innerHTML = `<span>推薦人數 ${r.totals.count}・已首儲 ${r.totals.deposited}・累計獎勵 ${coins(r.totals.earned)}</span>`;
-    $('.data-table', page).innerHTML = `<thead><tr><th>暱稱</th><th>加入日</th><th>首儲</th><th>獎勵</th></tr></thead><tbody>${r.referred.map((x) => `<tr><td>${esc(x.nickname || 'GD會員')}<br><small>${esc(x.aid)}</small></td><td>${day(x.referred_at)}</td><td>${x.status ? esc(REF_STATUS[x.status]) : '尚未儲值'}</td><td>${x.status === 'PAID' ? coins(x.referrer_amount) : '—'}</td></tr>`).join('')}</tbody>`;
-    $('.empty', page).style.display = r.referred.length ? 'none' : '';
-    $('.empty', page).textContent = '還沒有推薦的會員，按「推薦分享」分享你的連結';
-    $('.page-note', page).textContent = `好友用你的推薦碼加入，首儲滿 ${num(r.rules.minDepositNtd)} 元，雙方各得 ${coins(r.rules.referrerReward)} 金幣`;
+  /** 我推薦的會員：首儲與獎勵（推薦分享頁內）。 */
+  const referralList = (r) => `<div class="fam-section"><h4>我的推薦（${r.totals.count} 人・已首儲 ${r.totals.deposited}・累計 ${coins(r.totals.earned)}）</h4>${r.referred.length
+    ? `<table class="data-table"><thead><tr><th>暱稱</th><th>加入日</th><th>首儲</th><th>獎勵</th></tr></thead><tbody>${r.referred.map((x) => `<tr><td>${esc(x.nickname || 'GD會員')}<br><small>${esc(x.aid)}</small></td><td>${day(x.referred_at)}</td><td>${x.status ? esc(REF_STATUS[x.status]) : '尚未儲值'}</td><td>${x.status === 'PAID' ? coins(x.referrer_amount) : '—'}</td></tr>`).join('')}</tbody></table>`
+    : '<small>還沒有推薦的會員</small>'}</div>`;
+
+  // ---------- 會員中心：優惠紀錄（近一個月領取與進行中） ----------
+  const PROMO_STATE = { ACTIVE: '進行中', ACTIVE_STARTED: '進行中', CLAIMABLE: '可領取', CLAIMED: '已領取', EXPIRED_UNUSED: '已過期', FORCED_SETTLEMENT_REVIEW: '結算審核中', FORCED_SETTLED: '已結算' };
+  async function loadPromoRecords() {
+    const { promotions } = await api.call('/promotions/me?days=30');
+    $('#promoRows').innerHTML = promotions.map((p) => `<tr><td>${esc(p.promotion)}<br><small>${esc(PROMO_STATE[p.status] || p.status)}</small></td><td><div class="promo-bar"><i style="width:${p.percent}%"></i></div><small>${p.percent}%</small></td><td>${day(p.acceptedAt)}${p.closedAt ? `<br><small>${day(p.closedAt)} 結束</small>` : ''}</td></tr>`).join('')
+      || '<tr><td colspan="3" style="text-align:center">近一個月沒有優惠紀錄</td></tr>';
   }
+  $('[data-page="referral"]').addEventListener('click', () => { if (me) loadPromoRecords().catch((err) => toast(err.message)); });
 
   async function copyText(text, done) {
     try { await navigator.clipboard.writeText(text); toast(done); } catch { prompt('請複製連結', text); }
@@ -1143,7 +1149,7 @@
     const bind = r.referrer ? `<small>推薦人：${esc(r.referrer.nickname || 'GD會員')}（${esc(r.referrer.aid)}）</small>`
       : r.canBind ? `<small>還沒有推薦人？${day(r.bindUntil)} 前可補填</small><div class="gd-search"><input name="code" inputmode="numeric" placeholder="推薦人 UID"><button class="fam-btn" data-bind>綁定</button></div>` : '<small>已超過可補填推薦人的期限</small>';
     const s = openSheet(`<h3>推薦分享</h3><div class="gw-card"><div><small>我的推薦碼</small><b>${esc(r.code)}</b></div><div><small>好友首儲滿 ${num(r.rules.minDepositNtd)} 元</small><b>雙方各得 ${coins(r.rules.referrerReward)}</b></div></div>
-      <small>${how}</small>${shareButtons(url, text)}${bind}`);
+      <small>${how}</small>${shareButtons(url, text)}${bind}${referralList(r)}`);
     bindShare(s, url, text);
     const b = $('[data-bind]', s);
     if (b) b.onclick = async () => {
@@ -1154,7 +1160,19 @@
   const refBtn = $('.person-actions button');
   refBtn.onclick = () => { if (requireLogin()) referralSheet().catch((err) => toast(err.message)); };
   $$('.profile-list li button')[3].onclick = refBtn.onclick;
-  $('[data-page="referral"]').addEventListener('click', () => { if (me) loadReferral().catch(() => {}); });
+
+  /** 會員中心「所屬家族」：未加入時開家族中心；已加入時可開啟家族或退出。 */
+  $$('.profile-list li button')[4].onclick = () => {
+    if (!requireLogin()) return;
+    const f = me.family;
+    if (!f) return $('#openClan').click();
+    const lone = f.myRole === 'LEADER' && f.members.length === 1;
+    const locked = f.lockedUntil && f.lockedUntil > new Date().toISOString();
+    const s = openSheet(`<h3>${esc(f.name)}</h3><small>我的身分：${ROLE[f.myRole]}${locked ? `・${day(f.lockedUntil)} 前不可退出（入會金幣）` : ''}</small>
+      <button class="fam-btn" data-open>開啟家族</button><button class="fam-btn danger" data-leave>${lone ? '解散家族' : '退出家族'}</button>`);
+    $('[data-open]', s).onclick = () => { s.hidden = true; $('#openClan').click(); };
+    $('[data-leave]', s).onclick = () => { if (confirm(f.myRole === 'LEADER' && !lone ? '家族長需先移交職位才能退出。仍要繼續？' : lone ? '確定解散家族？' : '確定退出家族？')) familyAction('/families/me/leave', { method: 'POST' }, lone ? '已解散家族' : '已退出家族'); };
+  };
 
   const logout = document.createElement('div');
   logout.innerHTML = '<span>會員帳號</span> <button>登出</button>';

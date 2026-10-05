@@ -1,8 +1,7 @@
-const CACHE_NAME = 'gd-lobby-v20';
+const CACHE_NAME = 'gd-lobby-v21';
 const APP_SHELL = [
   './',
   './index.html',
-  './boss88-mobile-lobby.html',
   './manifest.webmanifest',
   './favicon.svg',
   './icons/nav/exclusive.png',
@@ -40,9 +39,10 @@ self.addEventListener('fetch', event => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
+  // 頁面與程式檔一律跳過瀏覽器 HTTP 快取（GitHub Pages 預設快取 10 分鐘），部署後立即拿到新版
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request)
+      fetch(request.url, { cache: 'no-store', credentials: 'same-origin' })
         .then(response => {
           const copy = response.clone();
           caches.open(CACHE_NAME).then(cache => cache.put(request, copy));
@@ -56,7 +56,7 @@ self.addEventListener('fetch', event => {
   // 程式檔（js）走網路優先：部署新版後手機立刻拿到，離線時才用快取
   if (request.destination === 'script' || url.pathname.endsWith('.js')) {
     event.respondWith(
-      fetch(request)
+      fetch(request, { cache: 'no-store' })
         .then(response => {
           if (response.ok) {
             const copy = response.clone();
