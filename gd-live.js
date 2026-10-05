@@ -1,5 +1,5 @@
 /* 大廳串接真實會員資料（GD 會員後端）。
- * 未登入時保留原本的展示資料；登入後以後端資料覆蓋 Header、會員中心、錢包、商城儲值、禮物、家族與家族排行。
+ * 登入後以後端資料填入 Header、會員中心、錢包、商城儲值、禮物、家族（建立、邀請、私訊）與家族排行。
  * 本檔在 index.html 主程式之後載入，直接沿用主程式的 clans、rankData、renderClans 等變數與畫面。 */
 (() => {
   const api = window.GD_API;
@@ -12,6 +12,7 @@
   const time = (iso) => { const d = new Date(iso); return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
   const toast = (msg) => alert(msg);
   const ROLE = { LEADER: '家族長', VICE: '副家族長', MEMBER: '一般成員' };
+  const INVITE_STATUS = { ACCEPTED: '已加入家族', DECLINED: '已拒絕邀請', EXPIRED: '邀請已失效' };
   const GIFT_STATUS = { PENDING: '等待接受', ACCEPTED: '已完成', REJECTED: '已拒收', CANCELLED: '已撤回', EXPIRED: '已逾期' };
   let me = null;
 
@@ -115,7 +116,7 @@
     if (!$('#walletLayer').hidden) renderWallet();
     // 所屬家族
     loadMail().catch(() => {});
-    api.call('/families/me').then((f) => { me.family = f; rows[4].textContent = f.name; renderMyClan(); }).catch(() => { me.family = null; rows[4].textContent = '無'; renderMyClan(); });
+    loadMyFamily();
   }
 
   // ---------- 商城：模擬付款 → 後端模擬儲值 ----------
@@ -145,16 +146,17 @@
     if (!e.canSend) { lock.innerHTML = '<strong>VIP 2 以上即可贈禮</strong><span>儲值累積達 VIP 2 後開放。</span>'; return; }
     lock.className = 'gift-lock gd-send';
     lock.innerHTML = '<div><input name="aid" placeholder="對方 UID" inputmode="numeric"><input name="amount" type="number" min="0.01" step="0.01" placeholder="G幣"></div><button type="button">送出禮物</button>';
-    $('button', lock).onclick = async () => {
-      const toAid = $('[name=aid]', lock).value.trim();
-      const amount = Number($('[name=amount]', lock).value);
-      try {
-        const r = await api.call('/gifts', { method: 'POST', body: { toAid, amount }, idempotent: true });
-        toast(`已送出，對方接受後可收到 ${coins(r.receiveAmount)} G幣`);
-        await refresh();
-        renderGiftRules();
-      } catch (err) { toast(err.message); }
-    };
+    $('button', lock).onclick = async () => { if (await sendGift($('[name=aid]', lock).value.trim(), Number($('[name=amount]', lock).value))) renderGiftRules(); };
+  }
+
+  /** 送禮共用（禮物頁與家族成員）；成功回傳 true。 */
+  async function sendGift(toAid, amount) {
+    try {
+      const r = await api.call('/gifts', { method: 'POST', body: { toAid, amount }, idempotent: true });
+      toast(`已送出，對方接受後可收到 ${coins(r.receiveAmount)} G幣`);
+      await refresh();
+      return true;
+    } catch (err) { toast(err.message); return false; }
   }
 
   const nativeRenderGiftCenter = window.renderGiftCenter;
@@ -197,6 +199,51 @@
   $$('.gift-subtab').forEach((tab) => tab.addEventListener('click', () => { if (tab.dataset.giftSub === 'history') renderGiftHistory(); }));
 
   // ---------- 家族 ----------
+  const familyStyle = document.createElement('style');
+  familyStyle.textContent = `
+    .fam-actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;padding:0 12px 12px}
+    .fam-btn{font:inherit;font-weight:900;border:0;border-radius:10px;padding:9px 14px;cursor:pointer;background:linear-gradient(180deg,#ffd166,#e39b16);color:#4b251b;position:relative}
+    .fam-btn.ghost{background:#222b57;color:#ffd166;border:1px solid #ffd16688}
+    .fam-btn.danger{background:#3a1430;color:#ff8fb8;border:1px solid #ff3d9e66}
+    .fam-badge{position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;border-radius:9px;background:#ff3d9e;color:#fff;font-size:11px;line-height:18px;padding:0 4px}
+    .fam-form{display:grid;gap:10px;max-width:420px;margin:0 auto;padding:6px 4px;text-align:left}
+    .fam-form label{display:grid;gap:4px;color:#aeb8e8;font-size:13px}
+    .fam-form input{font:inherit;padding:10px;border-radius:10px;border:1px solid #4d5688;background:#0d1430;color:#f8faff}
+    .fam-crests{display:flex;flex-wrap:wrap;gap:6px}
+    .fam-crests button{width:42px;height:42px;border-radius:50%;border:2px solid #4d5688;background:#151d42;font-size:20px;cursor:pointer}
+    .fam-crests button.on{border-color:#ffd166;box-shadow:0 0 8px #ffd166}
+    .fam-note{color:#aeb8e8;font-size:12px;text-align:center;margin:4px 0 0}
+    .clan-member{background:#151d42;color:#f8faff;border:1px solid #2c3566}
+    .clan-member .fam-who{display:flex;align-items:center;gap:8px;text-align:left;background:none;border:0;color:inherit;font:inherit;cursor:pointer;padding:0}
+    .clan-member .fam-who b{font-weight:900}
+    .clan-member .fam-uid{color:#ffd166;text-decoration:underline;font-size:12px}
+    .clan-member small{color:#aeb8e8}
+    .fam-dot{width:8px;height:8px;border-radius:50%;background:#59607f;flex:none}
+    .fam-dot.on{background:#2fe39a;box-shadow:0 0 6px #2fe39a}
+    .fam-role{font-size:11px;border-radius:6px;padding:1px 6px;background:#783dff55;color:#d9c8ff}
+    .fam-section{padding:4px 12px 12px}
+    .fam-section h4{margin:6px 0 8px;color:#ffd166}
+    .fam-apply{display:flex;justify-content:space-between;align-items:center;gap:8px;background:#151d42;border-radius:9px;padding:8px 10px;margin-bottom:6px}
+    .fam-sheet,.gd-chat{position:fixed;inset:0;z-index:80;display:grid;place-items:center;padding:16px;background:#050817d9}
+    .fam-sheet[hidden],.gd-chat[hidden]{display:none}
+    .fam-sheet>div{width:min(360px,100%);background:linear-gradient(155deg,#171f49,#0d1430);border:2px solid #783dff;border-radius:18px;padding:18px;display:grid;gap:10px;color:#f8faff;text-align:center}
+    .fam-sheet h3{margin:0;color:#ffd166}
+    .fam-sheet input{font:inherit;padding:10px;border-radius:10px;border:1px solid #4d5688;background:#0d1430;color:#f8faff}
+    .gd-chat>div{width:min(460px,100%);height:min(640px,calc(100dvh - 32px));display:flex;flex-direction:column;background:linear-gradient(155deg,#171f49,#0d1430);border:2px solid #783dff;border-radius:22px;overflow:hidden;color:#f8faff}
+    .gd-chat header{display:flex;align-items:center;gap:8px;padding:10px 12px;background:linear-gradient(100deg,#783dff,#ff3d9e 60%,#ff8a3d)}
+    .gd-chat header b{flex:1;text-align:center}
+    .gd-chat header button{border:0;background:#0003;color:#fff;border-radius:8px;padding:6px 10px;font:inherit;font-weight:900;cursor:pointer}
+    .gd-chat .chat-body{flex:1;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:8px}
+    .gd-chat .msg{max-width:78%;align-self:flex-start;background:#222b57;border-radius:12px 12px 12px 4px;padding:8px 10px;white-space:pre-wrap;word-break:break-word}
+    .gd-chat .msg.mine{align-self:flex-end;background:#783dff;border-radius:12px 12px 4px 12px}
+    .gd-chat .msg small{display:block;color:#ffffffaa;font-size:11px;margin-bottom:2px}
+    .gd-chat .conv{display:flex;justify-content:space-between;gap:8px;align-items:center;text-align:left;background:#151d42;border:1px solid #2c3566;border-radius:10px;padding:10px;color:inherit;font:inherit;cursor:pointer}
+    .gd-chat .conv small{display:block;color:#aeb8e8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:240px}
+    .gd-chat form{display:flex;gap:8px;padding:10px;border-top:1px solid #35406d}
+    .gd-chat form input{flex:1;width:0;font:inherit;padding:10px;border-radius:10px;border:1px solid #4d5688;background:#0d1430;color:#f8faff}
+    .gd-chat .chat-safe{font-size:11px;color:#aeb8e8;text-align:center;padding:6px 10px 0}`;
+  document.head.appendChild(familyStyle);
+
   /** 後端家族資料轉成主程式 clans 的格式（多一欄 id 供查詢明細）。 */
   async function loadClans() {
     if (!me) return;
@@ -205,9 +252,7 @@
     rankData.family = families.map((f) => [f.name, f.crest || '⚔️', num(f.exp)]);
   }
 
-  const nativeShowClan = window.showClan;
   window.showClan = async function (c) {
-    if (!me || !c[6]) return nativeShowClan(c);
     const f = await api.call('/families/' + c[6]);
     $('#detailCrest').innerHTML = familyIcon(esc(f.crest || '⚔️'));
     $('#detailName').textContent = f.name;
@@ -215,22 +260,182 @@
     $('#detailLevel').textContent = f.level;
     $('#detailRep').textContent = num(f.exp);
     $('#detailMembers').textContent = `${f.members.length} / ${f.max_members}`;
-    $('#clanMembers').innerHTML = memberRows(f.members);
+    const apply = me && !me.family ? `<div class="fam-actions"><button class="fam-btn" data-apply="${esc(f.id)}">申請加入</button></div>` : '';
+    $('#clanMembers').innerHTML = apply + memberRows(f.members, false);
+    bindMemberRows($('#clanMembers'));
+    const btn = $('[data-apply]', $('#clanMembers'));
+    if (btn) btn.onclick = async () => {
+      try { await api.call(`/families/${btn.dataset.apply}/applications`, { method: 'POST' }); toast('已送出申請，等待家族長審核'); } catch (err) { toast(err.message); }
+    };
     clanDetail.hidden = false;
   };
 
-  const memberRows = (members) => members.map((m) => `<div class="clan-member"><span>${ROLE[m.role]}　${esc(m.nickname || m.aid)}　<small>VIP ${m.vip_level}</small></span><small>貢獻 ${num(m.contribution)}</small></div>`).join('');
+  /** 成員列表；點 UID 開啟私訊／送禮（自己除外）。 */
+  const memberRows = (members, manage) => members.map((m) => `<div class="clan-member">
+      <button class="fam-who" data-member="${esc(m.aid)}" data-name="${esc(m.nickname || m.aid)}" data-role="${m.role}"${manage ? ' data-manage' : ''}>
+        <i class="fam-dot${m.online ? ' on' : ''}"></i><span><b>${esc(m.nickname || 'GD會員')}</b> <span class="fam-role">${ROLE[m.role]}</span><br><span class="fam-uid">UID ${esc(m.aid)}</span>　<small>VIP ${m.vip_level}</small></span>
+      </button><small>貢獻 ${num(m.contribution)}</small></div>`).join('');
 
-  function renderMyClan() {
-    const panel = $('[data-clan-panel="mine"]');
-    const f = me?.family;
-    if (!f) return;
-    panel.innerHTML = `<div class="clan-detail-head"><div class="clan-crest">${familyIcon(esc(f.crest || '⚔️'))}</div><h3>${esc(f.name)}</h3><span>${esc(f.notice || f.slogan || '')}</span></div>
-      <div class="clan-detail-stats"><div><small>家族等級</small><b>${f.level}</b></div><div><small>家族聲望</small><b>${num(f.exp)}</b></div><div><small>家族公款</small><b>${coins(f.fund)}</b></div></div>
-      <div class="clan-members"><h4>我的身分：${ROLE[f.myRole]}　成員 ${f.members.length} / ${f.max_members}</h4>${memberRows(f.members)}</div>`;
+  function bindMemberRows(root) {
+    $$('[data-member]', root).forEach((b) => (b.onclick = () => {
+      if (!me || b.dataset.member === me.profile.aid) return;
+      memberSheet({ aid: b.dataset.member, name: b.dataset.name, role: b.dataset.role, manage: b.hasAttribute('data-manage') });
+    }));
   }
 
-  $('#openClan').addEventListener('click', async () => { if (!requireLogin()) return; await loadClans(); renderClans($('#clanSearch').value.trim()); });
+  // 小視窗：成員動作、送禮、邀請、建立家族共用
+  const sheet = document.createElement('section');
+  sheet.className = 'fam-sheet';
+  sheet.hidden = true;
+  document.body.appendChild(sheet);
+  sheet.onclick = (e) => { if (e.target === sheet) sheet.hidden = true; };
+  const openSheet = (html) => { sheet.innerHTML = `<div>${html}<button class="fam-btn ghost" data-close>關閉</button></div>`; $('[data-close]', sheet).onclick = () => (sheet.hidden = true); sheet.hidden = false; return sheet; };
+
+  function memberSheet(m) {
+    const f = me.family;
+    const sameFamily = f && f.members.some((x) => x.aid === m.aid);
+    const isLeader = f?.myRole === 'LEADER';
+    const canKick = m.manage && (isLeader || (f?.myRole === 'VICE' && m.role === 'MEMBER'));
+    const s = openSheet(`<h3>${esc(m.name)}</h3><small>UID ${esc(m.aid)}</small>
+      ${sameFamily ? '<button class="fam-btn" data-act="chat">💬 私訊</button>' : ''}
+      <button class="fam-btn" data-act="gift">🎁 送禮</button>
+      ${m.manage && isLeader ? `<button class="fam-btn ghost" data-act="role">${m.role === 'VICE' ? '改為一般成員' : '任命副家族長'}</button>` : ''}
+      ${canKick ? '<button class="fam-btn danger" data-act="kick">移出家族</button>' : ''}`);
+    const act = (name, fn) => { const b = $(`[data-act="${name}"]`, s); if (b) b.onclick = fn; };
+    act('chat', () => { sheet.hidden = true; openChat(m.aid, m.name); });
+    act('gift', () => giftSheet(m.aid, m.name));
+    act('role', () => familyAction(`/families/me/members/${m.aid}/role`, { method: 'PUT', body: { role: m.role === 'VICE' ? 'MEMBER' : 'VICE' } }, '已更新職位'));
+    act('kick', () => { if (confirm(`確定將 ${m.name} 移出家族？`)) familyAction(`/families/me/members/${m.aid}/kick`, { method: 'POST' }, '已移出家族'); });
+  }
+
+  /** 家族操作共用：呼叫後重新整理家族面板。 */
+  async function familyAction(path, opts, done) {
+    try { await api.call(path, opts); sheet.hidden = true; await refresh(); if (done) toast(done); } catch (err) { toast(err.message); }
+  }
+
+  function giftSheet(toAid, name) {
+    const s = openSheet(`<h3>送禮給 ${esc(name)}</h3><small>主錢包可用 ${coins(me.mainAvailable)} G幣，手續費由送出金額內扣</small>
+      <input name="amount" type="number" min="0.01" step="0.01" placeholder="G幣"><button class="fam-btn" data-send>送出禮物</button>`);
+    $('[data-send]', s).onclick = async () => { if (await sendGift(toAid, Number($('[name=amount]', s).value))) sheet.hidden = true; };
+  }
+
+  function inviteSheet() {
+    const s = openSheet(`<h3>邀請成員</h3><small>輸入對方 UID，對方會在信箱收到邀請信</small><input name="aid" inputmode="numeric" placeholder="對方 UID"><button class="fam-btn" data-send>寄出邀請</button>`);
+    $('[data-send]', s).onclick = () => familyAction('/families/me/invites', { method: 'POST', body: { aid: $('[name=aid]', s).value.trim() } }, '已寄出邀請信');
+  }
+
+  async function createSheet() {
+    const { crests, createMinVip } = await api.call('/families/crests');
+    let crest = crests[0];
+    const s = openSheet(`<h3>建立家族</h3><div class="fam-form">
+      <label>家族名稱（2–16 字）<input name="name" maxlength="16"></label>
+      <label>家族標語<input name="slogan" maxlength="60" placeholder="一起挑戰本週目標"></label>
+      <label>家族徽章<div class="fam-crests">${crests.map((c, i) => `<button type="button" data-crest="${c}" class="${i ? '' : 'on'}">${c}</button>`).join('')}</div></label>
+      </div><p class="fam-note">VIP ${createMinVip} 以上可建立家族${me.vip.level < createMinVip ? `（目前 VIP ${me.vip.level}）` : ''}</p><button class="fam-btn" data-send>建立家族</button>`);
+    $$('[data-crest]', s).forEach((b) => (b.onclick = () => { crest = b.dataset.crest; $$('[data-crest]', s).forEach((x) => x.classList.toggle('on', x === b)); }));
+    $('[data-send]', s).onclick = () => familyAction('/families', { method: 'POST', body: { name: $('[name=name]', s).value, slogan: $('[name=slogan]', s).value, crest } }, '家族建立成功');
+  }
+
+  /** 重新讀取所屬家族，更新會員中心與「我的家族」。 */
+  async function loadMyFamily() {
+    me.family = await api.call('/families/me').catch(() => null);
+    $$('.profile-list li strong')[4].textContent = me.family ? me.family.name : '無';
+    await renderMyClan().catch(() => {});
+  }
+
+  async function renderMyClan() {
+    const panel = $('[data-clan-panel="mine"]');
+    const f = me?.family;
+    if (!f) {
+      panel.innerHTML = `<div class="clan-empty"><div><div class="crest">⚔️</div><strong>尚未加入家族</strong><p>建立自己的家族，或到「所有家族」申請加入。<br>收到家族邀請信時，可在信箱直接加入。</p>
+        <div class="fam-actions">${me ? '<button class="fam-btn" data-create>建立家族</button>' : ''}<button class="fam-btn ghost" data-browse>瀏覽所有家族</button></div></div></div>`;
+      const create = $('[data-create]', panel);
+      if (create) create.onclick = () => createSheet().catch((err) => toast(err.message));
+      $('[data-browse]', panel).onclick = () => $('[data-clan-page="all"]').click();
+      return;
+    }
+    const officer = f.myRole !== 'MEMBER';
+    const [applications, chat] = await Promise.all([
+      officer ? api.call('/families/me/applications').then((r) => r.applications).catch(() => []) : [],
+      api.call('/chat').catch(() => ({ unread: 0 })),
+    ]);
+    panel.innerHTML = `<div class="clan-detail-head"><div class="clan-crest">${familyIcon(esc(f.crest || '⚔️'))}</div><h3>${esc(f.name)}</h3><span>${esc(f.notice || f.slogan || '')}</span></div>
+      <div class="clan-detail-stats"><div><small>家族等級</small><b>${f.level}</b></div><div><small>家族聲望</small><b>${num(f.exp)}</b></div><div><small>家族公款</small><b>${coins(f.fund)}</b></div></div>
+      <div class="fam-actions">
+        <button class="fam-btn" data-room>💬 家族聊天${chat.unread ? `<span class="fam-badge">${chat.unread}</span>` : ''}</button>
+        <button class="fam-btn ghost" data-inbox>私訊列表</button>
+        ${officer ? '<button class="fam-btn" data-invite>＋ 邀請成員</button>' : ''}
+        <button class="fam-btn danger" data-leave>${f.myRole === 'LEADER' && f.members.length === 1 ? '解散家族' : '退出家族'}</button>
+      </div>
+      ${applications.length ? `<div class="fam-section"><h4>入族申請（${applications.length}）</h4>${applications.map((a) => `<div class="fam-apply"><span>${esc(a.nickname || 'GD會員')} <small>UID ${esc(a.aid)}・VIP ${a.vip_level}</small></span><span><button class="gd-act" data-decide="${esc(a.id)}" data-to="approve">同意</button><button class="gd-act gray" data-decide="${esc(a.id)}" data-to="reject">拒絕</button></span></div>`).join('')}</div>` : ''}
+      <div class="clan-members"><h4>我的身分：${ROLE[f.myRole]}　成員 ${f.members.length} / ${f.max_members}　<small>點成員可私訊或送禮</small></h4>${memberRows(f.members, officer)}</div>`;
+    bindMemberRows(panel);
+    $('[data-room]', panel).onclick = () => openChat('family', '家族聊天室');
+    $('[data-inbox]', panel).onclick = () => openInbox();
+    if ($('[data-invite]', panel)) $('[data-invite]', panel).onclick = inviteSheet;
+    $('[data-leave]', panel).onclick = () => { if (confirm(f.myRole === 'LEADER' && f.members.length > 1 ? '家族長需先移交職位才能退出。仍要繼續？' : '確定退出家族？')) familyAction('/families/me/leave', { method: 'POST' }, '已退出家族'); };
+    $$('[data-decide]', panel).forEach((b) => (b.onclick = () => familyAction(`/families/me/applications/${b.dataset.decide}/${b.dataset.to}`, { method: 'POST' }, b.dataset.to === 'approve' ? '已同意加入' : '已拒絕')));
+  }
+
+  $('#openClan').addEventListener('click', async () => { if (!requireLogin()) return; loadMyFamily(); await loadClans(); renderClans($('#clanSearch').value.trim()); });
+  $('#clanInfo').onclick = () => toast('家族說明：VIP 6 以上可建立家族；一人同時只能加入一個家族。家族長與副家族長可寄邀請信、審核申請；成員之間可私訊、送禮，並一起累積家族聲望。');
+
+  // ---------- 聊天：家族聊天室與私訊（每 3 秒更新） ----------
+  const chatLayer = document.createElement('section');
+  chatLayer.className = 'gd-chat';
+  chatLayer.hidden = true;
+  chatLayer.innerHTML = '<div><header><button data-back>←</button><b></b><button data-x>✕</button></header><div class="chat-body"></div><p class="chat-safe">請勿在聊天中提供帳號密碼或驗證碼；交易請使用遊戲內贈禮功能。</p><form hidden><input maxlength="300" placeholder="輸入訊息" autocomplete="off"><button class="fam-btn">送出</button></form></div>';
+  document.body.appendChild(chatLayer);
+  const chatBody = $('.chat-body', chatLayer);
+  const chatForm = $('form', chatLayer);
+  let chatTarget = null;
+  let chatLast = 0;
+  let chatTimer = null;
+  const stopChat = () => { clearInterval(chatTimer); chatTimer = null; chatTarget = null; };
+  $('[data-x]', chatLayer).onclick = () => { stopChat(); chatLayer.hidden = true; refresh(); };
+  $('[data-back]', chatLayer).onclick = () => openInbox();
+
+  async function openInbox() {
+    stopChat();
+    $('header b', chatLayer).textContent = '訊息';
+    chatForm.hidden = true;
+    chatLayer.hidden = false;
+    const { conversations } = await api.call('/chat');
+    chatBody.innerHTML = conversations.map((c) => `<button class="conv" data-target="${esc(c.target)}" data-title="${esc(c.title)}"><span><b>${c.target === 'family' ? '👥 ' : ''}${esc(c.title)}</b><small>${esc(c.lastBody || '還沒有訊息')}</small></span>${c.unread ? `<span class="fam-badge" style="position:static">${c.unread}</span>` : ''}</button>`).join('') || '<div class="tool-empty">目前沒有對話，點家族成員即可私訊</div>';
+    $$('[data-target]', chatBody).forEach((b) => (b.onclick = () => openChat(b.dataset.target, b.dataset.title)));
+  }
+
+  async function openChat(target, title) {
+    stopChat();
+    chatTarget = target;
+    chatLast = 0;
+    $('header b', chatLayer).textContent = title;
+    chatBody.innerHTML = '';
+    chatForm.hidden = false;
+    chatLayer.hidden = false;
+    await pollChat();
+    chatTimer = setInterval(() => pollChat().catch(() => {}), 3000);
+    $('input', chatForm).focus();
+  }
+
+  async function pollChat() {
+    const target = chatTarget;
+    if (!target) return;
+    const { messages } = await api.call(`/chat/${encodeURIComponent(target)}?after=${chatLast}`);
+    if (target !== chatTarget || !messages.length) return;
+    chatLast = messages.at(-1).id;
+    const showName = target === 'family';
+    chatBody.insertAdjacentHTML('beforeend', messages.map((m) => `<div class="msg${m.mine ? ' mine' : ''}"><small>${showName && !m.mine ? esc(m.nickname || m.aid) + '・' : ''}${time(m.created_at)}</small>${esc(m.body)}</div>`).join(''));
+    chatBody.scrollTop = chatBody.scrollHeight;
+  }
+
+  chatForm.onsubmit = async (e) => {
+    e.preventDefault();
+    const input = $('input', chatForm);
+    const body = input.value.trim();
+    if (!body || !chatTarget) return;
+    try { await api.call(`/chat/${encodeURIComponent(chatTarget)}`, { method: 'POST', body: { body } }); input.value = ''; await pollChat(); } catch (err) { toast(err.message); }
+  };
   $('#openRank').addEventListener('click', async () => { if (!me) return; await loadClans(); renderRank(); });
 
   // ---------- 自家哈希遊戲：由 GDBO 發 token，用會員錢包下注 ----------
@@ -487,7 +692,11 @@
     mailItem.innerHTML = `<span>✉️</span>信箱（${unread}）`;
     const page = $('[data-tool-page="mail"]');
     page.innerHTML = '<button class="tool-back">← 返回設定</button><h3>信箱</h3>' + (mail.map((m) => `<div class="tool-row"><b>${m.read_at ? '' : '● '}${esc(m.title)}</b><small>${time(m.created_at)}${m.expires_at ? '・到期 ' + time(m.expires_at) : ''}</small><p style="margin:8px 0;white-space:pre-wrap">${esc(m.body)}</p>${
-      m.reward_coins ? (m.claimed_at ? `<small>已領取 ${coins(m.reward_coins)} G幣</small>` : `<button class="gd-act" data-claim="${esc(m.id)}">領取 ${coins(m.reward_coins)} G幣</button>`) : ''}</div>`).join('') || '<div class="tool-empty">目前沒有信件</div>');
+      m.reward_coins ? (m.claimed_at ? `<small>已領取 ${coins(m.reward_coins)} G幣</small>` : `<button class="gd-act" data-claim="${esc(m.id)}">領取 ${coins(m.reward_coins)} G幣</button>`) : ''}${
+      m.invite_id ? (m.invite_status === 'PENDING' ? `<button class="gd-act" data-invite="${esc(m.invite_id)}" data-to="accept">加入家族</button><button class="gd-act gray" data-invite="${esc(m.invite_id)}" data-to="decline">拒絕</button>` : `<small>${INVITE_STATUS[m.invite_status] || ''}</small>`) : ''}</div>`).join('') || '<div class="tool-empty">目前沒有信件</div>');
+    $$('[data-invite]', page).forEach((b) => (b.onclick = async () => {
+      try { await api.call(`/families/invites/${b.dataset.invite}/${b.dataset.to}`, { method: 'POST' }); await refresh(); toast(b.dataset.to === 'accept' ? '已加入家族' : '已拒絕邀請'); } catch (err) { toast(err.message); loadMail().catch(() => {}); }
+    }));
     $('.tool-back', page).onclick = () => showTool('');
     $$('[data-claim]', page).forEach((b) => (b.onclick = async () => {
       try { await api.call(`/mail/${b.dataset.claim}/claim`, { method: 'POST' }); await refresh(); toast('已領取'); } catch (err) { toast(err.message); }

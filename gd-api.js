@@ -35,6 +35,18 @@ window.GD_API = (() => {
     ERR_MISSION_NOT_COMPLETE: '任務尚未完成',
     ERR_MISSION_ALREADY_CLAIMED: '這個任務的獎勵已經領過了',
     ERR_ALREADY_CHECKED_IN: '今天已經簽到過了',
+    ERR_FAMILY_VIP_TOO_LOW: 'VIP 等級不足',
+    ERR_FAMILY_ALREADY_MEMBER: '已經加入家族了',
+    ERR_FAMILY_NOT_MEMBER: '尚未加入家族',
+    ERR_FAMILY_NOT_OFFICER: '只有家族長或副家族長可以操作',
+    ERR_FAMILY_NAME_TAKEN: '這個家族名稱已經有人使用',
+    ERR_FAMILY_FULL: '家族人數已滿',
+    ERR_FAMILY_LEADER_CANNOT_LEAVE: '家族長需先移交職位才能退出',
+    ERR_FAMILY_INVITE_PENDING: '已經邀請過這位玩家，等待對方回覆',
+    ERR_FAMILY_INVITE_INVALID: '邀請已失效',
+    ERR_CHAT_NOT_ALLOWED: '只能和同家族成員私訊',
+    ERR_CHAT_RATE_LIMITED: '訊息太頻繁，請稍後再試',
+    ERR_NOT_FOUND: '找不到這位玩家或資料',
   };
 
   async function call(path, { method = 'GET', body, idempotent } = {}) {
