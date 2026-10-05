@@ -9,6 +9,12 @@
   const num = (v) => Number(v || 0).toLocaleString();
   /** 金幣金額：後端已捨去到小數兩位，有小數才顯示兩位。 */
   const coins = (v) => { const n = Number(v || 0); return n.toLocaleString(undefined, Number.isInteger(n) ? {} : { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
+  /** 版面窄的地方（Header 餘額）：百萬以上縮寫為 M／B，無條件捨去到小數兩位；完整金額在錢包頁顯示。 */
+  const compact = (v) => {
+    const n = Number(v || 0);
+    const [div, unit] = n >= 1e9 ? [1e9, 'B'] : n >= 1e6 ? [1e6, 'M'] : [1, ''];
+    return unit ? (Math.floor((n / div) * 100) / 100).toLocaleString(undefined, { maximumFractionDigits: 2 }) + unit : coins(n);
+  };
   const time = (iso) => { const d = new Date(iso); return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
   const toast = (msg) => alert(msg);
   const ROLE = { LEADER: '家族長', VICE: '副家族長', MEMBER: '一般成員' };
@@ -100,7 +106,8 @@
     bar.setAttribute('aria-valuenow', pct);
     bar.setAttribute('aria-label', `VIP 進度 ${pct}%`);
     $('i', bar).style.width = pct + '%';
-    $('#balance').textContent = coins(me.mainAvailable);
+    $('#balance').textContent = compact(me.mainAvailable);
+    $('#balance').title = coins(me.mainAvailable);
     // 會員中心
     $('.person-head h2').textContent = name;
     $('.vip-badge').textContent = 'VIP' + level;
@@ -325,15 +332,15 @@
   }
 
   async function createSheet() {
-    const { crests, createMinVip } = await api.call('/families/crests');
+    const { crests, createMinVip, createFee } = await api.call('/families/crests');
     let crest = crests[0];
     const s = openSheet(`<h3>建立家族</h3><div class="fam-form">
       <label>家族名稱（2–16 字）<input name="name" maxlength="16"></label>
       <label>家族標語<input name="slogan" maxlength="60" placeholder="一起挑戰本週目標"></label>
       <label>家族徽章<div class="fam-crests">${crests.map((c, i) => `<button type="button" data-crest="${c}" class="${i ? '' : 'on'}">${c}</button>`).join('')}</div></label>
-      </div><p class="fam-note">VIP ${createMinVip} 以上可建立家族${me.vip.level < createMinVip ? `（目前 VIP ${me.vip.level}）` : ''}</p><button class="fam-btn" data-send>建立家族</button>`);
+      </div><p class="fam-note">VIP ${createMinVip} 以上可申請${me.vip.level < createMinVip ? `（目前 VIP ${me.vip.level}）` : ''}・手續費 ${coins(createFee)} G幣（審核未通過全額退回）<br>送出後由官方審核，通過即成立家族</p><button class="fam-btn" data-send>送出申請</button>`);
     $$('[data-crest]', s).forEach((b) => (b.onclick = () => { crest = b.dataset.crest; $$('[data-crest]', s).forEach((x) => x.classList.toggle('on', x === b)); }));
-    $('[data-send]', s).onclick = () => familyAction('/families', { method: 'POST', body: { name: $('[name=name]', s).value, slogan: $('[name=slogan]', s).value, crest } }, '家族建立成功');
+    $('[data-send]', s).onclick = () => familyAction('/families', { method: 'POST', body: { name: $('[name=name]', s).value, slogan: $('[name=slogan]', s).value, crest } }, '已送出申請，審核通過後即成立家族');
   }
 
   /** 重新讀取所屬家族，更新會員中心與「我的家族」。 */
@@ -347,10 +354,16 @@
     const panel = $('[data-clan-panel="mine"]');
     const f = me?.family;
     if (!f) {
-      panel.innerHTML = `<div class="clan-empty"><div><div class="crest">⚔️</div><strong>尚未加入家族</strong><p>建立自己的家族，或到「所有家族」申請加入。<br>收到家族邀請信時，可在信箱直接加入。</p>
-        <div class="fam-actions">${me ? '<button class="fam-btn" data-create>建立家族</button>' : ''}<button class="fam-btn ghost" data-browse>瀏覽所有家族</button></div></div></div>`;
+      const req = me ? (await api.call('/families/requests/me').catch(() => ({}))).request : null;
+      const pending = req?.status === 'PENDING';
+      const status = pending ? `<p class="fam-note">「${esc(req.crest)} ${esc(req.name)}」建立申請審核中（已暫扣 ${coins(req.fee)} G幣）</p>`
+        : req?.status === 'REJECTED' ? `<p class="fam-note">上次申請「${esc(req.name)}」未通過${req.note ? '：' + esc(req.note) : ''}，手續費已退回</p>` : '';
+      panel.innerHTML = `<div class="clan-empty"><div><div class="crest">⚔️</div><strong>尚未加入家族</strong><p>申請建立自己的家族，或到「所有家族」申請加入。<br>收到家族邀請信時，可在信箱直接加入。</p>${status}
+        <div class="fam-actions">${!me ? '' : pending ? '<button class="fam-btn danger" data-cancel>撤回申請</button>' : '<button class="fam-btn" data-create>申請建立家族</button>'}<button class="fam-btn ghost" data-browse>瀏覽所有家族</button></div></div></div>`;
       const create = $('[data-create]', panel);
       if (create) create.onclick = () => createSheet().catch((err) => toast(err.message));
+      const cancel = $('[data-cancel]', panel);
+      if (cancel) cancel.onclick = () => { if (confirm('確定撤回申請？手續費會退回主錢包。')) familyAction('/families/requests/me/cancel', { method: 'POST' }, '已撤回申請，手續費已退回'); };
       $('[data-browse]', panel).onclick = () => $('[data-clan-page="all"]').click();
       return;
     }
@@ -378,7 +391,7 @@
   }
 
   $('#openClan').addEventListener('click', async () => { if (!requireLogin()) return; loadMyFamily(); await loadClans(); renderClans($('#clanSearch').value.trim()); });
-  $('#clanInfo').onclick = () => toast('家族說明：VIP 6 以上可建立家族；一人同時只能加入一個家族。家族長與副家族長可寄邀請信、審核申請；成員之間可私訊、送禮，並一起累積家族聲望。');
+  $('#clanInfo').onclick = () => toast('家族說明：達到 VIP 門檻並支付手續費可申請建立家族，官方審核通過後成立；一人同時只能加入一個家族。家族長與副家族長可寄邀請信、審核申請；成員之間可私訊、送禮，並一起累積家族聲望。');
 
   // ---------- 聊天：家族聊天室與私訊（每 3 秒更新） ----------
   const chatLayer = document.createElement('section');
@@ -620,7 +633,7 @@
     const t0 = performance.now();
     const step = (now) => {
       const k = Math.min(1, (now - t0) / ms);
-      el.textContent = coins(Math.floor((from + (to - from) * (1 - (1 - k) ** 3)) * 100) / 100);
+      el.textContent = compact(Math.floor((from + (to - from) * (1 - (1 - k) ** 3)) * 100) / 100);
       if (k < 1) requestAnimationFrame(step);
     };
     requestAnimationFrame(step);
