@@ -44,6 +44,8 @@ window.GD_API = (() => {
     ERR_FAMILY_LEADER_CANNOT_LEAVE: '家族長需先移交職位才能退出',
     ERR_FAMILY_INVITE_PENDING: '已經邀請過這位玩家，等待對方回覆',
     ERR_FAMILY_INVITE_INVALID: '邀請已失效',
+    ERR_FAMILY_REQUEST_PENDING: '已有審核中的建立申請',
+    ERR_FAMILY_REQUEST_NOT_PENDING: '沒有審核中的申請',
     ERR_CHAT_NOT_ALLOWED: '只能和同家族成員私訊',
     ERR_CHAT_RATE_LIMITED: '訊息太頻繁，請稍後再試',
     ERR_NOT_FOUND: '找不到這位玩家或資料',
