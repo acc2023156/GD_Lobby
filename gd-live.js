@@ -148,22 +148,23 @@
     metrics[0].textContent = e.canSend ? coins(e.dailyRemaining) : '權限不足';
     metrics[1].textContent = e.canSend ? `${e.partnersUsed} / ${e.partnerCap} 人` : '權限不足';
     metrics[2].textContent = e.canSend ? coins(e.remainingWager) : '權限不足';
-    metrics[3].textContent = '已開通';
+    const phone = me.profile.phoneVerified;
+    metrics[3].textContent = phone ? '已開通' : '需綁定手機';
     const lock = $('.gift-lock', page);
+    if (!phone) { lock.innerHTML = '<strong>請先綁定手機</strong><span>綁定手機後才能贈禮與私訊。</span>'; return; }
     if (!e.canSend) { lock.innerHTML = '<strong>VIP 2 以上即可贈禮</strong><span>儲值累積達 VIP 2 後開放。</span>'; return; }
     lock.className = 'gift-lock gd-send';
-    lock.innerHTML = '<div><input name="aid" placeholder="對方 UID" inputmode="numeric"><input name="amount" type="number" min="0.01" step="0.01" placeholder="G幣"></div><button type="button">送出禮物</button>';
-    $('button', lock).onclick = async () => { if (await sendGift($('[name=aid]', lock).value.trim(), Number($('[name=amount]', lock).value))) renderGiftRules(); };
+    lock.innerHTML = '<strong>四步驟安全送禮</strong><span>確認對象 → 輸入金額 → 確認明細 → 完成</span><br><button type="button">開始送禮</button>';
+    $('button', lock).onclick = () => giftWizard();
   }
 
-  /** 送禮共用（禮物頁與家族成員）；成功回傳 true。 */
+  /** 送禮（送禮精靈第 3 步）；成功回傳結果，失敗顯示原因並回傳 null。 */
   async function sendGift(toAid, amount) {
     try {
       const r = await api.call('/gifts', { method: 'POST', body: { toAid, amount }, idempotent: true });
-      toast(`已送出，對方接受後可收到 ${coins(r.receiveAmount)} G幣`);
       await refresh();
-      return true;
-    } catch (err) { toast(err.message); return false; }
+      return r;
+    } catch (err) { toast(err.message); return null; }
   }
 
   const nativeRenderGiftCenter = window.renderGiftCenter;
@@ -183,15 +184,26 @@
     }));
   };
 
-  async function renderGiftHistory() {
+  const GIFT_RANGES = [['today', '今天'], ['7d', '近7日'], ['30d', '近1月']];
+  /** 收贈紀錄：期間篩選、贈送／收到合計與明細。 */
+  async function renderGiftHistory(range = 'today') {
     if (!me) return;
-    const [sent, received] = await Promise.all([api.call('/gifts?direction=send'), api.call('/gifts?direction=receive')]);
-    const rows = [...sent.gifts.map((g) => ({ ...g, out: true })), ...received.gifts.map((g) => ({ ...g, out: false }))]
-      .filter((g) => g.status !== 'PENDING')
-      .sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
     const page = $('[data-gift-subpage="history"]');
-    $('tbody', page).innerHTML = rows.map((g) => `<tr><td>${esc(g.id.slice(0, 8).toUpperCase())}<br>${time(g.created_at)}</td><td>${esc(g.out ? g.receiver_nickname || g.receiver_aid : g.sender_nickname || g.sender_aid)}<br>${coins(g.out ? g.amount : g.receive_amount)} 點</td><td>${g.out ? '送出' : '收到'}・${esc(GIFT_STATUS[g.status])}</td></tr>`).join('') || '<tr><td colspan="3">目前沒有紀錄</td></tr>';
-    $('.gift-info', page).textContent = '顯示最近 50 筆已完成的禮物。';
+    let head = $('[data-gift-range-head]', page);
+    if (!head) {
+      page.insertAdjacentHTML('afterbegin', `<div data-gift-range-head><div class="gift-center-tabs">${GIFT_RANGES.map(([k, t]) => `<button class="gift-center-tab" data-gift-range="${k}">${t}</button>`).join('')}</div><div class="gift-metrics"><div class="gift-metric"><small>贈送合計</small><b data-sum="sent">0</b></div><div class="gift-metric"><small>收到合計</small><b data-sum="received">0</b></div></div></div>`);
+      head = $('[data-gift-range-head]', page);
+      $$('[data-gift-range]', head).forEach((b) => (b.onclick = () => renderGiftHistory(b.dataset.giftRange)));
+    }
+    $$('[data-gift-range]', head).forEach((b) => b.classList.toggle('active', b.dataset.giftRange === range));
+    const h = await api.call('/gifts/history?range=' + range);
+    $('[data-sum="sent"]', head).textContent = `${coins(h.sent.amount)}（${h.sent.count} 筆）`;
+    $('[data-sum="received"]', head).textContent = `${coins(h.received.amount)}（${h.received.count} 筆）`;
+    $('tbody', page).innerHTML = h.gifts.map((g) => {
+      const out = g.direction === 'send';
+      return `<tr><td>${esc(g.id.slice(0, 8).toUpperCase())}<br>${time(g.created_at)}</td><td>${esc(out ? g.receiver_nickname || g.receiver_aid : g.sender_nickname || g.sender_aid)}<br>${coins(out ? g.amount : g.receive_amount)} 點</td><td>${out ? '送出' : '收到'}・${esc(GIFT_STATUS[g.status])}</td></tr>`;
+    }).join('') || '<tr><td colspan="3">這段期間沒有紀錄</td></tr>';
+    $('.gift-info', page).textContent = '合計只計已完成（對方已接受）的禮物，時間以台灣時間計算。';
   }
 
   function renderGiftWallet() {
@@ -233,6 +245,9 @@
     .fam-apply{display:flex;justify-content:space-between;align-items:center;gap:8px;background:#151d42;border-radius:9px;padding:8px 10px;margin-bottom:6px}
     .fam-sheet,.gd-chat{position:fixed;inset:0;z-index:80;display:grid;place-items:center;padding:16px;background:#050817d9}
     .fam-sheet[hidden],.gd-chat[hidden]{display:none}
+    .fam-sheet{z-index:90}
+    .fam-btn:disabled{opacity:.45;cursor:not-allowed}
+    .gd-chat form[hidden]{display:none}
     .fam-sheet>div{width:min(360px,100%);background:linear-gradient(155deg,#171f49,#0d1430);border:2px solid #783dff;border-radius:18px;padding:18px;display:grid;gap:10px;color:#f8faff;text-align:center}
     .fam-sheet h3{margin:0;color:#ffd166}
     .fam-sheet input{font:inherit;padding:10px;border-radius:10px;border:1px solid #4d5688;background:#0d1430;color:#f8faff}
@@ -248,7 +263,25 @@
     .gd-chat .conv small{display:block;color:#aeb8e8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:240px}
     .gd-chat form{display:flex;gap:8px;padding:10px;border-top:1px solid #35406d}
     .gd-chat form input{flex:1;width:0;font:inherit;padding:10px;border-radius:10px;border:1px solid #4d5688;background:#0d1430;color:#f8faff}
-    .gd-chat .chat-safe{font-size:11px;color:#aeb8e8;text-align:center;padding:6px 10px 0}`;
+    .gd-chat .chat-safe{font-size:11px;color:#aeb8e8;text-align:center;padding:6px 10px 0}
+    .fam-notice{position:relative;margin:2px 14px 12px;background:#fff6d6;color:#5a3418;border-radius:14px;padding:10px 12px;font-size:13px;text-align:left;white-space:pre-wrap;word-break:break-word}
+    .fam-notice:before{content:"";position:absolute;top:-8px;left:30px;border:8px solid transparent;border-top:0;border-bottom-color:#fff6d6}
+    .fam-notice b{color:#b3261e}
+    .fam-notice button{float:right;border:0;border-radius:8px;background:#b3261e;color:#fff;font:inherit;font-size:12px;padding:2px 8px;cursor:pointer}
+    .fam-contrib{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+    .fam-contrib div{background:#151d42;border-radius:10px;padding:8px 4px;text-align:center}
+    .fam-contrib small{display:block;color:#aeb8e8;font-size:11px}
+    .fam-contrib b{color:#ffd166;font-size:13px}
+    .fam-state{font-size:11px;color:#2fe39a}.fam-state.today{color:#ffd166}.fam-state.off{color:#7d84a6}
+    .fam-sheet textarea{font:inherit;padding:10px;border-radius:10px;border:1px solid #4d5688;background:#0d1430;color:#f8faff;min-height:90px;resize:vertical}
+    .gd-tabs{display:flex;gap:6px;position:sticky;top:-12px;background:#121a3f;padding:4px 0 8px;z-index:1}
+    .gd-tabs button{flex:1;border:1px solid #4d5688;border-radius:10px;background:#151d42;color:#aeb8e8;font:inherit;font-weight:900;padding:8px 4px;cursor:pointer}
+    .gd-tabs button.on{background:#783dff;color:#fff;border-color:#783dff}
+    .gd-search{display:flex;gap:6px}.gd-search input{flex:1;width:0;font:inherit;padding:10px;border-radius:10px;border:1px solid #4d5688;background:#0d1430;color:#f8faff}
+    .gw-steps{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;font-size:11px;color:#7d84a6}
+    .gw-steps span{border-top:3px solid #35406d;padding-top:4px}.gw-steps span.on{color:#ffd166;font-weight:900;border-color:#ffd166}
+    .gw-card{background:#151d42;border-radius:12px;padding:10px 12px;text-align:left;display:grid;gap:6px}
+    .gw-card div{display:flex;justify-content:space-between;gap:8px}.gw-card small{color:#aeb8e8}.gw-card b{color:#ffd166}`;
   document.head.appendChild(familyStyle);
 
   /** 後端家族資料轉成主程式 clans 的格式（多一欄 id 供查詢明細）。 */
@@ -268,7 +301,7 @@
     $('#detailRep').textContent = num(f.exp);
     $('#detailMembers').textContent = `${f.members.length} / ${f.max_members}`;
     const apply = me && !me.family ? `<div class="fam-actions"><button class="fam-btn" data-apply="${esc(f.id)}">申請加入</button></div>` : '';
-    $('#clanMembers').innerHTML = apply + memberRows(f.members, false);
+    $('#clanMembers').innerHTML = noticeBubble(f, false) + apply + memberRows(f.members, false);
     bindMemberRows($('#clanMembers'));
     const btn = $('[data-apply]', $('#clanMembers'));
     if (btn) btn.onclick = async () => {
@@ -277,11 +310,24 @@
     clanDetail.hidden = false;
   };
 
-  /** 成員列表；點 UID 開啟私訊／送禮（自己除外）。 */
+  const memberState = (m) => (m.online ? '<span class="fam-state">在線</span>' : m.today ? '<span class="fam-state today">今日</span>' : '<span class="fam-state off">離線</span>');
+
+  /** 成員列表（依貢獻排序，族長戴皇冠）；點 UID 開啟私訊／送禮（自己除外）。 */
   const memberRows = (members, manage) => members.map((m) => `<div class="clan-member">
       <button class="fam-who" data-member="${esc(m.aid)}" data-name="${esc(m.nickname || m.aid)}" data-role="${m.role}"${manage ? ' data-manage' : ''}>
-        <i class="fam-dot${m.online ? ' on' : ''}"></i><span><b>${esc(m.nickname || 'GD會員')}</b> <span class="fam-role">${ROLE[m.role]}</span><br><span class="fam-uid">UID ${esc(m.aid)}</span>　<small>VIP ${m.vip_level}</small></span>
+        <i class="fam-dot${m.online ? ' on' : ''}"></i><span><b>${m.role === 'LEADER' ? '👑 ' : ''}${esc(m.nickname || 'GD會員')}</b> <span class="fam-role">${ROLE[m.role]}</span> ${memberState(m)}<br><span class="fam-uid">UID ${esc(m.aid)}</span>　<small>VIP ${m.vip_level}</small></span>
       </button><small>貢獻 ${num(m.contribution)}</small></div>`).join('');
+
+  /** 會長公告泡泡；editable 時顯示編輯按鈕。 */
+  const noticeBubble = (f, editable) => `<div class="fam-notice"><b>📢 會長公告</b>${editable ? '<button data-notice>編輯</button>' : ''}<br>${esc(f.notice || '家族長尚未發布公告')}</div>`;
+
+  function noticeSheet(f) {
+    const s = openSheet(`<h3>編輯會長公告</h3><textarea name="notice" maxlength="500" placeholder="給家族成員的話">${esc(f.notice || '')}</textarea>`);
+    $('textarea', s).insertAdjacentHTML('afterend', '<button class="fam-btn" data-send>發布公告</button>');
+    $('[data-send]', s).onclick = () => familyAction('/families/me/notice', { method: 'PUT', body: { notice: $('textarea', s).value.trim() } }, '已發布公告');
+  }
+
+  const CONTRIB = [['SLOT', '電子'], ['FISH', '捕魚'], ['TABLE', '押分'], ['PLATFORM', '平台']];
 
   function bindMemberRows(root) {
     $$('[data-member]', root).forEach((b) => (b.onclick = () => {
@@ -310,7 +356,7 @@
       ${canKick ? '<button class="fam-btn danger" data-act="kick">移出家族</button>' : ''}`);
     const act = (name, fn) => { const b = $(`[data-act="${name}"]`, s); if (b) b.onclick = fn; };
     act('chat', () => { sheet.hidden = true; openChat(m.aid, m.name); });
-    act('gift', () => giftSheet(m.aid, m.name));
+    act('gift', () => giftWizard({ aid: m.aid, name: m.name }));
     act('role', () => familyAction(`/families/me/members/${m.aid}/role`, { method: 'PUT', body: { role: m.role === 'VICE' ? 'MEMBER' : 'VICE' } }, '已更新職位'));
     act('kick', () => { if (confirm(`確定將 ${m.name} 移出家族？`)) familyAction(`/families/me/members/${m.aid}/kick`, { method: 'POST' }, '已移出家族'); });
   }
@@ -320,10 +366,54 @@
     try { await api.call(path, opts); sheet.hidden = true; await refresh(); if (done) toast(done); } catch (err) { toast(err.message); }
   }
 
-  function giftSheet(toAid, name) {
-    const s = openSheet(`<h3>送禮給 ${esc(name)}</h3><small>主錢包可用 ${coins(me.mainAvailable)} G幣，手續費由送出金額內扣</small>
-      <input name="amount" type="number" min="0.01" step="0.01" placeholder="G幣"><button class="fam-btn" data-send>送出禮物</button>`);
-    $('[data-send]', s).onclick = async () => { if (await sendGift(toAid, Number($('[name=amount]', s).value))) sheet.hidden = true; };
+  /** 送禮四步驟：1 確認對象 → 2 輸入金額 → 3 確認明細 → 4 完成。帶入對象時從第 2 步開始。 */
+  async function giftWizard(preset) {
+    if (!me.profile.phoneVerified) return toast('請先綁定手機才能送禮');
+    const e = await api.call('/gifts/eligibility').catch((err) => (toast(err.message), null));
+    if (!e) return;
+    if (!e.canSend) return toast('目前 VIP 等級尚未開放贈禮');
+    if (e.remainingWager > 0) return toast(`尚需有效投注 ${coins(e.remainingWager)} 才能贈禮`);
+    const max = Math.min(e.dailyRemaining, me.mainAvailable);
+    const steps = (n) => `<div class="gw-steps">${['確認對象', '輸入金額', '確認明細', '完成'].map((t, i) => `<span class="${i < n ? 'on' : ''}">${i + 1}. ${t}</span>`).join('')}</div>`;
+    const who = (p) => `<div class="gw-card"><div><small>暱稱</small><b>${esc(p.name)}</b></div><div><small>UID</small><b>${esc(p.aid)}</b></div>${p.vip ? `<div><small>VIP／家族</small><b>VIP ${p.vip}・${esc(p.family || '無家族')}</b></div>` : ''}</div>`;
+    const fee = (amt) => Math.floor((Math.round(amt * 100) * e.feeBps) / 10000) / 100;
+
+    const pickTarget = () => {
+      const s = openSheet(`${steps(1)}<h3>輸入對方 UID</h3><div class="gd-search"><input name="aid" inputmode="numeric" placeholder="對方 UID"><button class="fam-btn" data-find>查詢</button></div><div data-found></div>`);
+      $('[data-find]', s).onclick = async () => {
+        const aid = $('[name=aid]', s).value.trim();
+        const { players } = await api.call('/social/search?q=' + encodeURIComponent(aid)).catch(() => ({ players: [] }));
+        const p = players.find((x) => x.aid === aid);
+        if (!p) return toast('找不到這位玩家');
+        const target = { aid: p.aid, name: p.nickname || p.aid, vip: p.vip_level, family: p.family_name };
+        $('[data-found]', s).innerHTML = `${who(target)}<button class="fam-btn" data-ok style="margin-top:8px">確認是這位玩家</button>`;
+        $('[data-ok]', s).onclick = () => enterAmount(target);
+      };
+    };
+    const enterAmount = (to) => {
+      const s = openSheet(`${steps(2)}<h3>送禮給 ${esc(to.name)}</h3><small>本次最多可送 ${coins(max)} G幣（今日額度 ${coins(e.dailyRemaining)}・主錢包 ${coins(me.mainAvailable)}）</small>
+        <input name="amount" type="number" min="0.01" step="0.01" placeholder="G幣"><button class="fam-btn" data-next>下一步</button>`);
+      $('[data-next]', s).onclick = () => {
+        const amt = Math.floor(Number($('[name=amount]', s).value) * 100) / 100;
+        if (!(amt > 0)) return toast('請輸入贈送金額');
+        if (amt > max) return toast(`超過可贈額度 ${coins(max)}`);
+        confirmGift(to, amt);
+      };
+    };
+    const confirmGift = (to, amt) => {
+      const f = fee(amt);
+      const s = openSheet(`${steps(3)}<h3>確認送禮明細</h3>${who(to)}<div class="gw-card"><div><small>送出</small><b>${coins(amt)}</b></div><div><small>手續費 ${(e.feeBps / 100).toFixed(0)}%</small><b>${coins(f)}</b></div><div><small>對方實收</small><b>${coins(Math.round((amt - f) * 100) / 100)}</b></div></div>
+        <small>對方需在 72 小時內接受，逾期或拒收全額退回</small><button class="fam-btn" data-send>確認送出</button><button class="fam-btn ghost" data-back>修改金額</button>`);
+      $('[data-back]', s).onclick = () => enterAmount(to);
+      $('[data-send]', s).onclick = async (ev) => {
+        ev.target.disabled = true;
+        const r = await sendGift(to.aid, amt);
+        if (!r) { ev.target.disabled = false; return; }
+        const done = openSheet(`${steps(4)}<h3>🎁 已送出</h3><p>對方接受後可收到 ${coins(r.receiveAmount)} G幣</p><button class="fam-btn" data-center>查看禮物中心</button>`);
+        $('[data-center]', done).onclick = () => { sheet.hidden = true; $('#openGift').click(); $('[data-gift-sub="center"]').click(); };
+      };
+    };
+    if (preset) enterAmount(preset); else pickTarget();
   }
 
   function inviteSheet() {
@@ -372,19 +462,23 @@
       officer ? api.call('/families/me/applications').then((r) => r.applications).catch(() => []) : [],
       api.call('/chat').catch(() => ({ unread: 0 })),
     ]);
-    panel.innerHTML = `<div class="clan-detail-head"><div class="clan-crest">${familyIcon(esc(f.crest || '⚔️'))}</div><h3>${esc(f.name)}</h3><span>${esc(f.notice || f.slogan || '')}</span></div>
+    const c = f.myContribution || {};
+    panel.innerHTML = `<div class="clan-detail-head"><div class="clan-crest">${familyIcon(esc(f.crest || '⚔️'))}</div><h3>${esc(f.name)}</h3><span>${esc(f.slogan || '')}</span></div>
+      ${noticeBubble(f, officer)}
       <div class="clan-detail-stats"><div><small>家族等級</small><b>${f.level}</b></div><div><small>家族聲望</small><b>${num(f.exp)}</b></div><div><small>家族公款</small><b>${coins(f.fund)}</b></div></div>
       <div class="fam-actions">
         <button class="fam-btn" data-room>💬 家族聊天${chat.unread ? `<span class="fam-badge">${chat.unread}</span>` : ''}</button>
-        <button class="fam-btn ghost" data-inbox>私訊列表</button>
+        <button class="fam-btn ghost" data-inbox>關注／私訊</button>
         ${officer ? '<button class="fam-btn" data-invite>＋ 邀請成員</button>' : ''}
         <button class="fam-btn danger" data-leave>${f.myRole === 'LEADER' && f.members.length === 1 ? '解散家族' : '退出家族'}</button>
       </div>
+      <div class="fam-section"><h4>我的貢獻 <small>加入後累計有效投注 ${coins(c.total)}</small></h4><div class="fam-contrib">${CONTRIB.map(([k, t]) => `<div><small>${t}</small><b>${coins(c[k])}</b></div>`).join('')}</div></div>
       ${applications.length ? `<div class="fam-section"><h4>入族申請（${applications.length}）</h4>${applications.map((a) => `<div class="fam-apply"><span>${esc(a.nickname || 'GD會員')} <small>UID ${esc(a.aid)}・VIP ${a.vip_level}</small></span><span><button class="gd-act" data-decide="${esc(a.id)}" data-to="approve">同意</button><button class="gd-act gray" data-decide="${esc(a.id)}" data-to="reject">拒絕</button></span></div>`).join('')}</div>` : ''}
       <div class="clan-members"><h4>我的身分：${ROLE[f.myRole]}　成員 ${f.members.length} / ${f.max_members}　<small>點成員可私訊或送禮</small></h4>${memberRows(f.members, officer)}</div>`;
     bindMemberRows(panel);
     $('[data-room]', panel).onclick = () => openChat('family', '家族聊天室');
     $('[data-inbox]', panel).onclick = () => openInbox();
+    if ($('[data-notice]', panel)) $('[data-notice]', panel).onclick = () => noticeSheet(f);
     if ($('[data-invite]', panel)) $('[data-invite]', panel).onclick = inviteSheet;
     $('[data-leave]', panel).onclick = () => { if (confirm(f.myRole === 'LEADER' && f.members.length > 1 ? '家族長需先移交職位才能退出。仍要繼續？' : '確定退出家族？')) familyAction('/families/me/leave', { method: 'POST' }, '已退出家族'); };
     $$('[data-decide]', panel).forEach((b) => (b.onclick = () => familyAction(`/families/me/applications/${b.dataset.decide}/${b.dataset.to}`, { method: 'POST' }, b.dataset.to === 'approve' ? '已同意加入' : '已拒絕')));
@@ -408,14 +502,58 @@
   $('[data-x]', chatLayer).onclick = () => { stopChat(); chatLayer.hidden = true; refresh(); };
   $('[data-back]', chatLayer).onclick = () => openInbox();
 
-  async function openInbox() {
+  const INBOX_TABS = [['follows', '關注列表'], ['chats', '聊天記錄'], ['search', '搜尋']];
+  let inboxTab = 'chats';
+  const playerRow = (p) => `<button class="conv" data-player="${esc(p.aid)}"><span><b>${esc(p.nickname || 'GD會員')}</b><small>UID ${esc(p.aid)}・VIP ${p.vip_level}・${esc(p.family_name || '無家族')}</small></span>${p.online ? '<span class="fam-state">在線</span>' : '<span class="fam-state off">離線</span>'}</button>`;
+  const bindPlayers = (list) => $$('[data-player]', chatBody).forEach((b) => (b.onclick = () => playerSheet(list.find((p) => p.aid === b.dataset.player))));
+
+  /** 訊息中心：關注列表／聊天記錄／搜尋（ID 或暱稱）。 */
+  async function openInbox(tab = inboxTab) {
     stopChat();
+    inboxTab = tab;
     $('header b', chatLayer).textContent = '訊息';
     chatForm.hidden = true;
     chatLayer.hidden = false;
-    const { conversations } = await api.call('/chat');
-    chatBody.innerHTML = conversations.map((c) => `<button class="conv" data-target="${esc(c.target)}" data-title="${esc(c.title)}"><span><b>${c.target === 'family' ? '👥 ' : ''}${esc(c.title)}</b><small>${esc(c.lastBody || '還沒有訊息')}</small></span>${c.unread ? `<span class="fam-badge" style="position:static">${c.unread}</span>` : ''}</button>`).join('') || '<div class="tool-empty">目前沒有對話，點家族成員即可私訊</div>';
-    $$('[data-target]', chatBody).forEach((b) => (b.onclick = () => openChat(b.dataset.target, b.dataset.title)));
+    const tabs = `<div class="gd-tabs">${INBOX_TABS.map(([k, t]) => `<button data-tab="${k}" class="${k === tab ? 'on' : ''}">${t}</button>`).join('')}</div>`;
+    if (tab === 'chats') {
+      const { conversations } = await api.call('/chat');
+      chatBody.innerHTML = tabs + (conversations.map((c) => `<button class="conv" data-target="${esc(c.target)}" data-title="${esc(c.title)}"><span><b>${c.target === 'family' ? '👥 ' : ''}${esc(c.title)}</b><small>${esc(c.lastBody || '還沒有訊息')}</small></span>${c.unread ? `<span class="fam-badge" style="position:static">${c.unread}</span>` : ''}</button>`).join('') || '<div class="tool-empty">目前沒有對話，可私訊家族成員或互相關注的玩家</div>');
+      $$('[data-target]', chatBody).forEach((b) => (b.onclick = () => openChat(b.dataset.target, b.dataset.title)));
+    } else if (tab === 'follows') {
+      const { follows } = await api.call('/social/follows');
+      chatBody.innerHTML = tabs + (follows.map(playerRow).join('') || '<div class="tool-empty">還沒有關注的玩家，到「搜尋」找玩家關注</div>');
+      bindPlayers(follows);
+    } else {
+      chatBody.innerHTML = tabs + '<form class="gd-search" data-search><input name="q" placeholder="輸入玩家 ID 或暱稱" autocomplete="off"><button class="fam-btn">搜尋</button></form><div data-results></div>';
+      $('[data-search]', chatBody).onsubmit = async (e) => {
+        e.preventDefault();
+        const { players } = await api.call('/social/search?q=' + encodeURIComponent(e.target.q.value.trim()));
+        $('[data-results]', chatBody).innerHTML = players.map(playerRow).join('') || '<div class="tool-empty">找不到符合的玩家</div>';
+        bindPlayers(players);
+      };
+      $('[name=q]', chatBody).focus();
+    }
+    $$('[data-tab]', chatBody).forEach((b) => (b.onclick = () => openInbox(b.dataset.tab)));
+  }
+
+  /** 玩家小卡：關注、私訊（同家族或互相關注）、送禮。 */
+  function playerSheet(p) {
+    const sameFamily = me.family && me.family.members.some((x) => x.aid === p.aid);
+    const canChat = sameFamily || (p.followed && p.follows_me);
+    const s = openSheet(`<h3>${esc(p.nickname || 'GD會員')}</h3><small>UID ${esc(p.aid)}・VIP ${p.vip_level}・${esc(p.family_name || '無家族')}</small>
+      <button class="fam-btn${p.followed ? ' ghost' : ''}" data-follow>${p.followed ? '取消關注' : '＋ 關注'}</button>
+      <button class="fam-btn" data-chat ${canChat ? '' : 'disabled'}>💬 私訊</button>${canChat ? '' : '<small>同家族或互相關注後即可私訊</small>'}
+      <button class="fam-btn" data-gift>🎁 送禮</button>`);
+    $('[data-follow]', s).onclick = async () => {
+      try {
+        await api.call('/social/follows/' + p.aid, { method: p.followed ? 'DELETE' : 'PUT' });
+        sheet.hidden = true;
+        toast(p.followed ? '已取消關注' : '已關注，對方也關注你後即可私訊');
+        openInbox();
+      } catch (err) { toast(err.message); }
+    };
+    $('[data-chat]', s).onclick = () => { sheet.hidden = true; openChat(p.aid, p.nickname || p.aid); };
+    $('[data-gift]', s).onclick = () => giftWizard({ aid: p.aid, name: p.nickname || p.aid, vip: p.vip_level, family: p.family_name });
   }
 
   async function openChat(target, title) {
@@ -449,7 +587,21 @@
     if (!body || !chatTarget) return;
     try { await api.call(`/chat/${encodeURIComponent(chatTarget)}`, { method: 'POST', body: { body } }); input.value = ''; await pollChat(); } catch (err) { toast(err.message); }
   };
-  $('#openRank').addEventListener('click', async () => { if (!me) return; await loadClans(); renderRank(); });
+  /** 本週投注榜：每列帶所屬家族（[暱稱, 頭像, 投注, 家族, VIP]）。 */
+  async function loadBetBoard() {
+    const { board } = await api.call('/social/leaderboard/bet');
+    rankData.bet = board.map((p) => [p.nickname || 'GD會員', p.family_crest || '🎲', coins(p.total), p.family_name || '無家族', p.vip_level]);
+  }
+  $('#openRank').addEventListener('click', async () => { if (!me) return; await Promise.all([loadClans(), loadBetBoard().catch(() => {})]); renderRank(); });
+
+  // 設定裡的「好友」改為關注／聊天
+  const friendsItem = $('[data-tool="friends"]');
+  if (friendsItem) friendsItem.innerHTML = '<span>👥</span>關注／聊天';
+  $('#toolLayer').addEventListener('click', (e) => {
+    if (!e.target.closest('[data-tool="friends"]')) return;
+    e.stopPropagation();
+    if (requireLogin()) openInbox('follows').catch((err) => toast(err.message));
+  }, true);
 
   // ---------- 自家哈希遊戲：由 GDBO 發 token，用會員錢包下注 ----------
   const HASH_GAMES = { 珠珠寶貝: 'plinko' };
