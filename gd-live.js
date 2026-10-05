@@ -133,6 +133,8 @@
     // 所屬家族
     loadMail().catch(() => {});
     loadMyFamily();
+    loadReferral().catch(() => {});
+    handleShareLink();
   }
 
   // ---------- 商城：模擬付款 → 後端模擬儲值 ----------
@@ -1034,6 +1036,104 @@
   $('[data-page="records"]').addEventListener('click', () => loadRecords(RECORD_PERIODS[$$('.periods button').findIndex((b) => b.classList.contains('active'))] || 'today').catch(() => {}));
 
   // ---------- 會員選單：登出 ----------
+  // ---------- 推薦與分享 ----------
+  // 分享連結 ?ref=<UID>&family=<家族ID>：先記下來，登入後綁定推薦人並開啟家族邀請頁
+  const SHARE_KEY = 'gd-share';
+  (() => {
+    const q = new URLSearchParams(location.search);
+    if (!q.get('ref') && !q.get('family')) return;
+    try { localStorage.setItem(SHARE_KEY, JSON.stringify({ ref: q.get('ref') || '', family: q.get('family') || '' })); } catch {}
+    history.replaceState(null, '', location.pathname);
+  })();
+  const shareLink = (family) => `${location.origin}${location.pathname}?ref=${encodeURIComponent(me.profile.aid)}${family ? '&family=' + encodeURIComponent(family) : ''}`;
+
+  async function handleShareLink() {
+    let share = null;
+    try { share = JSON.parse(localStorage.getItem(SHARE_KEY) || 'null'); localStorage.removeItem(SHARE_KEY); } catch {}
+    if (!share) return;
+    if (share.ref && share.ref !== me.profile.aid) await api.call('/referrals/bind', { method: 'POST', body: { code: share.ref } }).then(() => loadReferral()).catch(() => {});
+    if (share.family) familyInviteSheet(share.family, share.ref).catch(() => {});
+  }
+
+  /** 分享連結開啟的家族邀請頁。 */
+  async function familyInviteSheet(familyId, ref) {
+    const f = await api.call('/families/' + familyId);
+    const mine = me.family?.id === f.id;
+    const s = openSheet(`<div class="clan-crest" style="margin:0 auto">${familyIcon(esc(f.crest || '⚔️'))}</div><h3>${esc(f.name)}</h3><small>Lv.${f.level}・成員 ${f.members.length} / ${f.max_members}</small>
+      ${noticeBubble(f, false)}${mine ? '<p class="fam-note">你已經是這個家族的成員</p>' : me.family ? `<p class="fam-note">你已加入「${esc(me.family.name)}」，需先退出才能加入</p>` : '<button class="fam-btn" data-join>加入家族</button>'}`);
+    const join = $('[data-join]', s);
+    if (join) join.onclick = async () => {
+      try {
+        const r = await api.call(`/families/${f.id}/join-link`, { method: 'POST', body: { ref } });
+        sheet.hidden = true;
+        await refresh();
+        toast(r.status === 'JOINED' ? `已加入「${f.name}」` : '已送出入族申請，等待家族長審核');
+      } catch (err) { toast(err.message); }
+    };
+  }
+
+  const REF_STATUS = { PAID: '已發獎勵', BELOW_MIN: '首儲未達門檻', BLOCKED_SAME_IP: '同 IP 不發' };
+  let referral = null;
+  async function loadReferral() {
+    referral = await api.call('/referrals/me');
+    $$('.profile-list li strong')[3].textContent = referral.referrer ? `${referral.referrer.nickname || 'GD會員'}（${referral.referrer.aid}）` : '無';
+    renderReferralTable();
+  }
+
+  /** 推薦表：我推薦的會員、首儲與獎勵。 */
+  function renderReferralTable() {
+    const page = $('[data-panel="referral"]');
+    const r = referral;
+    $('.ref-tools', page).innerHTML = `<span>推薦人數 ${r.totals.count}・已首儲 ${r.totals.deposited}・累計獎勵 ${coins(r.totals.earned)}</span>`;
+    $('.data-table', page).innerHTML = `<thead><tr><th>暱稱</th><th>加入日</th><th>首儲</th><th>獎勵</th></tr></thead><tbody>${r.referred.map((x) => `<tr><td>${esc(x.nickname || 'GD會員')}<br><small>${esc(x.aid)}</small></td><td>${day(x.referred_at)}</td><td>${x.status ? esc(REF_STATUS[x.status]) : '尚未儲值'}</td><td>${x.status === 'PAID' ? coins(x.referrer_amount) : '—'}</td></tr>`).join('')}</tbody>`;
+    $('.empty', page).style.display = r.referred.length ? 'none' : '';
+    $('.empty', page).textContent = '還沒有推薦的會員，按「推薦」分享你的推薦碼';
+    $('.page-note', page).textContent = `好友用你的推薦碼加入，首儲滿 ${num(r.rules.minDepositNtd)} 元，雙方各得 ${coins(r.rules.referrerReward)} 金幣`;
+  }
+
+  async function copyText(text, done) {
+    try { await navigator.clipboard.writeText(text); toast(done); } catch { prompt('請複製連結', text); }
+  }
+  const shareButtons = (url, text) => `<input readonly value="${esc(url)}"><button class="fam-btn" data-copy>複製連結</button>
+    <a class="fam-btn ghost" style="text-decoration:none" target="_blank" rel="noopener" href="https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(url)}">用 LINE 分享</a>
+    ${navigator.share ? '<button class="fam-btn ghost" data-native>其他分享方式</button>' : ''}`;
+  const bindShare = (s, url, text) => {
+    $('[data-copy]', s).onclick = () => copyText(url, '已複製連結');
+    if ($('[data-native]', s)) $('[data-native]', s).onclick = () => navigator.share({ title: 'GD 金龍娛樂城', text, url }).catch(() => {});
+  };
+
+  /** 推薦：我的推薦碼、獎勵規則、補綁推薦人。 */
+  async function referralSheet() {
+    await loadReferral();
+    const r = referral;
+    const url = shareLink();
+    const bind = r.referrer ? `<small>推薦人：${esc(r.referrer.nickname || 'GD會員')}（${esc(r.referrer.aid)}）</small>`
+      : r.canBind ? `<small>還沒有推薦人？${day(r.bindUntil)} 前可補填</small><div class="gd-search"><input name="code" inputmode="numeric" placeholder="推薦人 UID"><button class="fam-btn" data-bind>綁定</button></div>` : '<small>已超過可補填推薦人的期限</small>';
+    const s = openSheet(`<h3>推薦好友</h3><div class="gw-card"><div><small>我的推薦碼</small><b>${esc(r.code)}</b></div><div><small>好友首儲滿 ${num(r.rules.minDepositNtd)} 元</small><b>雙方各得 ${coins(r.rules.referrerReward)}</b></div></div>
+      ${shareButtons(url, '用我的推薦碼加入 GD，首儲雙方都有獎勵！')}${bind}`);
+    bindShare(s, url, '用我的推薦碼加入 GD，首儲雙方都有獎勵！');
+    const b = $('[data-bind]', s);
+    if (b) b.onclick = async () => {
+      try { await api.call('/referrals/bind', { method: 'POST', body: { code: $('[name=code]', s).value.trim() } }); toast('已綁定推薦人'); referralSheet(); } catch (err) { toast(err.message); }
+    };
+  }
+
+  /** 分享：邀請朋友加入自己的家族（未加入家族時分享推薦連結）。 */
+  function shareSheet() {
+    const f = me.family;
+    const url = shareLink(f?.id);
+    const text = f ? `一起加入「${f.name}」家族，在 GD 一起玩！` : '一起來 GD 玩！用我的推薦連結加入。';
+    const s = openSheet(`<h3>${f ? '分享家族邀請' : '分享 GD'}</h3><small>${f ? `朋友點連結進入 GD 首頁，登入後會看到「${esc(f.name)}」的邀請頁${f.myRole === 'MEMBER' ? '，送出入族申請' : '，可直接加入'}；新會員也會自動綁定你為推薦人` : '你還沒加入家族，先分享推薦連結；加入家族後可分享家族邀請'}</small>
+      ${shareButtons(url, text)}`);
+    bindShare(s, url, text);
+  }
+
+  const [refBtn, shareBtn] = $$('.person-actions button');
+  refBtn.onclick = () => { if (requireLogin()) referralSheet().catch((err) => toast(err.message)); };
+  shareBtn.onclick = () => { if (requireLogin()) shareSheet(); };
+  $$('.profile-list li button')[3].onclick = refBtn.onclick;
+  $('[data-page="referral"]').addEventListener('click', () => { if (me) loadReferral().catch(() => {}); });
+
   const logout = document.createElement('div');
   logout.innerHTML = '<span>會員帳號</span> <button>登出</button>';
   $('.tool-legal').appendChild(logout);
