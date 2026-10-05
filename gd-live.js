@@ -668,7 +668,7 @@
   }, true);
 
   // ---------- 自家哈希遊戲：由 GDBO 發 token，用會員錢包下注 ----------
-  const HASH_GAMES = { 珠珠寶貝: 'plinko', 寶石探險: 'mines', 沖高高: 'crash', 六子骰: 'dice', 黑粒仔: 'pai-gow-tiles' };
+  const HASH_GAMES = { 珠珠寶貝: 'plinko', 寶石探險: 'mines', 沖高高: 'crash', 六子骰: 'dice', 黑粒仔: 'pai-gow-tiles', 全壘打: 'home-run' };
   // capture 階段先攔截，未登入或後端失敗時不落回舊的展示連結
   playButton.addEventListener('click', async (e) => {
     const gameId = HASH_GAMES[selectedGame];
