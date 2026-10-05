@@ -18,7 +18,16 @@
   const time = (iso) => { const d = new Date(iso); return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
   const toast = (msg) => alert(msg);
   const ROLE = { LEADER: '家族長', VICE: '副家族長', MEMBER: '一般成員' };
-  const INVITE_STATUS = { ACCEPTED: '已加入家族', DECLINED: '已拒絕邀請', EXPIRED: '邀請已失效' };
+  const INVITE_STATUS = { ACCEPTED: '已加入家族', DECLINED: '已拒絕邀請', EXPIRED: '邀請已過期' };
+  /** 邀請倒數：剩幾天幾小時。 */
+  const countdown = (iso) => { const ms = Date.parse(iso) - Date.now(); if (ms <= 0) return ''; const h = Math.floor(ms / 3_600_000); return h >= 24 ? `${Math.floor(h / 24)} 天 ${h % 24} 小時` : `${h} 小時 ${Math.floor((ms % 3_600_000) / 60_000)} 分`; };
+  const inviteState = (m) => {
+    const left = m.invite_status === 'PENDING' ? countdown(m.invite_expires_at) : '';
+    if (m.invite_status === 'PENDING' && left) return '';
+    const status = m.invite_status === 'PENDING' ? 'EXPIRED' : m.invite_status;
+    const refund = m.invite_bonus && status !== 'ACCEPTED' ? '，金幣已退回族長' : m.invite_bonus && status === 'ACCEPTED' ? `，已領取 ${coins(m.invite_bonus)} 金幣` : '';
+    return `<small>${INVITE_STATUS[status] || ''}${refund}</small>`;
+  };
   const GIFT_STATUS = { PENDING: '等待接受', ACCEPTED: '已完成', REJECTED: '已拒收', CANCELLED: '已撤回', EXPIRED: '已逾期' };
   let me = null;
 
@@ -416,9 +425,16 @@
     if (preset) enterAmount(preset); else pickTarget();
   }
 
-  function inviteSheet() {
-    const s = openSheet(`<h3>邀請成員</h3><small>輸入對方 UID，對方會在信箱收到邀請信</small><input name="aid" inputmode="numeric" placeholder="對方 UID"><button class="fam-btn" data-send>寄出邀請</button>`);
-    $('[data-send]', s).onclick = () => familyAction('/families/me/invites', { method: 'POST', body: { aid: $('[name=aid]', s).value.trim() } }, '已寄出邀請信');
+  async function inviteSheet() {
+    const { inviteBonus: b } = await api.call('/families/crests');
+    const s = openSheet(`<h3>邀請成員</h3><small>輸入對方 UID，對方會在信箱收到邀請信，3 天內未接受即過期</small><input name="aid" inputmode="numeric" placeholder="對方 UID">
+      <input name="bonus" type="number" min="${b.min}" max="${b.max}" step="1" placeholder="附贈金幣（選填 ${num(b.min)}–${num(b.max)}）">
+      <small>附贈金幣先從你的主錢包暫扣；對方接受即入帳（入會後 ${b.lockDays} 天內不可退出），拒絕或過期全額退回</small><button class="fam-btn" data-send>寄出邀請</button>`);
+    $('[data-send]', s).onclick = () => {
+      const bonus = Number($('[name=bonus]', s).value) || 0;
+      if (bonus && (bonus < b.min || bonus > b.max)) return toast(`附贈金幣需在 ${num(b.min)}–${num(b.max)} 之間`);
+      familyAction('/families/me/invites', { method: 'POST', body: { aid: $('[name=aid]', s).value.trim(), bonus } }, bonus ? `已寄出邀請信，暫扣 ${num(bonus)} 金幣` : '已寄出邀請信');
+    };
   }
 
   async function createSheet() {
@@ -479,7 +495,7 @@
     $('[data-room]', panel).onclick = () => openChat('family', '家族聊天室');
     $('[data-inbox]', panel).onclick = () => openInbox();
     if ($('[data-notice]', panel)) $('[data-notice]', panel).onclick = () => noticeSheet(f);
-    if ($('[data-invite]', panel)) $('[data-invite]', panel).onclick = inviteSheet;
+    if ($('[data-invite]', panel)) $('[data-invite]', panel).onclick = () => inviteSheet().catch((err) => toast(err.message));
     $('[data-leave]', panel).onclick = () => { if (confirm(f.myRole === 'LEADER' && f.members.length > 1 ? '家族長需先移交職位才能退出。仍要繼續？' : '確定退出家族？')) familyAction('/families/me/leave', { method: 'POST' }, '已退出家族'); };
     $$('[data-decide]', panel).forEach((b) => (b.onclick = () => familyAction(`/families/me/applications/${b.dataset.decide}/${b.dataset.to}`, { method: 'POST' }, b.dataset.to === 'approve' ? '已同意加入' : '已拒絕')));
   }
@@ -856,11 +872,15 @@
     const { mail, unread } = await api.call('/mail');
     mailItem.innerHTML = `<span>✉️</span>信箱（${unread}）`;
     const page = $('[data-tool-page="mail"]');
-    page.innerHTML = '<button class="tool-back">← 返回設定</button><h3>信箱</h3>' + (mail.map((m) => `<div class="tool-row"><b>${m.read_at ? '' : '● '}${esc(m.title)}</b><small>${time(m.created_at)}${m.expires_at ? '・到期 ' + time(m.expires_at) : ''}</small><p style="margin:8px 0;white-space:pre-wrap">${esc(m.body)}</p>${
+    page.innerHTML = '<button class="tool-back">← 返回設定</button><h3>信箱</h3>' + (mail.map((m) => `<div class="tool-row"><b>${m.read_at ? '' : '● '}${esc(m.title)}</b><small>${time(m.created_at)}${m.expires_at ? '・到期 ' + time(m.invite_expires_at || m.expires_at) : ''}</small><p style="margin:8px 0;white-space:pre-wrap">${esc(m.body)}</p>${
       m.reward_coins ? (m.claimed_at ? `<small>已領取 ${coins(m.reward_coins)} G幣</small>` : `<button class="gd-act" data-claim="${esc(m.id)}">領取 ${coins(m.reward_coins)} G幣</button>`) : ''}${
-      m.invite_id ? (m.invite_status === 'PENDING' ? `<button class="gd-act" data-invite="${esc(m.invite_id)}" data-to="accept">加入家族</button><button class="gd-act gray" data-invite="${esc(m.invite_id)}" data-to="decline">拒絕</button>` : `<small>${INVITE_STATUS[m.invite_status] || ''}</small>`) : ''}</div>`).join('') || '<div class="tool-empty">目前沒有信件</div>');
+      m.invite_id ? (inviteState(m) || `<small>⏳ 剩 ${countdown(m.invite_expires_at)} 過期</small><br><button class="gd-act" data-invite="${esc(m.invite_id)}" data-to="accept">${m.invite_bonus ? '加入並領取' : '加入家族'}</button><button class="gd-act gray" data-invite="${esc(m.invite_id)}" data-to="decline">拒絕</button>`) : ''}</div>`).join('') || '<div class="tool-empty">目前沒有信件</div>');
     $$('[data-invite]', page).forEach((b) => (b.onclick = async () => {
-      try { await api.call(`/families/invites/${b.dataset.invite}/${b.dataset.to}`, { method: 'POST' }); await refresh(); toast(b.dataset.to === 'accept' ? '已加入家族' : '已拒絕邀請'); } catch (err) { toast(err.message); loadMail().catch(() => {}); }
+      try {
+        const r = await api.call(`/families/invites/${b.dataset.invite}/${b.dataset.to}`, { method: 'POST' });
+        await refresh();
+        toast(b.dataset.to === 'decline' ? '已拒絕邀請' : r.bonus ? `已加入家族並獲得 ${coins(r.bonus)} 金幣（${day(r.lockedUntil)} 前不可退出）` : '已加入家族');
+      } catch (err) { toast(err.message); loadMail().catch(() => {}); }
     }));
     $('.tool-back', page).onclick = () => showTool('');
     $$('[data-claim]', page).forEach((b) => (b.onclick = async () => {
