@@ -149,6 +149,7 @@
       const nickname = $('[name=nickname]', s).value.trim();
       const length = Array.from(nickname).length;
       if (!length || length > NICKNAME_MAX) return toast(`暱稱需為 1–${NICKNAME_MAX} 個字`);
+      if (/^[\p{Nd}\s]+$/u.test(nickname)) return toast('暱稱不能只有數字');
       send.disabled = true;
       try {
         await api.call('/me/nickname', { method: 'PUT', body: { nickname } });
