@@ -106,8 +106,12 @@
       return;
     }
     const name = me.member.nickname || 'GD會員';
-    const level = me.vip.level;
-    const pct = me.vipProgress.next ? Math.min(100, Math.floor((me.vipProgress.rollingDepositNtd / me.vipProgress.next.thresholdNtd) * 100)) : 100;
+    const v = me.vipProgress;
+    const level = v.level;
+    me.vip.level = level; // /me/vip 已依最新儲值與投注重算
+    // 儲值或有效投注任一達標即升級：進度取兩者較高者
+    const ratio = (have, need) => (need > 0 ? have / need : 0);
+    const pct = v.next ? Math.min(100, Math.floor(Math.max(ratio(v.rollingDepositNtd, v.next.thresholdNtd), ratio(v.rollingWager, v.next.wagerThreshold)) * 100)) : 100;
     // Header
     $('#openProfile b').textContent = name;
     $('#openProfile small').textContent = 'VIP ' + level;
@@ -124,6 +128,7 @@
     rows[0].textContent = me.profile.aid;
     rows[1].textContent = coins(me.mainAvailable);
     rows[2].textContent = me.profile.phone;
+    if (rows[5]) rows[5].innerHTML = v.next ? `儲值 ${num(v.rollingDepositNtd)} / ${num(v.next.thresholdNtd)}<br>投注 ${coins(v.rollingWager)} / ${num(v.next.wagerThreshold)}<br><small>任一達標升 VIP ${v.next.level}</small>` : '已達最高等級';
     $('.profile-list li button').onclick = () => navigator.clipboard?.writeText(me.profile.aid);
     // 錢包與商城
     $('.wallet-summary b').textContent = coins(me.mainAvailable);
@@ -275,6 +280,19 @@
     .gd-chat .conv small{display:block;color:#aeb8e8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:240px}
     .gd-chat form{display:flex;gap:8px;padding:10px;border-top:1px solid #35406d}
     .gd-chat form input{flex:1;width:0;font:inherit;padding:10px;border-radius:10px;border:1px solid #4d5688;background:#0d1430;color:#f8faff}
+    .gd-chat .msg.sys{align-self:center;max-width:90%;background:#ffffff14;border-radius:999px;padding:5px 12px;font-size:12px;color:#c9d0f5;text-align:center}
+    .gd-chat .msg.sys.join{background:linear-gradient(90deg,#783dff55,#ff3d9e55);color:#ffe7a3}
+    .gd-chat .msg.sys small{display:inline;margin:0 0 0 6px}
+    .gd-chat .emoji-panel{display:grid;grid-template-columns:repeat(8,1fr);gap:2px;padding:8px 10px;border-top:1px solid #35406d;background:#0d1430}
+    .gd-chat .emoji-panel[hidden]{display:none}
+    .gd-chat .emoji-panel button{border:0;background:none;font-size:22px;padding:4px;border-radius:8px;cursor:pointer}
+    .gd-chat .emoji-panel button:hover{background:#ffffff1a}
+    .gd-chat .emoji-btn{border:1px solid #4d5688;background:#151d42;border-radius:10px;font-size:20px;padding:0 8px;cursor:pointer}
+    .fam-check{display:flex;align-items:center;gap:6px;font-size:13px}
+    .fam-stepper{display:grid;grid-template-columns:48px 1fr 48px;align-items:center;gap:8px}
+    .fam-stepper b{text-align:center;font-size:18px;color:#ffd166}
+    .fam-stepper button{height:40px;border:1px solid #ffd166;border-radius:10px;background:#222b57;color:#ffd166;font-size:16px;cursor:pointer}
+    .fam-stepper button:disabled{opacity:.35;cursor:default}
     .gd-chat .chat-safe{font-size:11px;color:#aeb8e8;text-align:center;padding:6px 10px 0}
     .fam-notice{position:relative;margin:2px 14px 12px;background:#fff6d6;color:#5a3418;border-radius:14px;padding:10px 12px;font-size:13px;text-align:left;white-space:pre-wrap;word-break:break-word}
     .fam-notice:before{content:"";position:absolute;top:-8px;left:30px;border:8px solid transparent;border-top:0;border-bottom-color:#fff6d6}
@@ -428,15 +446,25 @@
     if (preset) enterAmount(preset); else pickTarget();
   }
 
+  const INVITE_STEP = 1000;
   async function inviteSheet() {
     const { inviteBonus: b } = await api.call('/families/crests');
+    let bonus = b.min;
     const s = openSheet(`<h3>邀請成員</h3><small>輸入對方 UID，對方會在信箱收到邀請信，3 天內未接受即過期</small><input name="aid" inputmode="numeric" placeholder="對方 UID">
-      <input name="bonus" type="number" min="${b.min}" max="${b.max}" step="1" placeholder="附贈金幣（選填 ${num(b.min)}–${num(b.max)}）">
-      <small>附贈金幣先從你的主錢包暫扣；對方接受即入帳（入會後 ${b.lockDays} 天內不可退出），拒絕或過期全額退回</small><button class="fam-btn" data-send>寄出邀請</button>`);
+      <label class="fam-check"><input type="checkbox" name="withBonus" checked> 附贈入會金幣</label>
+      <div class="fam-stepper"><button type="button" data-step="-1" aria-label="減少">▼</button><b data-bonus></b><button type="button" data-step="1" aria-label="增加">▲</button></div>
+      <small>附贈金幣 ${num(b.min)}–${num(b.max)}，先從你的主錢包暫扣；對方接受即入帳（入會後 ${b.lockDays} 天內不可退出），拒絕或過期全額退回</small><button class="fam-btn" data-send>寄出邀請</button>`);
+    const on = $('[name=withBonus]', s);
+    const show = () => {
+      $('[data-bonus]', s).textContent = on.checked ? num(bonus) + ' 金幣' : '不附金幣';
+      $$('[data-step]', s).forEach((x) => (x.disabled = !on.checked || (x.dataset.step < 0 ? bonus <= b.min : bonus >= b.max)));
+    };
+    $$('[data-step]', s).forEach((x) => (x.onclick = () => { bonus = Math.min(b.max, Math.max(b.min, bonus + Number(x.dataset.step) * INVITE_STEP)); show(); }));
+    on.onchange = show;
+    show();
     $('[data-send]', s).onclick = () => {
-      const bonus = Number($('[name=bonus]', s).value) || 0;
-      if (bonus && (bonus < b.min || bonus > b.max)) return toast(`附贈金幣需在 ${num(b.min)}–${num(b.max)} 之間`);
-      familyAction('/families/me/invites', { method: 'POST', body: { aid: $('[name=aid]', s).value.trim(), bonus } }, bonus ? `已寄出邀請信，暫扣 ${num(bonus)} 金幣` : '已寄出邀請信');
+      const amount = on.checked ? bonus : 0;
+      familyAction('/families/me/invites', { method: 'POST', body: { aid: $('[name=aid]', s).value.trim(), bonus: amount } }, amount ? `已寄出邀請信，暫扣 ${num(amount)} 金幣` : '已寄出邀請信');
     };
   }
 
@@ -510,10 +538,24 @@
   const chatLayer = document.createElement('section');
   chatLayer.className = 'gd-chat';
   chatLayer.hidden = true;
-  chatLayer.innerHTML = '<div><header><button data-back>←</button><b></b><button data-x>✕</button></header><div class="chat-body"></div><p class="chat-safe">請勿在聊天中提供帳號密碼或驗證碼；交易請使用遊戲內贈禮功能。</p><form hidden><input maxlength="300" placeholder="輸入訊息" autocomplete="off"><button class="fam-btn">送出</button></form></div>';
+  chatLayer.innerHTML = '<div><header><button data-back>←</button><b></b><button data-x>✕</button></header><div class="chat-body"></div><p class="chat-safe">請勿在聊天中提供帳號密碼或驗證碼；交易請使用遊戲內贈禮功能。</p><div class="emoji-panel" hidden></div><form hidden><button type="button" class="emoji-btn" aria-label="表情">🐲</button><input maxlength="300" placeholder="輸入訊息" autocomplete="off"><button class="fam-btn">送出</button></form></div>';
   document.body.appendChild(chatLayer);
   const chatBody = $('.chat-body', chatLayer);
   const chatForm = $('form', chatLayer);
+  // GD 風表情：金龍、紅包、幣、牌桌與常用心情
+  const GD_EMOJI = ['🐲', '🐉', '🧧', '💰', '🪙', '💎', '👑', '🎰', '🎲', '🀄', '🃏', '🎯', '🔥', '⚡', '🍀', '🏆', '🎉', '🥳', '🤑', '😎', '😂', '😭', '😡', '🙏', '👍', '👏', '💪', '❤️', '🫶', '🌟', '🚀', '💯'];
+  const emojiPanel = $('.emoji-panel', chatLayer);
+  emojiPanel.innerHTML = GD_EMOJI.map((e) => `<button type="button">${e}</button>`).join('');
+  $('.emoji-btn', chatForm).onclick = () => { emojiPanel.hidden = !emojiPanel.hidden; };
+  emojiPanel.onclick = (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    const input = $('input', chatForm);
+    const at = input.selectionStart ?? input.value.length;
+    input.value = input.value.slice(0, at) + b.textContent + input.value.slice(input.selectionEnd ?? at);
+    input.focus();
+    input.setSelectionRange(at + b.textContent.length, at + b.textContent.length);
+  };
   let chatTarget = null;
   let chatLast = 0;
   let chatTimer = null;
@@ -581,6 +623,7 @@
     chatLast = 0;
     $('header b', chatLayer).textContent = title;
     chatBody.innerHTML = '';
+    emojiPanel.hidden = true;
     chatForm.hidden = false;
     chatLayer.hidden = false;
     await pollChat();
@@ -595,7 +638,7 @@
     if (target !== chatTarget || !messages.length) return;
     chatLast = messages.at(-1).id;
     const showName = target === 'family';
-    chatBody.insertAdjacentHTML('beforeend', messages.map((m) => `<div class="msg${m.mine ? ' mine' : ''}"><small>${showName && !m.mine ? esc(m.nickname || m.aid) + '・' : ''}${time(m.created_at)}</small>${esc(m.body)}</div>`).join(''));
+    chatBody.insertAdjacentHTML('beforeend', messages.map((m) => m.kind && m.kind !== 'TEXT' ? `<div class="msg sys${m.kind === 'JOIN' ? ' join' : ''}">${m.kind === 'JOIN' ? '🎉 ' : ''}${esc(m.body)}<small>${time(m.created_at)}</small></div>` : `<div class="msg${m.mine ? ' mine' : ''}"><small>${showName && !m.mine ? esc(m.nickname || m.aid) + '・' : ''}${time(m.created_at)}</small>${esc(m.body)}</div>`).join(''));
     chatBody.scrollTop = chatBody.scrollHeight;
   }
 
@@ -604,7 +647,7 @@
     const input = $('input', chatForm);
     const body = input.value.trim();
     if (!body || !chatTarget) return;
-    try { await api.call(`/chat/${encodeURIComponent(chatTarget)}`, { method: 'POST', body: { body } }); input.value = ''; await pollChat(); } catch (err) { toast(err.message); }
+    try { await api.call(`/chat/${encodeURIComponent(chatTarget)}`, { method: 'POST', body: { body } }); input.value = ''; emojiPanel.hidden = true; await pollChat(); } catch (err) { toast(err.message); }
   };
   /** 本週投注榜：每列帶所屬家族（[暱稱, 頭像, 投注, 家族, VIP]）。 */
   async function loadBetBoard() {
