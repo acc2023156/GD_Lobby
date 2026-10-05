@@ -185,7 +185,8 @@
     const { gifts } = await api.call('/gifts?direction=' + direction);
     giftCenterRows.innerHTML = gifts.map((g) => {
       const other = direction === 'send' ? g.receiver_nickname || g.receiver_aid : g.sender_nickname || g.sender_aid;
-      const actions = g.status !== 'PENDING' ? esc(GIFT_STATUS[g.status])
+      const actions = g.kind === 'INVITE_BONUS' ? `入會金幣<br>${g.status === 'PENDING' ? '等待入會' : esc(GIFT_STATUS[g.status])}`
+        : g.status !== 'PENDING' ? esc(GIFT_STATUS[g.status])
         : direction === 'receive' ? `<button class="gd-act" data-gift="${esc(g.id)}" data-act="accept">接受</button><button class="gd-act gray" data-gift="${esc(g.id)}" data-act="reject">拒收</button>`
         : `${GIFT_STATUS.PENDING}<br><button class="gd-act gray" data-gift="${esc(g.id)}" data-act="cancel">撤回</button>`;
       return `<tr><td>${esc(g.id.slice(0, 8).toUpperCase())}<br>${time(g.created_at)}</td><td>${esc(other)}<br>${coins(direction === 'send' ? g.amount : g.receive_amount)} 點</td><td class="gift-state">${actions}</td></tr>`;
@@ -212,9 +213,9 @@
     $('[data-sum="received"]', head).textContent = `${coins(h.received.amount)}（${h.received.count} 筆）`;
     $('tbody', page).innerHTML = h.gifts.map((g) => {
       const out = g.direction === 'send';
-      return `<tr><td>${esc(g.id.slice(0, 8).toUpperCase())}<br>${time(g.created_at)}</td><td>${esc(out ? g.receiver_nickname || g.receiver_aid : g.sender_nickname || g.sender_aid)}<br>${coins(out ? g.amount : g.receive_amount)} 點</td><td>${out ? '送出' : '收到'}・${esc(GIFT_STATUS[g.status])}</td></tr>`;
+      return `<tr><td>${esc(g.id.slice(0, 8).toUpperCase())}<br>${time(g.created_at)}</td><td>${esc(out ? g.receiver_nickname || g.receiver_aid : g.sender_nickname || g.sender_aid)}<br>${coins(out ? g.amount : g.receive_amount)} 點</td><td>${g.kind === 'INVITE_BONUS' ? '入會金幣・' : ''}${out ? '送出' : '收到'}・${esc(GIFT_STATUS[g.status])}</td></tr>`;
     }).join('') || '<tr><td colspan="3">這段期間沒有紀錄</td></tr>';
-    $('.gift-info', page).textContent = '合計只計已完成（對方已接受）的禮物，時間以台灣時間計算。';
+    $('.gift-info', page).textContent = '含家族入會金幣；合計只計已完成（對方已接受）的紀錄，時間以台灣時間計算。';
   }
 
   function renderGiftWallet() {
@@ -892,20 +893,6 @@
   }
   mailItem.addEventListener('click', () => { if (requireLogin()) loadMail().catch((err) => toast(err.message)); });
 
-  const codePage = $('[data-tool-page="giftcode"]');
-  $('.tool-empty', codePage).outerHTML = '<div class="gd-send"><div><input name="code" placeholder="請輸入兌換碼" autocomplete="off"></div><button type="button">兌換</button></div><p class="tool-note">每個兌換碼每個帳號限用一次，獎勵會直接存入主錢包。</p>';
-  $('.gd-send button', codePage).onclick = async () => {
-    if (!requireLogin()) return;
-    const input = $('[name=code]', codePage);
-    try {
-      const r = await api.call('/redemptions', { method: 'POST', body: { code: input.value.trim() } });
-      input.value = '';
-      await refresh();
-      toast(`兌換成功，獲得 ${coins(r.coins)} G幣`);
-    } catch (err) { toast(err.message); }
-  };
-  $('.redeem').addEventListener('click', () => { $('#toolLayer').hidden = false; showTool('giftcode'); });
-
   const LEGAL = { terms: 'terms', privacy: 'privacy', rules: 'rules' };
   Object.keys(LEGAL).forEach((tool) => $(`[data-tool="${tool}"]`).addEventListener('click', async () => {
     try {
@@ -1087,7 +1074,7 @@
     $('.ref-tools', page).innerHTML = `<span>推薦人數 ${r.totals.count}・已首儲 ${r.totals.deposited}・累計獎勵 ${coins(r.totals.earned)}</span>`;
     $('.data-table', page).innerHTML = `<thead><tr><th>暱稱</th><th>加入日</th><th>首儲</th><th>獎勵</th></tr></thead><tbody>${r.referred.map((x) => `<tr><td>${esc(x.nickname || 'GD會員')}<br><small>${esc(x.aid)}</small></td><td>${day(x.referred_at)}</td><td>${x.status ? esc(REF_STATUS[x.status]) : '尚未儲值'}</td><td>${x.status === 'PAID' ? coins(x.referrer_amount) : '—'}</td></tr>`).join('')}</tbody>`;
     $('.empty', page).style.display = r.referred.length ? 'none' : '';
-    $('.empty', page).textContent = '還沒有推薦的會員，按「推薦」分享你的推薦碼';
+    $('.empty', page).textContent = '還沒有推薦的會員，按「推薦分享」分享你的連結';
     $('.page-note', page).textContent = `好友用你的推薦碼加入，首儲滿 ${num(r.rules.minDepositNtd)} 元，雙方各得 ${coins(r.rules.referrerReward)} 金幣`;
   }
 
@@ -1102,35 +1089,27 @@
     if ($('[data-native]', s)) $('[data-native]', s).onclick = () => navigator.share({ title: 'GD 金龍娛樂城', text, url }).catch(() => {});
   };
 
-  /** 推薦：我的推薦碼、獎勵規則、補綁推薦人。 */
+  /** 推薦分享：一個連結同時帶推薦碼與家族邀請；顯示獎勵規則與補綁推薦人。 */
   async function referralSheet() {
     await loadReferral();
     const r = referral;
-    const url = shareLink();
+    const f = me.family;
+    const url = shareLink(f?.id);
+    const text = f ? `一起加入「${f.name}」家族，在 GD 一起玩！首儲雙方都有獎勵。` : '用我的推薦碼加入 GD，首儲雙方都有獎勵！';
+    const how = f ? `朋友點連結進入 GD，登入後會看到「${esc(f.name)}」的邀請頁${f.myRole === 'MEMBER' ? '並送出入族申請' : '並可直接加入'}；還沒有推薦人的會自動綁定你` : '朋友點連結註冊即綁定你為推薦人；加入家族後，同一個連結也會帶家族邀請';
     const bind = r.referrer ? `<small>推薦人：${esc(r.referrer.nickname || 'GD會員')}（${esc(r.referrer.aid)}）</small>`
       : r.canBind ? `<small>還沒有推薦人？${day(r.bindUntil)} 前可補填</small><div class="gd-search"><input name="code" inputmode="numeric" placeholder="推薦人 UID"><button class="fam-btn" data-bind>綁定</button></div>` : '<small>已超過可補填推薦人的期限</small>';
-    const s = openSheet(`<h3>推薦好友</h3><div class="gw-card"><div><small>我的推薦碼</small><b>${esc(r.code)}</b></div><div><small>好友首儲滿 ${num(r.rules.minDepositNtd)} 元</small><b>雙方各得 ${coins(r.rules.referrerReward)}</b></div></div>
-      ${shareButtons(url, '用我的推薦碼加入 GD，首儲雙方都有獎勵！')}${bind}`);
-    bindShare(s, url, '用我的推薦碼加入 GD，首儲雙方都有獎勵！');
+    const s = openSheet(`<h3>推薦分享</h3><div class="gw-card"><div><small>我的推薦碼</small><b>${esc(r.code)}</b></div><div><small>好友首儲滿 ${num(r.rules.minDepositNtd)} 元</small><b>雙方各得 ${coins(r.rules.referrerReward)}</b></div></div>
+      <small>${how}</small>${shareButtons(url, text)}${bind}`);
+    bindShare(s, url, text);
     const b = $('[data-bind]', s);
     if (b) b.onclick = async () => {
       try { await api.call('/referrals/bind', { method: 'POST', body: { code: $('[name=code]', s).value.trim() } }); toast('已綁定推薦人'); referralSheet(); } catch (err) { toast(err.message); }
     };
   }
 
-  /** 分享：邀請朋友加入自己的家族（未加入家族時分享推薦連結）。 */
-  function shareSheet() {
-    const f = me.family;
-    const url = shareLink(f?.id);
-    const text = f ? `一起加入「${f.name}」家族，在 GD 一起玩！` : '一起來 GD 玩！用我的推薦連結加入。';
-    const s = openSheet(`<h3>${f ? '分享家族邀請' : '分享 GD'}</h3><small>${f ? `朋友點連結進入 GD 首頁，登入後會看到「${esc(f.name)}」的邀請頁${f.myRole === 'MEMBER' ? '，送出入族申請' : '，可直接加入'}；新會員也會自動綁定你為推薦人` : '你還沒加入家族，先分享推薦連結；加入家族後可分享家族邀請'}</small>
-      ${shareButtons(url, text)}`);
-    bindShare(s, url, text);
-  }
-
-  const [refBtn, shareBtn] = $$('.person-actions button');
+  const refBtn = $('.person-actions button');
   refBtn.onclick = () => { if (requireLogin()) referralSheet().catch((err) => toast(err.message)); };
-  shareBtn.onclick = () => { if (requireLogin()) shareSheet(); };
   $$('.profile-list li button')[3].onclick = refBtn.onclick;
   $('[data-page="referral"]').addEventListener('click', () => { if (me) loadReferral().catch(() => {}); });
 
