@@ -668,7 +668,7 @@
   }, true);
 
   // ---------- 自家哈希遊戲：由 GDBO 發 token，用會員錢包下注 ----------
-  const HASH_GAMES = { 珠珠寶貝: 'plinko' };
+  const HASH_GAMES = { 珠珠寶貝: 'plinko', 寶石探險: 'mines', 沖高高: 'crash' };
   // capture 階段先攔截，未登入或後端失敗時不落回舊的展示連結
   playButton.addEventListener('click', async (e) => {
     const gameId = HASH_GAMES[selectedGame];
@@ -685,7 +685,7 @@
         pendingOffer = null;
         modalStatus.textContent = '正在取得遊戲連線…';
       }
-      const { url } = await api.call('/game-sessions', { method: 'POST', body: { gameId, returnUrl: location.origin + location.pathname } });
+      const { url } = await api.call('/game-sessions', { method: 'POST', body: { gameId, returnUrl: location.origin + location.pathname + '?cat=exclusive' } });
       location.href = url;
     } catch (err) {
       modalStatus.textContent = '遊戲連線失敗：' + err.message;
