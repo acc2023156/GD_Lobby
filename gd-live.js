@@ -94,12 +94,81 @@
   /** 需要登入的操作：未登入時開啟登入畫面並中止。 */
   const requireLogin = () => { if (me) return true; showLogin(); return false; };
 
+  // ---------- 會員中心：頭像（家族徽章）、暱稱 ----------
+  const profileStyle = document.createElement('style');
+  profileStyle.textContent = `
+    .gd-logo{display:grid;place-items:center;line-height:1;width:100%;height:100%}
+    .gd-logo i{font-style:normal;font-size:.95em;filter:drop-shadow(0 1px 2px #0006)}
+    .gd-logo b{font-size:.62em;font-weight:1000;letter-spacing:-.5px;margin-top:-.15em;color:#fff3c4;text-shadow:0 1px 0 #7a2a00}
+    .person-avatar .gd-logo{font-size:30px}.avatar .gd-logo{font-size:22px}
+    .person-avatar img,.avatar img{width:82%;height:82%;object-fit:contain}
+    .person-avatar .fam-crest-icon{font-size:34px}.avatar .fam-crest-icon{font-size:24px}
+    .person-head h2{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    .nick-edit{border:1px solid #6d76b8;border-radius:999px;background:#202a5c;color:#ffd166;font:inherit;font-size:12px;font-weight:800;padding:2px 10px;cursor:pointer}
+    .nick-pending{font-size:11px;font-weight:800;color:#ff9fd9;border:1px solid #ff6ec7;border-radius:999px;padding:1px 7px}
+    .vip-row strong{display:grid;gap:5px;justify-items:end}
+    .vip-row .profile-vip{width:100%;max-width:220px;height:9px}
+    .vip-row strong small{font-size:12px;color:#ffd166;white-space:normal}
+    .profile-list li.vip-row{grid-template-columns:minmax(76px,.6fr) minmax(150px,2fr)}`;
+  document.head.appendChild(profileStyle);
+
+  // 沒有家族時顯示 GD＋龍標
+  const GD_LOGO = '<span class="gd-logo" aria-label="GD"><i>🐉</i><b>GD</b></span>';
+  function renderAvatars() {
+    const crest = me?.family?.crest;
+    const html = crest ? `<span class="fam-crest-icon">${familyIcon(esc(crest))}</span>` : GD_LOGO;
+    $('.person-avatar').innerHTML = html;
+    $('#openProfileAvatar').innerHTML = html;
+  }
+
+  /** 會員中心的暱稱：本人可看到審核中的暱稱（標示「審核中」），旁邊有「設定」。 */
+  function renderNickname(shownName) {
+    const h2 = $('.person-head h2');
+    $('.nick-name', h2).textContent = shownName;
+    $('.nick-pending', h2)?.remove();
+    if (me.profile.nicknamePending) $('.nick-name', h2).insertAdjacentHTML('afterend', '<span class="nick-pending">審核中</span>');
+    const edit = $('.nick-edit', h2);
+    edit.hidden = false;
+    edit.onclick = nicknameSheet;
+  }
+
+  const NICKNAME_MAX = 10;
+  function nicknameSheet() {
+    const p = me.profile;
+    const locked = p.nicknameLockedUntil;
+    const s = openSheet(`<h3>設定暱稱</h3>
+      <p class="fam-note">目前暱稱：<b>${esc(me.member.nickname || '')}</b>${p.nicknamePending ? `<br>審核中：<b>${esc(p.nicknamePending)}</b>` : ''}${p.nicknameNote ? `<br>上次申請未通過：${esc(p.nicknameNote)}` : ''}</p>
+      ${locked
+        ? `<p class="fam-note">暱稱已通過審核，${time(locked)} 之後才能再修改。</p>`
+        : `<label>新暱稱（最多 ${NICKNAME_MAX} 個字）<input name="nickname" maxlength="${NICKNAME_MAX * 2}" autocomplete="off" placeholder="${esc(p.nicknamePending || me.member.nickname || '')}"></label>
+           <p class="fam-note">送出後只有你看得到，後台審核通過才會對外顯示；通過後 2 週內不能再修改。</p>
+           <button class="fam-btn" data-send>送出審核</button>`}`);
+    const send = $('[data-send]', s);
+    if (!send) return;
+    send.onclick = async () => {
+      const nickname = $('[name=nickname]', s).value.trim();
+      const length = Array.from(nickname).length;
+      if (!length || length > NICKNAME_MAX) return toast(`暱稱需為 1–${NICKNAME_MAX} 個字`);
+      send.disabled = true;
+      try {
+        await api.call('/me/nickname', { method: 'PUT', body: { nickname } });
+        s.hidden = true;
+        toast('已送出，審核通過後就會對外顯示');
+        await refresh();
+      } catch (err) {
+        toast(err.message);
+        send.disabled = false;
+      }
+    };
+  }
+
   // ---------- 會員資料 ----------
   async function refresh() {
     if (!api.isLoggedIn()) return;
     try {
       const [summary, vip, profile] = await Promise.all([api.call('/me/summary'), api.call('/me/vip'), api.call('/me')]);
-      me = { ...summary, vipProgress: vip, profile };
+      // 保留已讀到的家族（頭像要用家族徽章）
+      me = { ...summary, vipProgress: vip, profile, family: me?.family };
     } catch (err) {
       me = null;
       if (err.code === 'ERR_UNAUTHORIZED') showLogin();
@@ -111,8 +180,10 @@
     me.vip.level = level; // /me/vip 已依最新儲值與投注重算
     // VIP 只看近 60 日有效投注
     const pct = v.next ? Math.min(100, Math.floor((v.rollingWager / v.next.wagerThreshold) * 100)) : 100;
+    // 本人看得到審核中的暱稱（後台通過前別人看到的仍是原本的暱稱）
+    const shownName = me.profile.nicknamePending || name;
     // Header
-    $('#openProfile b').textContent = name;
+    $('#openProfile b').textContent = shownName;
     $('#openProfile small').textContent = 'VIP ' + level;
     const bar = $('#openProfile .vip-progress');
     bar.setAttribute('aria-valuenow', pct);
@@ -121,13 +192,20 @@
     $('#balance').textContent = compact(me.mainAvailable);
     $('#balance').title = coins(me.mainAvailable);
     // 會員中心
-    $('.person-head h2').textContent = name;
+    renderNickname(shownName);
     $('.vip-badge').textContent = 'VIP' + level;
     const rows = $$('.profile-list li strong');
     rows[0].textContent = me.profile.aid;
     rows[1].textContent = coins(me.mainAvailable);
     rows[2].textContent = me.profile.phone;
-    rows[5].innerHTML = v.next ? `投注 ${coins(v.rollingWager)} / ${num(v.next.wagerThreshold)}<br><small>達標升 VIP ${v.next.level}</small>` : `投注 ${coins(v.rollingWager)}<br><small>已達最高等級</small>`;
+    // VIP 列：左邊目前等級，右邊與首頁相同的進度條（近 60 日投注）
+    $('.vip-row > span').textContent = 'VIP ' + level;
+    const vipBar = $('.vip-row .vip-progress');
+    vipBar.setAttribute('aria-valuenow', pct);
+    vipBar.setAttribute('aria-label', `VIP 進度 ${pct}%`);
+    $('i', vipBar).style.width = pct + '%';
+    $('.vip-row strong small').textContent = v.next ? `投注 ${coins(v.rollingWager)} / ${num(v.next.wagerThreshold)}・達標升 VIP ${v.next.level}` : `投注 ${coins(v.rollingWager)}・已達最高等級`;
+    renderAvatars();
     $('.profile-list li button').onclick = () => navigator.clipboard?.writeText(me.profile.aid);
     // 錢包與商城
     $('.wallet-summary b').textContent = coins(me.mainAvailable);
@@ -488,6 +566,7 @@
     me.family = await api.call('/families/me').catch(() => null);
     $$('.profile-list li strong')[4].textContent = me.family ? me.family.name : '無';
     $$('.profile-list li button')[4].textContent = me.family ? '管理' : '加入';
+    renderAvatars();
     await renderMyClan().catch(() => {});
   }
 
@@ -658,9 +737,9 @@
   }
   $('#openRank').addEventListener('click', async () => { if (!me) return; await Promise.all([loadClans(), loadBetBoard().catch(() => {})]); renderRank(); });
 
-  // 設定裡的「好友」改為關注／聊天
+  // 設定裡不放關注／聊天（從玩家卡片、家族成員進入聊天）
   const friendsItem = $('[data-tool="friends"]');
-  if (friendsItem) friendsItem.innerHTML = '<span>👥</span>關注／聊天';
+  if (friendsItem) friendsItem.remove();
   $('#toolLayer').addEventListener('click', (e) => {
     if (!e.target.closest('[data-tool="friends"]')) return;
     e.stopPropagation();
@@ -895,7 +974,7 @@
   const noticeItem = document.createElement('button');
   noticeItem.className = 'tool-item';
   noticeItem.innerHTML = '<span>📢</span>公告';
-  $('.tool-grid').appendChild(noticeItem);
+  // 設定選單不放「公告」；需要彈出的公告仍會在登入後提示
   const noticePage = document.createElement('section');
   noticePage.className = 'tool-page';
   noticePage.dataset.toolPage = 'notices';
