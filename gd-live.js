@@ -170,7 +170,8 @@
     .tool-music .music-open{all:unset;cursor:pointer;flex:1;display:grid;gap:2px;min-width:0}
     .tool-music .music-open small{color:#ffd166;font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .music-now{border:1px solid #535d91;border-radius:14px;padding:12px;background:linear-gradient(145deg,#202956,#141b3d);color:#f8faff;margin-bottom:12px}
-    .music-now small{color:#aeb8e8}.music-now b{display:block;font-size:17px;margin:4px 0 10px;color:#ffd166}
+    .music-now small{color:#aeb8e8}.music-now b{display:block;font-size:17px;margin:4px 0 0;color:#ffd166}
+    .music-head{display:flex;align-items:center;gap:12px;margin-bottom:10px}.music-head img{width:72px;height:72px;flex:none;border-radius:10px;object-fit:cover;box-shadow:0 0 10px #783dff88}
     .music-ctrl{display:flex;gap:8px;flex-wrap:wrap}
     .music-ctrl button{border:1px solid #6d76b8;border-radius:999px;background:#202a5c;color:#f8faff;font:inherit;font-weight:800;padding:7px 14px;cursor:pointer}
     .music-ctrl button.on{background:linear-gradient(135deg,#783dff,#ff3d9e);border-color:#ff8fd0}
@@ -204,6 +205,9 @@
   $('.music-open', musicRow).onclick = () => { showTool('music'); renderMusic(); };
 
   const trackTitle = () => (tracks[current] ? tracks[current].title : '');
+  /** 專輯封面：歌曲自己的 cover，沒有就用歌單的 cover。 */
+  let albumCover = '';
+  const trackCover = () => (tracks[current] && tracks[current].cover) || albumCover;
   function renderNowPlaying() {
     $('#nowPlaying').textContent = !tracks.length ? '歌曲即將上架' : !soundOn() ? '已靜音' : player.paused ? `暫停：${trackTitle()}` : `播放中：${trackTitle()}`;
   }
@@ -211,7 +215,7 @@
     renderNowPlaying();
     if (!musicPage.classList.contains('active')) return;
     musicPage.innerHTML = '<button class="tool-back">← 返回設定</button><h3>聲音</h3>' + (tracks.length
-      ? `<div class="music-now"><small>${player.paused ? '目前選擇' : '正在播放'}</small><b>${esc(trackTitle())}</b><div class="music-ctrl">
+      ? `<div class="music-now"><div class="music-head">${trackCover() ? `<img src="${esc(trackCover())}" alt="">` : ''}<div><small>${player.paused ? '目前選擇' : '正在播放'}</small><b>${esc(trackTitle())}</b></div></div><div class="music-ctrl">
           <button data-music="prev">⏮ 上一首</button><button data-music="play">${player.paused ? '▶ 播放' : '⏸ 暫停'}</button><button data-music="next">⏭ 下一首</button>
           <button data-music="shuffle" class="${musicPrefs.shuffle ? 'on' : ''}">🔀 隨機${musicPrefs.shuffle ? '：開' : '：關'}</button></div></div>
          <div class="music-list">${tracks.map((t, i) => `<button data-track="${i}" class="${i === current ? 'on' : ''}"><i>${i === current && !player.paused ? '♪' : i + 1}</i><span>${esc(t.title)}</span></button>`).join('')}</div>`
@@ -265,6 +269,7 @@
     .then((r) => (r.ok ? r.json() : { tracks: [] }))
     .then((data) => {
       tracks = (data.tracks || []).filter((t) => t && t.title && t.src);
+      albumCover = data.cover || '';
       if (current >= tracks.length) current = 0;
       renderMusic();
     })
