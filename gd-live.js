@@ -545,7 +545,12 @@
     .fam-contrib{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
     .fam-contrib div{background:#151d42;border-radius:10px;padding:8px 4px;text-align:center}
     .fam-contrib small{display:block;color:#aeb8e8;font-size:11px}
-    .fam-contrib b{color:#ffd166;font-size:13px}
+    .fam-contrib b{color:#ffd166;font-size:13px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .fam-contrib div{min-width:0}
+    .clan-member .fam-contrib-n{white-space:nowrap;flex:none;margin-left:8px}
+    .clan-member .fam-role{white-space:nowrap;display:inline-block}
+    .clan-member .fam-who{min-width:0;flex:1}
+    .gd-inbox-title{margin:14px 2px 6px;color:#ffd166;font-size:14px}
     .fam-state{font-size:11px;color:#2fe39a}.fam-state.today{color:#ffd166}.fam-state.off{color:#7d84a6}
     .fam-sheet textarea{font:inherit;padding:10px;border-radius:10px;border:1px solid #4d5688;background:#0d1430;color:#f8faff;min-height:90px;resize:vertical}
     .gd-tabs{display:flex;gap:6px;position:sticky;top:-12px;background:#121a3f;padding:4px 0 8px;z-index:1}
@@ -590,8 +595,8 @@
   /** 成員列表（依貢獻排序，族長戴皇冠）；點 UID 開啟私訊／送禮（自己除外）。 */
   const memberRows = (members, manage) => members.map((m) => `<div class="clan-member">
       <button class="fam-who" data-member="${esc(m.aid)}" data-name="${esc(m.nickname || m.aid)}" data-role="${m.role}"${manage ? ' data-manage' : ''}>
-        <i class="fam-dot${m.online ? ' on' : ''}"></i><span><b>${m.role === 'LEADER' ? '👑 ' : ''}${esc(m.nickname || 'GD會員')}</b> <span class="fam-role">${ROLE[m.role]}</span> ${memberState(m)}<br><span class="fam-uid">UID ${esc(m.aid)}</span>　<small>VIP ${m.vip_level}</small></span>
-      </button><small>貢獻 ${num(m.contribution)}</small></div>`).join('');
+        <i class="fam-dot${m.online ? ' on' : ''}"></i><span><b>${m.role === 'LEADER' ? '👑 ' : ''}${esc(m.nickname || 'GD會員')}</b> <span class="fam-role">${ROLE[m.role]}</span><br><span class="fam-uid">UID ${esc(m.aid)}</span>　<small>VIP ${m.vip_level}</small>　${memberState(m)}</span>
+      </button><small class="fam-contrib-n">貢獻 ${num(m.contribution)}</small></div>`).join('');
 
   /** 會長公告泡泡；editable 時顯示編輯按鈕。 */
   const noticeBubble = (f, editable) => `<div class="fam-notice"><b>📢 會長公告</b>${editable ? '<button data-notice>編輯</button>' : ''}<br>${esc(f.notice || '家族長尚未發布公告')}</div>`;
@@ -602,7 +607,8 @@
     $('[data-send]', s).onclick = () => familyAction('/families/me/notice', { method: 'PUT', body: { notice: $('textarea', s).value.trim() } }, '已發布公告');
   }
 
-  const CONTRIB = [['SLOT', '電子'], ['FISH', '捕魚'], ['TABLE', '押分'], ['PLATFORM', '平台']];
+  // 我的貢獻：依大廳四大分類（GD獨家 = 自家遊戲、老虎機 = 電子、撲克牌 = 押分類、捕魚）
+  const CONTRIB = [['PLATFORM', 'GD獨家'], ['SLOT', '老虎機'], ['TABLE', '撲克牌'], ['FISH', '捕魚']];
 
   function bindMemberRows(root) {
     $$('[data-member]', root).forEach((b) => (b.onclick = () => {
@@ -762,8 +768,8 @@
       <div class="clan-detail-stats"><div><small>家族等級</small><b>${f.level}</b></div><div><small>家族聲望</small><b>${num(f.exp)}</b></div><div><small>家族公款</small><b>${coins(f.fund)}</b></div></div>
       <div class="fam-actions">
         <button class="fam-btn" data-room>💬 家族聊天${chat.unread ? `<span class="fam-badge">${chat.unread}</span>` : ''}</button>
-        <button class="fam-btn ghost" data-inbox>關注／私訊</button>
         ${officer ? '<button class="fam-btn" data-invite>＋ 邀請成員</button>' : ''}
+        <button class="fam-btn ghost" data-inbox>私訊</button>
       </div>
       <div class="fam-section"><h4>我的貢獻 <small>加入後累計有效投注 ${coins(c.total)}</small></h4><div class="fam-contrib">${CONTRIB.map(([k, t]) => `<div><small>${t}</small><b>${coins(c[k])}</b></div>`).join('')}</div></div>
       ${applications.length ? `<div class="fam-section"><h4>入族申請（${applications.length}）</h4>${applications.map((a) => `<div class="fam-apply"><span>${esc(a.nickname || 'GD會員')} <small>UID ${esc(a.aid)}・VIP ${a.vip_level}</small></span><span><button class="gd-act" data-decide="${esc(a.id)}" data-to="approve">同意</button><button class="gd-act gray" data-decide="${esc(a.id)}" data-to="reject">拒絕</button></span></div>`).join('')}</div>` : ''}
@@ -808,38 +814,28 @@
   $('[data-x]', chatLayer).onclick = () => { stopChat(); chatLayer.hidden = true; refresh(); };
   $('[data-back]', chatLayer).onclick = () => openInbox();
 
-  const INBOX_TABS = [['follows', '關注列表'], ['chats', '聊天記錄'], ['search', '搜尋']];
-  let inboxTab = 'chats';
   const playerRow = (p) => `<button class="conv" data-player="${esc(p.aid)}"><span><b>${esc(p.nickname || 'GD會員')}</b><small>UID ${esc(p.aid)}・VIP ${p.vip_level}・${esc(p.family_name || '無家族')}</small></span>${p.online ? '<span class="fam-state">在線</span>' : '<span class="fam-state off">離線</span>'}</button>`;
   const bindPlayers = (list) => $$('[data-player]', chatBody).forEach((b) => (b.onclick = () => playerSheet(list.find((p) => p.aid === b.dataset.player))));
 
-  /** 訊息中心：關注列表／聊天記錄／搜尋（ID 或暱稱）。 */
-  async function openInbox(tab = inboxTab) {
+  /** 私訊：上方搜尋玩家（UID 或暱稱），下方是聊天記錄，同一頁。 */
+  async function openInbox() {
     stopChat();
-    inboxTab = tab;
-    $('header b', chatLayer).textContent = '訊息';
+    $('header b', chatLayer).textContent = '私訊';
     chatForm.hidden = true;
     chatLayer.hidden = false;
-    const tabs = `<div class="gd-tabs">${INBOX_TABS.map(([k, t]) => `<button data-tab="${k}" class="${k === tab ? 'on' : ''}">${t}</button>`).join('')}</div>`;
-    if (tab === 'chats') {
-      const { conversations } = await api.call('/chat');
-      chatBody.innerHTML = tabs + (conversations.map((c) => `<button class="conv" data-target="${esc(c.target)}" data-title="${esc(c.title)}"><span><b>${c.target === 'family' ? '👥 ' : ''}${esc(c.title)}</b><small>${esc(c.lastBody || '還沒有訊息')}</small></span>${c.unread ? `<span class="fam-badge" style="position:static">${c.unread}</span>` : ''}</button>`).join('') || '<div class="tool-empty">目前沒有對話，可私訊家族成員或互相關注的玩家</div>');
-      $$('[data-target]', chatBody).forEach((b) => (b.onclick = () => openChat(b.dataset.target, b.dataset.title)));
-    } else if (tab === 'follows') {
-      const { follows } = await api.call('/social/follows');
-      chatBody.innerHTML = tabs + (follows.map(playerRow).join('') || '<div class="tool-empty">還沒有關注的玩家，到「搜尋」找玩家關注</div>');
-      bindPlayers(follows);
-    } else {
-      chatBody.innerHTML = tabs + '<form class="gd-search" data-search><input name="q" placeholder="輸入玩家 ID 或暱稱" autocomplete="off"><button class="fam-btn">搜尋</button></form><div data-results></div>';
-      $('[data-search]', chatBody).onsubmit = async (e) => {
-        e.preventDefault();
-        const { players } = await api.call('/social/search?q=' + encodeURIComponent(e.target.q.value.trim()));
-        $('[data-results]', chatBody).innerHTML = players.map(playerRow).join('') || '<div class="tool-empty">找不到符合的玩家</div>';
-        bindPlayers(players);
-      };
-      $('[name=q]', chatBody).focus();
-    }
-    $$('[data-tab]', chatBody).forEach((b) => (b.onclick = () => openInbox(b.dataset.tab)));
+    const { conversations } = await api.call('/chat');
+    chatBody.innerHTML = '<form class="gd-search" data-search><input name="q" placeholder="輸入玩家UID或暱稱" autocomplete="off"><button class="fam-btn">搜尋</button></form><div data-results></div>'
+      + '<h4 class="gd-inbox-title">聊天記錄</h4>'
+      + (conversations.map((c) => `<button class="conv" data-target="${esc(c.target)}" data-title="${esc(c.title)}"><span><b>${c.target === 'family' ? '👥 ' : ''}${esc(c.title)}</b><small>${esc(c.lastBody || '還沒有訊息')}</small></span>${c.unread ? `<span class="fam-badge" style="position:static">${c.unread}</span>` : ''}</button>`).join('') || '<div class="tool-empty">目前沒有對話，可私訊家族成員或互相關注的玩家</div>');
+    $$('[data-target]', chatBody).forEach((b) => (b.onclick = () => openChat(b.dataset.target, b.dataset.title)));
+    $('[data-search]', chatBody).onsubmit = async (e) => {
+      e.preventDefault();
+      const q = e.target.q.value.trim();
+      if (!q) return;
+      const { players } = await api.call('/social/search?q=' + encodeURIComponent(q));
+      $('[data-results]', chatBody).innerHTML = players.map(playerRow).join('') || '<div class="tool-empty">找不到符合的玩家</div>';
+      bindPlayers(players);
+    };
   }
 
   /** 玩家小卡：關注、私訊（同家族或互相關注）、送禮。 */
@@ -907,7 +903,7 @@
   $('#toolLayer').addEventListener('click', (e) => {
     if (!e.target.closest('[data-tool="friends"]')) return;
     e.stopPropagation();
-    if (requireLogin()) openInbox('follows').catch((err) => toast(err.message));
+    if (requireLogin()) openInbox().catch((err) => toast(err.message));
   }, true);
 
   // ---------- 自家哈希遊戲：由 GDBO 發 token，用會員錢包下注 ----------
