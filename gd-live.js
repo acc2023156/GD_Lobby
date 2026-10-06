@@ -172,7 +172,9 @@
     .music-now{border:1px solid #535d91;border-radius:14px;padding:12px;background:linear-gradient(145deg,#202956,#141b3d);color:#f8faff;margin-bottom:12px}
     .music-now small{color:#aeb8e8}.music-now b{display:block;font-size:17px;margin:4px 0 0;color:#ffd166}
     .music-head{display:flex;align-items:center;gap:12px;margin-bottom:10px}.music-head img{width:72px;height:72px;flex:none;border-radius:10px;object-fit:cover;box-shadow:0 0 10px #783dff88}
-    .music-ctrl{display:flex;gap:8px;flex-wrap:wrap}
+    .music-ctrl{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .music-carry{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:10px;padding-top:10px;border-top:1px solid #35406d;color:#aeb8e8;font-size:13px}
+    .music-carry .tool-switch{flex:none}
     .music-ctrl button{border:1px solid #6d76b8;border-radius:999px;background:#202a5c;color:#f8faff;font:inherit;font-weight:800;padding:7px 14px;cursor:pointer}
     .music-ctrl button.on{background:linear-gradient(135deg,#783dff,#ff3d9e);border-color:#ff8fd0}
     .music-list{display:grid;gap:6px}
@@ -216,8 +218,9 @@
     if (!musicPage.classList.contains('active')) return;
     musicPage.innerHTML = '<button class="tool-back">← 返回設定</button><h3>聲音</h3>' + (tracks.length
       ? `<div class="music-now"><div class="music-head">${trackCover() ? `<img src="${esc(trackCover())}" alt="">` : ''}<div><small>${player.paused ? '目前選擇' : '正在播放'}</small><b>${esc(trackTitle())}</b></div></div><div class="music-ctrl">
-          <button data-music="prev">⏮ 上一首</button><button data-music="play">${player.paused ? '▶ 播放' : '⏸ 暫停'}</button><button data-music="next">⏭ 下一首</button>
-          <button data-music="shuffle" class="${musicPrefs.shuffle ? 'on' : ''}">🔀 隨機${musicPrefs.shuffle ? '：開' : '：關'}</button></div></div>
+          <button data-music="prev">⏮ 上一首</button><button data-music="next">⏭ 下一首</button>
+          <button data-music="play">${player.paused ? '▶ 播放' : '⏸ 暫停'}</button><button data-music="shuffle" class="${musicPrefs.shuffle ? 'on' : ''}">🔀 隨機${musicPrefs.shuffle ? '：開' : '：關'}</button></div>
+          <label class="music-carry">進入遊戲後繼續播放<button type="button" class="tool-switch ${musicPrefs.carry === false ? '' : 'on'}" data-music="carry" aria-label="進入遊戲後繼續播放"></button></label></div>
          <div class="music-list">${tracks.map((t, i) => `<button data-track="${i}" class="${i === current ? 'on' : ''}"><i>${i === current && !player.paused ? '♪' : i + 1}</i><span>${esc(t.title)}</span></button>`).join('')}</div>`
       : '<div class="music-empty">歌曲即將上架，敬請期待。</div>');
     $('.tool-back', musicPage).onclick = () => showTool('');
@@ -225,26 +228,50 @@
     $$('[data-music]', musicPage).forEach((b) => (b.onclick = () => musicAction(b.dataset.music)));
   }
 
-  function playTrack(index) {
+  function playTrack(index, from = 0) {
     if (!tracks.length) return;
     current = (index + tracks.length) % tracks.length;
     musicPrefs.track = current;
+    musicPrefs.pos = from;
     saveMusic();
     player.src = tracks[current].src;
+    if (from) player.addEventListener('loadedmetadata', () => { player.currentTime = Math.min(from, Math.max(0, player.duration - 1)); }, { once: true });
+    upcoming = pickNext();
+    preloaded = false;
     if (!soundOn()) { soundSwitch.classList.add('on'); musicPrefs.on = true; saveMusic(); }
     player.play().catch(() => {}).finally(renderMusic);
     renderMusic();
   }
   const randomOther = () => (tracks.length < 2 ? current : (current + 1 + Math.floor(Math.random() * (tracks.length - 1))) % tracks.length);
-  const nextTrack = () => playTrack(musicPrefs.shuffle ? randomOther() : current + 1);
+  // 下一首在這首開始時就決定好（隨機也是），快播完前先預先下載，歌與歌之間不用等
+  const pickNext = () => (musicPrefs.shuffle ? randomOther() : (current + 1) % Math.max(1, tracks.length));
+  let upcoming = 0, preloaded = false;
+  const preloader = new Audio();
+  preloader.preload = 'auto';
+  preloader.muted = true;
+  const nextTrack = () => playTrack(upcoming);
   function musicAction(action) {
     if (action === 'prev') playTrack(current - 1);
     else if (action === 'next') nextTrack();
-    else if (action === 'shuffle') { musicPrefs.shuffle = !musicPrefs.shuffle; saveMusic(); renderMusic(); }
+    else if (action === 'shuffle') { musicPrefs.shuffle = !musicPrefs.shuffle; upcoming = pickNext(); preloaded = false; saveMusic(); renderMusic(); }
+    else if (action === 'carry') { musicPrefs.carry = musicPrefs.carry === false; saveMusic(); renderMusic(); }
     else if (player.paused) { if (player.src) player.play().catch(() => {}).finally(renderMusic); else playTrack(current); }
     else player.pause();
   }
   player.addEventListener('ended', nextTrack);
+  player.addEventListener('timeupdate', () => {
+    if (!preloaded && tracks[upcoming] && player.duration - player.currentTime < 30) {
+      preloaded = true;
+      preloader.src = tracks[upcoming].src;
+      preloader.load();
+    }
+    // 記住播到哪裡：進遊戲或回大廳時從這裡接著播
+    if (Math.abs((musicPrefs.pos || 0) - player.currentTime) > 3) { musicPrefs.pos = Math.floor(player.currentTime); saveMusic(); }
+  });
+  const rememberPlaying = () => { musicPrefs.playing = !player.paused && soundOn(); musicPrefs.pos = Math.floor(player.currentTime || 0); saveMusic(); };
+  player.addEventListener('play', rememberPlaying);
+  player.addEventListener('pause', () => { if (document.visibilityState === 'visible') rememberPlaying(); });
+  window.addEventListener('pagehide', () => { musicPrefs.pos = Math.floor(player.currentTime || 0); saveMusic(); });
   player.addEventListener('play', renderMusic);
   player.addEventListener('pause', renderMusic);
   player.addEventListener('error', () => { if (tracks.length > 1 && player.src) setTimeout(nextTrack, 800); });
@@ -261,7 +288,7 @@
   // 瀏覽器規定要玩家先點過畫面才能出聲：第一次點擊時開始播放
   const startOnFirstTap = () => {
     document.removeEventListener('pointerdown', startOnFirstTap, true);
-    if (soundOn() && tracks.length && player.paused && !player.src) playTrack(current);
+    if (soundOn() && tracks.length && player.paused && !player.src) playTrack(current, musicPrefs.playing ? musicPrefs.pos || 0 : 0);
   };
   document.addEventListener('pointerdown', startOnFirstTap, true);
 
