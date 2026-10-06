@@ -95,6 +95,10 @@
   <!-- iPhone / iPad 全畫面（加到主畫面的 PWA）：上方留一條「金龍GD娛樂城」標題列（無作用），避免被瀏海、靈動島和狀態列擋住；一般瀏覽器模式不需要 -->
   <script>if ((/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) && (navigator.standalone === true || matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches)) document.documentElement.classList.add('ios');</script>
   <style>
+    /* 主畫面 App：頁面會延伸到狀態列／靈動島下方，用系統提供的安全區域留出空間（一般瀏覽器分頁為 0）。
+       不依賴下面的 .ios 偵測：偵測不到時也不會被擋住；偵測到時由 html.ios 的規則（含標題列）取代 */
+    .app{padding-top:env(safe-area-inset-top, 0px)}
+    .profile-layer,.activity-layer,.rank-layer,.shop-layer,.gift-layer,.clan-layer,.tool-layer,.wallet-layer,.fam-sheet,.gd-chat{top:env(safe-area-inset-top, 0px)}
     .ios-title{display:none}
     html.ios{--ios-top:calc(env(safe-area-inset-top, 0px) + 30px)}
     html.ios .ios-title{display:flex;position:fixed;top:0;left:0;right:0;height:var(--ios-top);padding-top:env(safe-area-inset-top, 0px);box-sizing:border-box;align-items:center;justify-content:center;z-index:300;pointer-events:none;background:linear-gradient(110deg,#12183a,#20134e 55%,#101c42);color:#ffd166;font-weight:900;font-size:14px;letter-spacing:2px;border-bottom:1px solid #2c3566}
