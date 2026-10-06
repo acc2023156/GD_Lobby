@@ -964,13 +964,71 @@
     activityBack.classList.add('show');
   }
 
-  async function loadEvents() {
-    const { events } = await api.call('/content/events');
-    if (!events.length) return;
-    activityList.innerHTML = events.map((e, i) => `<button class="event-card" data-gd-event="${i}"><div class="event-banner ${e.image_url ? 'event-image' : ''}" data-icon="🎁" style="--a1:#ffcc35;--a2:#a31a1d;${e.image_url ? `--event-image:url('${esc(encodeURI(e.image_url))}')` : ''}"><strong>${esc(e.title)}</strong></div><footer><b>${esc(e.title)}</b><small>活動時間 ${esc(period(e))}</small></footer></button>`).join('');
-    $$('[data-gd-event]', activityList).forEach((card) => (card.onclick = () => showEvent(events[Number(card.dataset.gdEvent)])));
-  }
+  // 「獎勵」分頁由 loadRewards 畫（可領取獎勵＋優惠＋活動）
+  const loadEvents = () => loadRewards();
 
+  // ---------- 獎勵中心「獎勵」分頁：可領取的獎勵、優惠活動、後台活動 ----------
+  const rewardStyle = document.createElement('style');
+  rewardStyle.textContent = `
+    .gd-rw{display:grid;gap:10px;margin-bottom:12px}
+    .gd-rw h4{margin:4px 2px 0;color:#ffd166;font-size:15px}
+    .gd-rw-row{display:grid;grid-template-columns:34px 1fr auto;gap:10px;align-items:center;border:1px solid #35406d;border-radius:14px;padding:10px 12px;background:linear-gradient(135deg,#1c2557,#121a40);color:#f8faff}
+    .gd-rw-row>i{font-style:normal;font-size:24px;text-align:center}
+    .gd-rw-row b{display:block;font-size:14px}.gd-rw-row small{display:block;color:#aeb8e8;font-size:12px;margin-top:2px}
+    .gd-rw-row button{border:0;border-radius:999px;padding:7px 14px;font:inherit;font-weight:900;cursor:pointer;background:linear-gradient(180deg,#ffd166,#f4a51c);color:#4a2b00;white-space:nowrap}
+    .gd-rw-row button.ghost{background:#2b3566;color:#ffd166}
+    .gd-rw-empty{color:#8993bd;text-align:center;padding:10px;font-size:13px}
+    .tool-home .tool-music{margin-top:10px}
+    .profile-card .page-note{bottom:74px}
+    .profile-card .record-scroll{max-height:340px}`;
+  document.head.appendChild(rewardStyle);
+
+  const rewardRow = (icon, title, sub, button) => `<div class="gd-rw-row"><i>${icon}</i><span><b>${title}</b>${sub ? `<small>${sub}</small>` : ''}</span>${button}</div>`;
+  const openActivityTab = (name) => $(`[data-activity-tab="${name}"]`).click();
+
+  async function loadRewards() {
+    const [{ events }, mailData, missions, offerData] = await Promise.all([
+      api.call('/content/events').catch(() => ({ events: [] })),
+      me ? api.call('/mail').catch(() => null) : null,
+      me ? api.call('/missions').catch(() => null) : null,
+      me ? api.call('/promotions/offers').catch(() => null) : null,
+    ]);
+    const now = Date.now();
+    let claimable = '';
+    if (me) {
+      const mail = (mailData?.mail || []).filter((m) => m.reward_coins && !m.claimed_at && (!m.expires_at || Date.parse(m.expires_at) > now));
+      claimable += mail.map((m) => rewardRow('📩', esc(m.title), `${m.expires_at ? `領取期限 ${time(m.expires_at)}` : '信箱獎勵'}`, `<button data-rw-mail="${esc(m.id)}">領取 ${coins(m.reward_coins)} G</button>`)).join('');
+      if (missions && !missions.checkin.checkedIn) {
+        const today = missions.checkin.rewards.find((r) => r.day === missions.checkin.day);
+        claimable += rewardRow('📅', `每日簽到・第 ${missions.checkin.day} 天`, today ? `可領 ${coins(today.coins)} G幣` : '', '<button data-rw-tab="missions">簽到</button>');
+      }
+      const ready = missions ? [...missions.daily, ...missions.weekly].filter((m) => m.state === 'CLAIMABLE').length : 0;
+      if (ready) claimable += rewardRow('🎯', `任務獎勵 ${ready} 項可領取`, '每日任務與本週加碼', '<button data-rw-tab="missions">前往</button>');
+      const familyReady = missions?.family ? missions.family.filter((m) => m.state === 'CLAIMABLE').length : 0;
+      if (familyReady) claimable += rewardRow('🛡️', `家族任務 ${familyReady} 項可領取`, '', '<button data-rw-tab="family">前往</button>');
+    }
+    const offers = offerData?.offers || [];
+    const offerRows = offers.map((o) => rewardRow('🎁', esc(o.name), `${esc(o.description || '')}${o.endsAt ? `${o.description ? '・' : ''}至 ${time(o.endsAt)}` : ''}`, '<button class="ghost" disabled>進遊戲時參加</button>')).join('');
+    activityList.innerHTML = `<section class="gd-rw"><h4>可領取的獎勵</h4>${me ? claimable || '<div class="gd-rw-empty">目前沒有可領取的獎勵</div>' : '<div class="gd-rw-empty">登入後查看可領取的獎勵</div>'}</section>`
+      + (offerRows ? `<section class="gd-rw"><h4>優惠活動</h4>${offerRows}</section>` : '')
+      + `<section class="gd-rw"><h4>活動</h4>${events.length ? '' : '<div class="gd-rw-empty">目前沒有活動</div>'}</section>`
+      + events.map((e, i) => `<button class="event-card" data-gd-event="${i}"><div class="event-banner ${e.image_url ? 'event-image' : ''}" data-icon="🎁" style="--a1:#ffcc35;--a2:#a31a1d;${e.image_url ? `--event-image:url('${esc(encodeURI(e.image_url))}')` : ''}"><strong>${esc(e.title)}</strong></div><footer><b>${esc(e.title)}</b><small>活動時間 ${esc(period(e))}</small></footer></button>`).join('');
+    $$('[data-gd-event]', activityList).forEach((card) => (card.onclick = () => showEvent(events[Number(card.dataset.gdEvent)])));
+    $$('[data-rw-tab]', activityList).forEach((b) => (b.onclick = () => openActivityTab(b.dataset.rwTab)));
+    $$('[data-rw-mail]', activityList).forEach((b) => (b.onclick = async () => {
+      b.disabled = true;
+      try {
+        const from = me.mainAvailable;
+        const r = await api.call(`/mail/${b.dataset.rwMail}/claim`, { method: 'POST' });
+        if (Number(r?.coins) > 0) countUp($('#balance'), from, from + Number(r.coins));
+        await refresh();
+        await loadRewards();
+      } catch (err) { toast(err.message); b.disabled = false; }
+    }));
+  }
+  $('#openActivity').addEventListener('click', () => loadRewards().catch((err) => console.warn('rewards', err)));
+  $('[data-activity-tab="events"]').addEventListener('click', () => loadRewards().catch((err) => console.warn('rewards', err)));
+
   // 公告：設定選單裡的一頁
   const noticeItem = document.createElement('button');
   noticeItem.className = 'tool-item';
@@ -1067,7 +1125,6 @@
 
   const missionPanel = $('[data-activity-panel="missions"]');
   const familyPanel = $('[data-activity-panel="family"]');
-  const familyTab = $('[data-activity-tab="family"]');
   let msData = null, msTab = 'daily';
   const day = (iso) => { const d = new Date(iso); return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`; };
   /** 任務圖示：後台上傳的圖 → 大廳遊戲圖示 → 預設。 */
@@ -1080,7 +1137,7 @@
     const unit = m.metric === 'WAGER' ? coins : num;
     const button = m.state === 'CLAIMABLE' ? `<button class="gd-ms-btn claim" data-ms-claim="${esc(m.id)}">領取</button>`
       : m.state === 'CLAIMED' ? '<button class="gd-ms-btn" disabled>已領取</button>' : `<button class="gd-ms-btn" data-ms-go="${esc(m.gameName || '')}">前往</button>`;
-    return `<article class="gd-ms-card">${missionIcon(m)}<div><b>${esc(m.title)}</b><div class="gd-ms-bar"><span style="width:${pct}%"></span><em>${unit(m.progress)}/${unit(m.target)}</em></div><small>截止日期 ${day(new Date(new Date(m.deadline).getTime() - 1).toISOString())}</small></div><div class="gd-ms-reward"><i class="coin">G</i><strong>${coins(m.reward)}</strong>${button}</div></article>`;
+    return `<article class="gd-ms-card">${missionIcon(m)}<div><b>${esc(m.title)}</b><div class="gd-ms-bar"><span style="width:${pct}%"></span><em>${unit(m.progress)}/${unit(m.target)}</em></div><small>${m.period === 'DAILY' ? '每日 24:00 重置' : '每週一 00:00 重置'}${m.endsAt ? `・活動至 ${day(new Date(Date.parse(m.endsAt) - 1).toISOString())}` : ''}</small></div><div class="gd-ms-reward"><i class="coin">G</i><strong>${coins(m.reward)}</strong>${button}</div></article>`;
   };
   const missionList = (list, tab) => `${list.length ? list.map(missionCard).join('') : '<div class="gd-ms-empty">目前沒有任務</div>'}<button class="gd-ms-all" data-ms-all="${tab}" ${list.some((m) => m.state === 'CLAIMABLE') ? '' : 'disabled'}>全領取</button>`;
 
@@ -1095,8 +1152,7 @@
   function renderMissions() {
     if (!msData) return;
     missionPanel.innerHTML = `<div class="gd-ms">${renderCheckin(msData.checkin)}<div class="gd-seg"><button data-ms-tab="daily" class="${msTab === 'daily' ? 'on' : ''}">每日任務</button><button data-ms-tab="weekly" class="${msTab === 'weekly' ? 'on' : ''}">本週加碼</button></div>${missionList(msData[msTab], msTab)}</div>`;
-    familyTab.hidden = !msData.family;
-    familyPanel.innerHTML = msData.family ? `<div class="gd-ms">${missionList(msData.family, 'family')}</div>` : '';
+    familyPanel.innerHTML = msData.family ? `<div class="gd-ms">${missionList(msData.family, 'family')}</div>` : '<div class="gd-ms-empty">加入家族後即可參加家族任務</div>';
     $$('[data-ms-tab]', missionPanel).forEach((b) => (b.onclick = () => { msTab = b.dataset.msTab; renderMissions(); }));
     $$('[data-ms-claim]').forEach((b) => (b.onclick = () => claimMissions(b, `/missions/${b.dataset.msClaim}/claim`)));
     $$('[data-ms-all]').forEach((b) => (b.onclick = () => claimMissions(b, '/missions/claim-all', { tab: b.dataset.msAll })));
@@ -1109,6 +1165,19 @@
     if (!me) return;
     msData = await api.call('/missions');
     renderMissions();
+    scheduleMidnightRefresh();
+  }
+
+  // 獎勵中心開著時，台灣時間 00:00 自動換成新一天的任務與簽到
+  let midnightTimer = 0;
+  function scheduleMidnightRefresh() {
+    clearTimeout(midnightTimer);
+    const taipeiNow = Date.now() + 8 * 3600_000;
+    const msToMidnight = 86_400_000 - (taipeiNow % 86_400_000) + 1500;
+    midnightTimer = setTimeout(() => {
+      if (!activityLayer.hidden) { loadMissions().catch(() => {}); loadRewards().catch(() => {}); }
+      else scheduleMidnightRefresh();
+    }, msToMidnight);
   }
 
   /** 領取任務、全領取、簽到共用：入帳後金幣飛到錢包並重新整理。 */
