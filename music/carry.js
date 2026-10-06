@@ -15,9 +15,28 @@
     .then((data) => {
       const tracks = (data.tracks || []).filter((t) => t && t.src);
       if (!tracks.length) return;
+      const VOLUME = 0.35;
       const player = new Audio();
-      player.volume = 0.35;
+      player.volume = 0;
       player.preload = 'auto';
+      // 淡入淡出：進遊戲時從 0 慢慢變大聲，回大廳前先淡出，換頁不會突然切斷
+      let fadeRun = 0;
+      const fadeTo = (volume, ms) => new Promise((done) => {
+        const run = ++fadeRun, from = player.volume, t0 = performance.now();
+        const step = (now) => {
+          if (run !== fadeRun) return done();
+          const k = Math.min(1, (now - t0) / ms);
+          player.volume = from + (volume - from) * k;
+          if (k < 1) setTimeout(() => step(performance.now()), 30); else done();
+        };
+        step(performance.now());
+      });
+      document.addEventListener('click', (e) => {
+        const link = e.target.closest && e.target.closest('a[href]');
+        if (!link || player.paused || !/\/GD_Lobby\//.test(link.href)) return;
+        e.preventDefault();
+        fadeTo(0, 450).then(() => { location.href = link.href; });
+      }, true);
       let current = Math.min(Number(prefs.track) || 0, tracks.length - 1);
       const next = () => {
         if (prefs.shuffle && tracks.length > 1) return (current + 1 + Math.floor(Math.random() * (tracks.length - 1))) % tracks.length;
@@ -38,7 +57,9 @@
       window.addEventListener('pagehide', () => { prefs.pos = Math.floor(player.currentTime || 0); save(); });
       load(current, Number(prefs.pos) || 0);
       // 瀏覽器規定要先點過畫面才能出聲：能直接播就播，不行就等第一次點擊
-      const start = () => { player.play().then(() => document.removeEventListener('pointerdown', start, true)).catch(() => {}); };
+      const start = () => {
+        player.play().then(() => { document.removeEventListener('pointerdown', start, true); fadeTo(VOLUME, 900); }).catch(() => {});
+      };
       document.addEventListener('pointerdown', start, true);
       start();
     })
