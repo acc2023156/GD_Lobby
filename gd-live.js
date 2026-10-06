@@ -172,8 +172,8 @@
     .music-now{border:1px solid #535d91;border-radius:14px;padding:12px;background:linear-gradient(145deg,#202956,#141b3d);color:#f8faff;margin-bottom:12px}
     .music-now small{color:#aeb8e8}.music-now b{display:block;font-size:17px;margin:4px 0 0;color:#ffd166}
     .music-head{display:flex;align-items:center;gap:12px;margin-bottom:10px}.music-head img{width:72px;height:72px;flex:none;border-radius:10px;object-fit:cover;box-shadow:0 0 10px #783dff88}
-    .music-ctrl{display:flex;gap:8px;flex-wrap:wrap}
-    .music-ctrl button{border:1px solid #6d76b8;border-radius:999px;background:#202a5c;color:#f8faff;font:inherit;font-weight:800;padding:7px 14px;cursor:pointer}
+    .music-ctrl{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .music-ctrl button{border:1px solid #6d76b8;border-radius:999px;background:#202a5c;color:#f8faff;font:inherit;font-weight:800;padding:7px 10px;cursor:pointer;white-space:nowrap}
     .music-ctrl button.on{background:linear-gradient(135deg,#783dff,#ff3d9e);border-color:#ff8fd0}
     .music-list{display:grid;gap:6px}
     .music-list button{all:unset;cursor:pointer;display:flex;gap:10px;align-items:center;border:1px solid #35406d;border-radius:12px;padding:10px 12px;background:#121a40;color:#f8faff}
@@ -216,8 +216,8 @@
     if (!musicPage.classList.contains('active')) return;
     musicPage.innerHTML = '<button class="tool-back">← 返回設定</button><h3>聲音</h3>' + (tracks.length
       ? `<div class="music-now"><div class="music-head">${trackCover() ? `<img src="${esc(trackCover())}" alt="">` : ''}<div><small>${player.paused ? '目前選擇' : '正在播放'}</small><b>${esc(trackTitle())}</b></div></div><div class="music-ctrl">
-          <button data-music="prev">⏮ 上一首</button><button data-music="play">${player.paused ? '▶ 播放' : '⏸ 暫停'}</button><button data-music="next">⏭ 下一首</button>
-          <button data-music="shuffle" class="${musicPrefs.shuffle ? 'on' : ''}">🔀 隨機${musicPrefs.shuffle ? '：開' : '：關'}</button></div></div>
+          <button data-music="prev">⏮ 上一首</button><button data-music="next">⏭ 下一首</button>
+          <button data-music="play">${player.paused ? '▶ 播放' : '⏸ 暫停'}</button><button data-music="shuffle" class="${musicPrefs.shuffle ? 'on' : ''}">🔀 隨機${musicPrefs.shuffle ? '：開' : '：關'}</button></div></div>
          <div class="music-list">${tracks.map((t, i) => `<button data-track="${i}" class="${i === current ? 'on' : ''}"><i>${i === current && !player.paused ? '♪' : i + 1}</i><span>${esc(t.title)}</span></button>`).join('')}</div>`
       : '<div class="music-empty">歌曲即將上架，敬請期待。</div>');
     $('.tool-back', musicPage).onclick = () => showTool('');
@@ -225,8 +225,19 @@
     $$('[data-music]', musicPage).forEach((b) => (b.onclick = () => musicAction(b.dataset.music)));
   }
 
+  // 下一首先決定好，播到最後 40 秒時先把它下載進瀏覽器快取，換歌時不用再等
+  let upcoming = null;
+  const pickNext = () => (musicPrefs.shuffle ? randomOther() : (current + 1) % tracks.length);
+  function prefetchNext() {
+    if (upcoming !== null || tracks.length < 2) return;
+    upcoming = pickNext();
+    fetch(tracks[upcoming].src, { mode: 'no-cors' }).catch(() => {});
+  }
+  player.addEventListener('timeupdate', () => { if (player.duration - player.currentTime < 40) prefetchNext(); });
+
   function playTrack(index) {
     if (!tracks.length) return;
+    upcoming = null;
     current = (index + tracks.length) % tracks.length;
     musicPrefs.track = current;
     saveMusic();
@@ -236,11 +247,11 @@
     renderMusic();
   }
   const randomOther = () => (tracks.length < 2 ? current : (current + 1 + Math.floor(Math.random() * (tracks.length - 1))) % tracks.length);
-  const nextTrack = () => playTrack(musicPrefs.shuffle ? randomOther() : current + 1);
+  const nextTrack = () => playTrack(upcoming ?? pickNext());
   function musicAction(action) {
     if (action === 'prev') playTrack(current - 1);
     else if (action === 'next') nextTrack();
-    else if (action === 'shuffle') { musicPrefs.shuffle = !musicPrefs.shuffle; saveMusic(); renderMusic(); }
+    else if (action === 'shuffle') { musicPrefs.shuffle = !musicPrefs.shuffle; upcoming = null; saveMusic(); renderMusic(); }
     else if (player.paused) { if (player.src) player.play().catch(() => {}).finally(renderMusic); else playTrack(current); }
     else player.pause();
   }
