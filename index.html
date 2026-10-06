@@ -92,8 +92,18 @@
     @keyframes gdMarquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
     @media(prefers-reduced-motion:reduce){.marquee-track{animation-duration:60s}}
   </style>
+  <!-- iPhone / iPad：上方留一條「金龍GD娛樂城」標題列（無作用），避免頁面與彈窗被瀏海、靈動島和狀態列擋住 -->
+  <script>if (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) document.documentElement.classList.add('ios');</script>
+  <style>
+    .ios-title{display:none}
+    html.ios{--ios-top:calc(env(safe-area-inset-top, 0px) + 30px)}
+    html.ios .ios-title{display:flex;position:fixed;top:0;left:0;right:0;height:var(--ios-top);padding-top:env(safe-area-inset-top, 0px);box-sizing:border-box;align-items:center;justify-content:center;z-index:300;pointer-events:none;background:linear-gradient(110deg,#12183a,#20134e 55%,#101c42);color:#ffd166;font-weight:900;font-size:14px;letter-spacing:2px;border-bottom:1px solid #2c3566}
+    html.ios .app{padding-top:var(--ios-top)}
+    html.ios .profile-layer,html.ios .activity-layer,html.ios .rank-layer,html.ios .shop-layer,html.ios .gift-layer,html.ios .clan-layer,html.ios .tool-layer,html.ios .wallet-layer,html.ios .fam-sheet,html.ios .gd-chat{top:var(--ios-top)}
+  </style>
 </head>
 <body>
+<div class="ios-title" aria-hidden="true">金龍GD娛樂城</div>
 <main class="app">
   <header class="topbar">
     <button class="avatar" id="openProfileAvatar" aria-label="開啟會員中心">GD</button><button class="account" id="openProfile"><b>GD會員</b><span class="account-meta"><small>VIP 0</small><span class="vip-progress" role="progressbar" aria-label="VIP 進度 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"><i></i></span></span></button>
