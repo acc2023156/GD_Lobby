@@ -12,6 +12,10 @@
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon-180.png">
+  <script>
+    // iPhone／iPad 加入主畫面（PWA）時，狀態列和靈動島會蓋住頁面頂端：加上 ios-pwa，讓頂端多一條標題區
+    (function(){var n=navigator,ios=/iP(hone|ad|od)/.test(n.userAgent)||(n.platform==='MacIntel'&&n.maxTouchPoints>1);if(ios&&(n.standalone||matchMedia('(display-mode: standalone)').matches))document.documentElement.classList.add('ios-pwa')})();
+  </script>
   <style>
     :root{--red:#cf161d;--red2:#951015;--cream:#fff8e9;--gold:#ffc641;--ink:#4b251b;--rail:82px;--bottom:78px}
     *{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#19100d;font-family:"Noto Sans TC","Microsoft JhengHei",sans-serif;color:var(--ink)}
@@ -91,9 +95,16 @@
     .marquee-track span{background:linear-gradient(180deg,#fff6b7,#ffd166 55%,#ff9f3d);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:0 0 12px #ff8a3d22}
     @keyframes gdMarquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
     @media(prefers-reduced-motion:reduce){.marquee-track{animation-duration:60s}}
+    /* iOS 主畫面：頂端標題區（無功能），所有頁面與彈窗往下讓出這塊 */
+    .ios-title{display:none}
+    .ios-pwa{--ios-top:calc(env(safe-area-inset-top) + 30px)}
+    .ios-pwa .ios-title{display:flex;align-items:center;justify-content:center;position:fixed;z-index:200;top:0;left:50%;transform:translateX(-50%);width:min(100%,540px);height:var(--ios-top);padding-top:env(safe-area-inset-top);background:#0B1026;color:#f5c65b;font-weight:900;font-size:15px;letter-spacing:2px;pointer-events:none}
+    .ios-pwa .app{padding-top:var(--ios-top)}
+    .ios-pwa :is(.profile-layer,.activity-layer,.rank-layer,.shop-layer,.gift-layer,.clan-layer,.tool-layer,.wallet-layer,.gd-login,.fam-sheet,.gd-chat){top:var(--ios-top)}
   </style>
 </head>
 <body>
+<div class="ios-title" aria-hidden="true">金龍GD娛樂城</div>
 <main class="app">
   <header class="topbar">
     <button class="avatar" id="openProfileAvatar" aria-label="開啟會員中心">GD</button><button class="account" id="openProfile"><b>GD會員</b><span class="account-meta"><small>VIP 0</small><span class="vip-progress" role="progressbar" aria-label="VIP 進度 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"><i></i></span></span></button>
