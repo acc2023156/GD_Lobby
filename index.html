@@ -92,8 +92,8 @@
     @keyframes gdMarquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
     @media(prefers-reduced-motion:reduce){.marquee-track{animation-duration:60s}}
   </style>
-  <!-- iPhone / iPad：上方留一條「金龍GD娛樂城」標題列（無作用），避免頁面與彈窗被瀏海、靈動島和狀態列擋住 -->
-  <script>if (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) document.documentElement.classList.add('ios');</script>
+  <!-- iPhone / iPad 全畫面（加到主畫面的 PWA）：上方留一條「金龍GD娛樂城」標題列（無作用），避免被瀏海、靈動島和狀態列擋住；一般瀏覽器模式不需要 -->
+  <script>if ((/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) && (navigator.standalone === true || matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches)) document.documentElement.classList.add('ios');</script>
   <style>
     .ios-title{display:none}
     html.ios{--ios-top:calc(env(safe-area-inset-top, 0px) + 30px)}
