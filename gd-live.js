@@ -195,7 +195,27 @@
   let current = Number.isInteger(musicPrefs.track) ? musicPrefs.track : 0;
   const player = new Audio();
   player.preload = 'none';
-  player.volume = 0.6;
+  const MUSIC_VOLUME = 0.6;
+  player.volume = MUSIC_VOLUME;
+  // 淡入淡出：換歌、進出遊戲時聲音不會突然開始或切斷（iOS 不支援調音量時直接播放）
+  let fadeRun = 0;
+  function fadeTo(volume, ms) {
+    const run = ++fadeRun, from = player.volume, t0 = performance.now();
+    return new Promise((done) => {
+      const step = (now) => {
+        if (run !== fadeRun) return done();
+        const k = Math.min(1, (now - t0) / ms);
+        player.volume = from + (volume - from) * k;
+        if (k < 1) setTimeout(() => step(performance.now()), 30); else done();
+      };
+      step(performance.now());
+    });
+  }
+  const startPlaying = () => {
+    player.volume = 0;
+    return player.play().then(() => fadeTo(MUSIC_VOLUME, 900)).catch(() => {}).finally(renderMusic);
+  };
+  window.GDMusic = { fadeOut: (ms = 450) => (player.paused ? Promise.resolve() : fadeTo(0, ms)) };
 
   // 「聲音」那一格可以點開播放器，旁邊顯示目前曲名
   const musicRow = $('.tool-music');
@@ -239,7 +259,7 @@
     upcoming = pickNext();
     preloaded = false;
     if (!soundOn()) { soundSwitch.classList.add('on'); musicPrefs.on = true; saveMusic(); }
-    player.play().catch(() => {}).finally(renderMusic);
+    startPlaying();
     renderMusic();
   }
   const randomOther = () => (tracks.length < 2 ? current : (current + 1 + Math.floor(Math.random() * (tracks.length - 1))) % tracks.length);
@@ -255,7 +275,7 @@
     else if (action === 'next') nextTrack();
     else if (action === 'shuffle') { musicPrefs.shuffle = !musicPrefs.shuffle; upcoming = pickNext(); preloaded = false; saveMusic(); renderMusic(); }
     else if (action === 'carry') { musicPrefs.carry = musicPrefs.carry === false; saveMusic(); renderMusic(); }
-    else if (player.paused) { if (player.src) player.play().catch(() => {}).finally(renderMusic); else playTrack(current); }
+    else if (player.paused) { if (player.src) startPlaying(); else playTrack(current); }
     else player.pause();
   }
   player.addEventListener('ended', nextTrack);
@@ -288,7 +308,9 @@
   // 瀏覽器規定要玩家先點過畫面才能出聲：第一次點擊時開始播放
   const startOnFirstTap = () => {
     document.removeEventListener('pointerdown', startOnFirstTap, true);
-    if (soundOn() && tracks.length && player.paused && !player.src) playTrack(current, musicPrefs.playing ? musicPrefs.pos || 0 : 0);
+    if (!soundOn() || !tracks.length || !player.paused) return;
+    if (player.src) startPlaying();
+    else playTrack(current, musicPrefs.playing ? musicPrefs.pos || 0 : 0);
   };
   document.addEventListener('pointerdown', startOnFirstTap, true);
 
@@ -298,6 +320,7 @@
       tracks = (data.tracks || []).filter((t) => t && t.title && t.src);
       albumCover = data.cover || '';
       if (current >= tracks.length) current = 0;
+      if (soundOn() && musicPrefs.playing && tracks.length) playTrack(current, musicPrefs.pos || 0);
       renderMusic();
     })
     .catch(() => renderMusic());
@@ -906,6 +929,7 @@
         modalStatus.textContent = '正在取得遊戲連線…';
       }
       const { url } = await api.call('/game-sessions', { method: 'POST', body: { gameId, returnUrl: location.origin + location.pathname + '?cat=exclusive' } });
+      await window.GDMusic?.fadeOut();
       location.href = url;
     } catch (err) {
       modalStatus.textContent = '遊戲連線失敗：' + err.message;
