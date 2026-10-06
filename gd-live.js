@@ -163,6 +163,114 @@
     };
   }
 
+  // ---------- 設定 → 聲音：大廳背景音樂（歌單、點歌、隨機播放） ----------
+  // 歌單在 music/playlist.json：{ "tracks": [{ "title": "曲名", "src": "歌曲網址" }] }，歌曲檔放在 Cloudflare R2
+  const musicStyle = document.createElement('style');
+  musicStyle.textContent = `
+    .tool-music .music-open{all:unset;cursor:pointer;flex:1;display:grid;gap:2px;min-width:0}
+    .tool-music .music-open small{color:#ffd166;font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .music-now{border:1px solid #535d91;border-radius:14px;padding:12px;background:linear-gradient(145deg,#202956,#141b3d);color:#f8faff;margin-bottom:12px}
+    .music-now small{color:#aeb8e8}.music-now b{display:block;font-size:17px;margin:4px 0 10px;color:#ffd166}
+    .music-ctrl{display:flex;gap:8px;flex-wrap:wrap}
+    .music-ctrl button{border:1px solid #6d76b8;border-radius:999px;background:#202a5c;color:#f8faff;font:inherit;font-weight:800;padding:7px 14px;cursor:pointer}
+    .music-ctrl button.on{background:linear-gradient(135deg,#783dff,#ff3d9e);border-color:#ff8fd0}
+    .music-list{display:grid;gap:6px}
+    .music-list button{all:unset;cursor:pointer;display:flex;gap:10px;align-items:center;border:1px solid #35406d;border-radius:12px;padding:10px 12px;background:#121a40;color:#f8faff}
+    .music-list button.on{border-color:#ffd166;box-shadow:0 0 8px #ffd16666}
+    .music-list i{font-style:normal;color:#8993bd;width:22px;text-align:right}
+    .music-empty{color:#8993bd;text-align:center;padding:24px 8px}`;
+  document.head.appendChild(musicStyle);
+
+  const MUSIC_KEY = 'gd-music';
+  const musicPrefs = (() => { try { return JSON.parse(localStorage.getItem(MUSIC_KEY)) || {}; } catch { return {}; } })();
+  const saveMusic = () => { try { localStorage.setItem(MUSIC_KEY, JSON.stringify(musicPrefs)); } catch {} };
+  const soundSwitch = $('#musicSwitch');
+  if (musicPrefs.on === false) soundSwitch.classList.remove('on');
+  const soundOn = () => soundSwitch.classList.contains('on');
+
+  let tracks = [];
+  let current = Number.isInteger(musicPrefs.track) ? musicPrefs.track : 0;
+  const player = new Audio();
+  player.preload = 'none';
+  player.volume = 0.6;
+
+  // 「聲音」那一格可以點開播放器，旁邊顯示目前曲名
+  const musicRow = $('.tool-music');
+  musicRow.firstElementChild.outerHTML = '<button type="button" class="music-open"><span>🔊 聲音</span><small id="nowPlaying"></small></button>';
+  const musicPage = document.createElement('section');
+  musicPage.className = 'tool-page';
+  musicPage.dataset.toolPage = 'music';
+  $('#toolHome').after(musicPage);
+  $('.music-open', musicRow).onclick = () => { showTool('music'); renderMusic(); };
+
+  const trackTitle = () => (tracks[current] ? tracks[current].title : '');
+  function renderNowPlaying() {
+    $('#nowPlaying').textContent = !tracks.length ? '歌曲即將上架' : !soundOn() ? '已靜音' : player.paused ? `暫停：${trackTitle()}` : `播放中：${trackTitle()}`;
+  }
+  function renderMusic() {
+    renderNowPlaying();
+    if (!musicPage.classList.contains('active')) return;
+    musicPage.innerHTML = '<button class="tool-back">← 返回設定</button><h3>聲音</h3>' + (tracks.length
+      ? `<div class="music-now"><small>${player.paused ? '目前選擇' : '正在播放'}</small><b>${esc(trackTitle())}</b><div class="music-ctrl">
+          <button data-music="prev">⏮ 上一首</button><button data-music="play">${player.paused ? '▶ 播放' : '⏸ 暫停'}</button><button data-music="next">⏭ 下一首</button>
+          <button data-music="shuffle" class="${musicPrefs.shuffle ? 'on' : ''}">🔀 隨機${musicPrefs.shuffle ? '：開' : '：關'}</button></div></div>
+         <div class="music-list">${tracks.map((t, i) => `<button data-track="${i}" class="${i === current ? 'on' : ''}"><i>${i === current && !player.paused ? '♪' : i + 1}</i><span>${esc(t.title)}</span></button>`).join('')}</div>`
+      : '<div class="music-empty">歌曲即將上架，敬請期待。</div>');
+    $('.tool-back', musicPage).onclick = () => showTool('');
+    $$('[data-track]', musicPage).forEach((b) => (b.onclick = () => playTrack(Number(b.dataset.track))));
+    $$('[data-music]', musicPage).forEach((b) => (b.onclick = () => musicAction(b.dataset.music)));
+  }
+
+  function playTrack(index) {
+    if (!tracks.length) return;
+    current = (index + tracks.length) % tracks.length;
+    musicPrefs.track = current;
+    saveMusic();
+    player.src = tracks[current].src;
+    if (!soundOn()) { soundSwitch.classList.add('on'); musicPrefs.on = true; saveMusic(); }
+    player.play().catch(() => {}).finally(renderMusic);
+    renderMusic();
+  }
+  const randomOther = () => (tracks.length < 2 ? current : (current + 1 + Math.floor(Math.random() * (tracks.length - 1))) % tracks.length);
+  const nextTrack = () => playTrack(musicPrefs.shuffle ? randomOther() : current + 1);
+  function musicAction(action) {
+    if (action === 'prev') playTrack(current - 1);
+    else if (action === 'next') nextTrack();
+    else if (action === 'shuffle') { musicPrefs.shuffle = !musicPrefs.shuffle; saveMusic(); renderMusic(); }
+    else if (player.paused) { if (player.src) player.play().catch(() => {}).finally(renderMusic); else playTrack(current); }
+    else player.pause();
+  }
+  player.addEventListener('ended', nextTrack);
+  player.addEventListener('play', renderMusic);
+  player.addEventListener('pause', renderMusic);
+  player.addEventListener('error', () => { if (tracks.length > 1 && player.src) setTimeout(nextTrack, 800); });
+
+  // 開關：關掉時音樂與金幣音效都靜音；打開時繼續播放上次的歌
+  soundSwitch.addEventListener('click', () => {
+    musicPrefs.on = soundOn();
+    saveMusic();
+    if (!soundOn()) player.pause();
+    else if (tracks.length) (player.src ? player.play().catch(() => {}) : playTrack(current));
+    renderMusic();
+  });
+
+  // 瀏覽器規定要玩家先點過畫面才能出聲：第一次點擊時開始播放
+  const startOnFirstTap = () => {
+    document.removeEventListener('pointerdown', startOnFirstTap, true);
+    if (soundOn() && tracks.length && player.paused && !player.src) playTrack(current);
+  };
+  document.addEventListener('pointerdown', startOnFirstTap, true);
+
+  fetch('music/playlist.json', { cache: 'no-store' })
+    .then((r) => (r.ok ? r.json() : { tracks: [] }))
+    .then((data) => {
+      tracks = (data.tracks || []).filter((t) => t && t.title && t.src);
+      if (current >= tracks.length) current = 0;
+      renderMusic();
+    })
+    .catch(() => renderMusic());
+  renderNowPlaying();
+
   // ---------- 會員資料 ----------
   async function refresh() {
     if (!api.isLoggedIn()) return;
