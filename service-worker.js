@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gd-lobby-v26';
+const CACHE_NAME = 'gd-lobby-v27';
 const APP_SHELL = [
   './',
   './index.html',
@@ -54,7 +54,7 @@ self.addEventListener('fetch', event => {
   }
 
   // 程式檔（js）與歌單等資料（json）走網路優先：部署新版後手機立刻拿到，離線時才用快取
-  if (request.destination === 'script' || url.pathname.endsWith('.js') || url.pathname.endsWith('.json')) {
+  if (request.destination === 'script' || url.pathname.endsWith('.js') || url.pathname.endsWith('.json') || url.pathname.endsWith('.html') || url.pathname.endsWith('/')) {
     event.respondWith(
       fetch(request, { cache: 'no-store' })
         .then(response => {

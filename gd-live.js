@@ -449,15 +449,14 @@
     // 有效投注只計本金投注（優惠金幣投注不計）
     m('today', e.todayValidWager === undefined ? '—' : coins(e.todayValidWager));
     m('total', e.validWager === undefined ? '—' : coins(e.validWager));
-    m('need', !e.canSend ? 'VIP 2 開放' : e.remainingWager > 0 ? coins(e.remainingWager) : '0（已達標）');
-    // 門檻明細：累計有效投注需達「累計儲值 × 倍數」
+    // 送禮資格只看投注、不看儲值：近 60 日有效投注達 VIP 2 即可送禮
+    m('need', e.canSend || !(e.remainingWager > 0) ? '0（已達標）' : coins(e.remainingWager));
     const needEl = $('[data-m="need"]', page);
     let detail = $('em', needEl.parentNode);
     if (!detail) { detail = document.createElement('em'); needEl.after(detail); }
-    detail.textContent = e.canSend && e.wagerRequired !== undefined && e.wagerRequired !== null
-      ? `儲值 ${coins(e.depositTotal)} × ${(e.wagerReqBps / 10000).toLocaleString()} 倍 = ${coins(e.wagerRequired)}，已投注 ${coins(e.validWager)}`
-      : '';
-    $('.gift-safe', page).textContent = '送禮門檻：累計有效投注需達「累計儲值 × 倍數」。有效投注只計本金投注，優惠金幣投注不計。';
+    const v = me.vipProgress;
+    detail.textContent = e.canSend ? `近 60 日有效投注 ${coins(v.rollingWager)}・VIP ${me.vip.level}` : `近 60 日有效投注 ${coins(v.rollingWager)}，達 VIP 2 即可送禮`;
+    $('.gift-safe', page).textContent = '送禮資格只看有效投注、不看儲值：近 60 日有效投注達 VIP 2 即可送禮。有效投注只計本金投注，優惠金幣投注不計。';
     const phone = me.profile.phoneVerified;
     m('receive', phone ? '已開通' : '需綁定手機');
     const lock = $('.gift-lock', page);

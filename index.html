@@ -331,7 +331,32 @@
       document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') reg.update().catch(() => {}); });
     }));
   }
+  // 手機主畫面 App（PWA）常常整頁留在記憶體裡，上滑關掉再開也還是舊畫面：
+  // 開啟和回到前景時向伺服器比對大廳版本（gd-live.js?v=），線上比較新就清掉快取重新載入一次
+  (() => {
+    let busy = false;
+    async function checkBuild() {
+      // gd-live.js 的 script 在這段之後，執行時才讀版本
+      const mine = (document.querySelector('script[src^="gd-live.js"]')?.getAttribute('src') || '').split('v=')[1] || '';
+      if (busy || !mine) return;
+      busy = true;
+      try {
+        const html = await (await fetch('./index.html?build=' + Date.now(), { cache: 'no-store' })).text();
+        const live = (html.match(/gd-live\.js\?v=([\w.-]+)/) || [])[1];
+        let tried = '';
+        try { tried = sessionStorage.getItem('gd-build-reload') || ''; } catch {}
+        if (live && live !== mine && tried !== live) {
+          try { sessionStorage.setItem('gd-build-reload', live); } catch {}
+          if (window.caches) await Promise.all((await caches.keys()).map((k) => caches.delete(k)));
+          location.reload();
+        }
+      } catch {} finally { busy = false; }
+    }
+    window.addEventListener('load', checkBuild);
+    window.addEventListener('pageshow', (e) => { if (e.persisted) checkBuild(); });
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkBuild(); });
+  })();
 </script>
-<script src="gd-live.js?v=20261007c"></script>
+<script src="gd-live.js?v=20261007d"></script>
 </body>
 </html>
