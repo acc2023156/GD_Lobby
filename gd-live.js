@@ -169,7 +169,10 @@
   musicStyle.textContent = `
     .tool-music .music-open{all:unset;cursor:pointer;flex:1;display:grid;gap:2px;min-width:0}
     .tool-music .music-open small{color:#ffd166;font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .tool-music .music-go{color:#ffd166;font-weight:900;flex:none}`;
+    .tool-music .music-go{color:#ffd166;font-weight:900;flex:none}
+    .tool-music.hot{border:1px solid #ff67c6;background:linear-gradient(105deg,#783dff,#ff3d9e 66%,#ff8a3d);color:#fff;box-shadow:inset 0 1px #fff5,0 5px 13px #0007}
+    .tool-music.hot .music-open small{color:#fff;opacity:.9}
+    .tool-music.hot .music-go{color:#fff}`;
   document.head.appendChild(musicStyle);
   const musicRow = $('.tool-music');
   musicRow.innerHTML = '<button type="button" class="music-open"><span>🎵 音源</span><small id="nowPlaying"></small></button><span class="music-go">›</span>';
