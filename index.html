@@ -215,7 +215,7 @@
     <button class="wallet-close" aria-label="關閉錢包">×</button>
   </div>
 </section>
-<script src="gd-api.js?v=20261006b"></script>
+<script src="gd-api.js?v=20261008a"></script>
 <script>
   const catalog=[
     ['急速百家','🎴','#a72831','#4b1018','poker','','','speed_baccarat_TCH.webp'],['21點','♠️','#5a2c75','#241038','poker','','','blackjack_TCH.webp'],['三路百家','🃏','#b0392e','#521513','poker','','','3_road_baccarat_TCH.webp'],['急速龍虎','🐯','#513285','#1f153f','poker','','','speed_dragon_tiger_TCH.webp'],['射龍門','🎯','#d94d26','#7d170e','poker','','','inbetween_TCH.webp'],['經典龍虎','🐉','#7b2d75','#351236','poker','','','classic_dragon_tiger_TCH.webp'],
@@ -227,13 +227,14 @@
   // GD獨家遊戲返回大廳時直接回到 GD獨家 分類
   const exclusiveReturn=encodeURIComponent(location.origin+location.pathname+'?cat=exclusive');
   const gameRoutes={
-    '麻將胡了':'https://acc2023156.github.io/mahjong-fortune-slot/',
-    '珠珠寶貝':`https://acc2023156.github.io/Plinko/?return=${exclusiveReturn}`,
-    '沖高高':`https://acc2023156.github.io/Crash/?return=${exclusiveReturn}`,
-    '全壘打':`https://acc2023156.github.io/HomeRun/derby.html?return=${exclusiveReturn}`,
-    '寶石探險':`https://acc2023156.github.io/MINES/?return=${exclusiveReturn}`,
-    '六子骰':`https://acc2023156.github.io/Dice/?return=${exclusiveReturn}`,
-    '黑粒仔':`https://acc2023156.github.io/PaiGowTiles/?return=${exclusiveReturn}`
+    // 同網址下的路徑：gdclub.cc 與 acc2023156.github.io 都有這些遊戲，留在同源才能共用音源設定
+    '麻將胡了':'/mahjong-fortune-slot/',
+    '珠珠寶貝':`/Plinko/?return=${exclusiveReturn}`,
+    '沖高高':`/Crash/?return=${exclusiveReturn}`,
+    '全壘打':`/HomeRun/derby.html?return=${exclusiveReturn}`,
+    '寶石探險':`/MINES/?return=${exclusiveReturn}`,
+    '六子骰':`/Dice/?return=${exclusiveReturn}`,
+    '黑粒仔':`/PaiGowTiles/?return=${exclusiveReturn}`
   };
   function openGame(g){selectedGame=g[0];modalArt.innerHTML=g[7]?`<img src="${g[7]}" alt="${g[0]} ICON">`:`<span aria-hidden="true">${g[1]}</span>`;modalOfferName.textContent=g[0];modalStatus.hidden=true;modalStatus.textContent='';playButton.textContent='進入遊戲';dialog.showModal()}
   function render(){games.innerHTML='';catalog.forEach((g,i)=>{if(g[4]!==active)return;const exclusive=g[4]==='exclusive',slots=g[4]==='slots',maintenance=g[6]==='maintenance',coming=g[6]==='coming-soon',unavailable=maintenance||coming,symbol=g[7]?`<img src="${g[7]}" alt="">`:g[1],badge=exclusive?'<span class="exp">2X EXP</span>':slots?'':`<button class="fav ${favorites.has(i)?'on':''}" aria-label="收藏">♥</button>`;const b=document.createElement('article');b.className='game'+(exclusive?' exclusive':'')+(slots?' slots':'')+(maintenance?' maintenance':'')+(coming?' coming-soon':'');b.tabIndex=unavailable?-1:0;b.role='button';b.style.setProperty('--c1',g[2]);b.style.setProperty('--c2',g[3]);b.innerHTML=`${badge}<span class="symbol">${symbol}</span>${exclusive?`<span class="playing">${g[5]} 人在玩</span>`:slots?(coming?'<span class="coming">即將上市 <span aria-hidden="true">🔒</span></span>':`<span class="rtp">LIVE RTP <b>${g[5]}</b></span>`):'<span class="vip">VIP1 <span class="lock">🔒</span></span>'}${maintenance?'<span class="maintenance">維護中</span>':''}`;const fav=b.querySelector('.fav');if(fav)fav.onclick=e=>{e.stopPropagation();favorites.has(i)?favorites.delete(i):favorites.add(i);render()};if(!unavailable){b.onclick=()=>openGame(g);b.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();b.click()}}};games.appendChild(b)})}
@@ -352,6 +353,6 @@
     status.hidden = false;
   }, true);
 </script>
-<script src="gd-live.js?v=20261008e"></script>
+<script src="gd-live.js?v=20261008f"></script>
 </body>
 </html>

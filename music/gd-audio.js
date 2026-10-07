@@ -1,7 +1,7 @@
 /* GD 共用「音源」：大廳與所有遊戲（GD 獨家六款、之後的 SLOT 等）共用同一個彈窗與設定。
    - 音樂：專輯／歌單播放（上一首、下一首、暫停、隨機、點歌），音量 靜音／25%／50%／75%／100%
    - 音效：遊戲內音效音量 靜音／25%／50%／75%／100%（遊戲的 sound.js 讀 GDAudio.sfx）
-   - 設定存在 localStorage 的 gd-music（大廳與遊戲都在 acc2023156.github.io，同一份設定）
+   - 設定存在 localStorage 的 gd-music（大廳與遊戲在同一個網址：gdclub.cc，或舊的 acc2023156.github.io，同一份設定）
    使用方式：頁面載入這支檔案；右上喇叭按鈕加 data-gd-audio（舊遊戲的 #soundBtn、#sound 也會自動接上）。
    歌單與曲名：music/playlist.json（albums → tracks 的 title 就是前端顯示的曲名）。 */
 (function () {
@@ -10,7 +10,7 @@
 
   const SCRIPT = document.currentScript && document.currentScript.src;
   const LOBBY = new URL('../', SCRIPT || 'https://acc2023156.github.io/GD_Lobby/music/gd-audio.js').href;
-  const IN_LOBBY = location.href.startsWith(LOBBY) && !/\/(Plinko|MINES|Crash|Dice|PaiGowTiles|HomeRun)\//.test(location.pathname);
+  const IN_LOBBY = location.href.startsWith(LOBBY) && !/\/(Plinko|MINES|Crash|Dice|PaiGowTiles|HomeRun|MJW|mahjong-fortune-slot|slots|seth-slot)\//.test(location.pathname);
   const KEY = 'gd-music';
   const LEVELS = [0, 25, 50, 75, 100];
 

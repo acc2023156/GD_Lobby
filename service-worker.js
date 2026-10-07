@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gd-lobby-v27';
+const CACHE_NAME = 'gd-lobby-v28';
 const APP_SHELL = [
   './',
   './index.html',
@@ -38,6 +38,8 @@ self.addEventListener('fetch', event => {
 
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
+  // gdclub.cc 上大廳在根目錄，遊戲（SLOTS、SHA 遊戲）也在同網址：遊戲的檔案與 API 不經過大廳的 service worker
+  if (/^\/(slots|seth-slot|Plinko|MINES|Crash|Dice|PaiGowTiles|HomeRun|MJW|mahjong-fortune-slot)(\/|$)/.test(url.pathname)) return;
 
   // 頁面與程式檔一律跳過瀏覽器 HTTP 快取（GitHub Pages 預設快取 10 分鐘），部署後立即拿到新版
   if (request.mode === 'navigate') {
