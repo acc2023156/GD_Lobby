@@ -327,6 +327,7 @@
   renderNowPlaying();
 
   // ---------- 會員資料 ----------
+  let giftPrimed = false;
   async function refresh() {
     if (!api.isLoggedIn()) return;
     try {
@@ -376,6 +377,7 @@
     $('.shop-balance span').textContent = 'VIP ' + level;
     $('.shop-balance b').textContent = 'G ' + coins(me.mainAvailable);
     if (!$('#walletLayer').hidden) renderWallet();
+    if (!giftPrimed || !giftLayerEl.hidden) { giftPrimed = true; loadGift(); }
     // 所屬家族
     loadMail().catch(() => {});
     loadMyFamily();
@@ -383,15 +385,55 @@
     handleShareLink();
   }
 
-  // ---------- 商城：模擬付款 → 後端模擬儲值 ----------
-  $('.payment-demo').onclick = async () => {
+  // ---------- 商城：暫代儲值流程（選金額 → 付款方式 → 確認付款 → 後端模擬入帳，不會實際扣款） ----------
+  const shopStyle = document.createElement('style');
+  shopStyle.textContent = `
+    .pay-result{margin-top:12px;border:1px solid #2fe39a;border-radius:14px;padding:12px;background:#0f2b2a;color:#f8faff;text-align:center;display:grid;gap:8px}
+    .pay-result b{color:#2fe39a;font-size:18px}.pay-result small{color:#aeb8e8}
+    .pay-result div{display:flex;gap:8px;justify-content:center}
+    .pay-result button{border:0;border-radius:999px;padding:8px 16px;font:inherit;font-weight:900;cursor:pointer;background:linear-gradient(180deg,#ffd166,#f4a51c);color:#4a2b00}
+    .pay-result button.ghost{background:#2b3566;color:#ffd166}
+    .payment-demo:disabled{opacity:.6}`;
+  document.head.appendChild(shopStyle);
+  const payRows = () => $$('.pay-detail .pay-row b');
+  const payButton = $('.payment-demo');
+  const plansNote = $('[data-shop-page="plans"] .shop-note');
+  if (plansNote) plansNote.textContent = '測試期間：選金額 → 選付款方式 → 確認付款即完成儲值（暫代金流，不會實際扣款）。送禮需達 VIP 2（依近 60 日有效投注）。';
+  const payNote = $('.pay-detail .shop-note');
+  if (payNote) payNote.textContent = '暫代金流：按「確認付款」即視為付款成功並入帳，不會收集卡號、帳密或任何付款資料。';
+  // 每次選好付款方式就開一張新訂單
+  $$('[data-method]').forEach((b) => b.addEventListener('click', () => {
+    const d = new Date();
+    const ymd = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+    const [, orderNo, status] = payRows();
+    if (orderNo) orderNo.textContent = `GD-${ymd}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
+    if (status) { status.textContent = '等待付款'; status.style.color = ''; }
+    $('.pay-result')?.remove();
+    payButton.disabled = false;
+    payButton.textContent = '確認付款（測試）';
+  }));
+  payButton.textContent = '確認付款（測試）';
+  payButton.onclick = async () => {
     if (!requireLogin()) return;
     const amountNtd = Number($('#paymentAmount').textContent.replace(/,/g, ''));
+    payButton.disabled = true;
+    payButton.textContent = '處理中…';
     try {
-      const r = await api.call('/dev/deposits', { method: 'POST', body: { amountNtd }, idempotent: true });
+      const from = me.mainAvailable;
+      await api.call('/dev/deposits', { method: 'POST', body: { amountNtd }, idempotent: true });
       await refresh();
-      toast(`儲值成功：${num(amountNtd)} G幣，目前 VIP ${r.vipLevel}`);
-    } catch (err) { toast(err.message); }
+      countUp($('#balance'), from, me.mainAvailable);
+      const status = payRows()[2];
+      if (status) { status.textContent = '付款成功 ✓'; status.style.color = '#2fe39a'; }
+      payButton.textContent = '已完成付款';
+      $('.pay-detail').insertAdjacentHTML('beforeend', `<div class="pay-result"><b>儲值成功 +${num(amountNtd)} G幣</b><small>主錢包 ${coins(me.mainAvailable)} G幣</small><div><button type="button" data-pay-again>再儲值一筆</button><button type="button" class="ghost" data-pay-gift>前往送禮</button></div></div>`);
+      $('[data-pay-again]').onclick = () => { $('.pay-result')?.remove(); showShop('plans'); };
+      $('[data-pay-gift]').onclick = () => { $('#shopLayer').hidden = true; $('#openGift').click(); };
+    } catch (err) {
+      toast(err.message);
+      payButton.disabled = false;
+      payButton.textContent = '確認付款（測試）';
+    }
   };
 
   // ---------- 禮物 ----------
@@ -401,15 +443,25 @@
     const e = await api.call('/gifts/eligibility');
     $('.gift-status b', page).textContent = e.canSend ? coins(Math.min(e.dailyRemaining, me.mainAvailable)) : '0';
     $('.gift-status span', page).textContent = e.canSend ? `手續費 ${(e.feeBps / 100).toFixed(0)}%（由送出金額內扣）` : '目前 VIP 等級尚未開放贈禮';
-    const metrics = $$('.gift-metric b', page);
-    metrics[0].textContent = e.canSend ? coins(e.dailyRemaining) : '權限不足';
-    metrics[1].textContent = e.canSend ? `${e.partnersUsed} / ${e.partnerCap} 人` : '權限不足';
-    metrics[2].textContent = e.canSend ? coins(e.remainingWager) : '權限不足';
+    const m = (k, text) => { const el = $(`[data-m="${k}"]`, page); if (el) el.textContent = text; };
+    m('cap', e.canSend ? coins(e.dailyRemaining) : 'VIP 2 開放');
+    m('partners', e.canSend ? `${e.partnersUsed} / ${e.partnerCap} 人` : 'VIP 2 開放');
+    // 有效投注只計本金投注（優惠金幣投注不計）
+    m('today', e.todayValidWager === undefined ? '—' : coins(e.todayValidWager));
+    m('total', e.validWager === undefined ? '—' : coins(e.validWager));
+    m('need', !e.canSend ? 'VIP 2 開放' : e.remainingWager > 0 ? coins(e.remainingWager) : '0（已達標）');
     const phone = me.profile.phoneVerified;
-    metrics[3].textContent = phone ? '已開通' : '需綁定手機';
+    m('receive', phone ? '已開通' : '需綁定手機');
     const lock = $('.gift-lock', page);
+    lock.className = 'gift-lock';
     if (!phone) { lock.innerHTML = '<strong>請先綁定手機</strong><span>綁定手機後才能贈禮與私訊。</span>'; return; }
-    if (!e.canSend) { lock.innerHTML = '<strong>VIP 2 以上即可贈禮</strong><span>儲值累積達 VIP 2 後開放。</span>'; return; }
+    if (!e.canSend) {
+      // 顯示目前進度：VIP 依近 60 日有效投注升級，達 VIP 2 即可贈禮
+      const v = me.vipProgress;
+      const need = v && v.next ? `近 60 日有效投注 ${coins(v.rollingWager)} / ${num(v.next.wagerThreshold)}，達標升 VIP ${v.next.level}` : '';
+      lock.innerHTML = `<strong>VIP 2 以上即可贈禮（目前 VIP ${me.vip.level}）</strong><span>${need || 'VIP 依近 60 日有效投注升級。'}</span>`;
+      return;
+    }
     lock.className = 'gift-lock gd-send';
     lock.innerHTML = '<strong>四步驟安全送禮</strong><span>確認對象 → 輸入金額 → 確認明細 → 完成</span><br><button type="button">開始送禮</button>';
     $('button', lock).onclick = () => giftWizard();
@@ -464,15 +516,22 @@
     $('.gift-info', page).textContent = '含家族入會金幣；合計只計已完成（對方已接受）的紀錄，時間以台灣時間計算。';
   }
 
-  function renderGiftWallet() {
+  async function renderGiftWallet() {
     if (!me) return;
     const page = $('[data-gift-page="wallet"]');
-    $('.gift-status small', page).textContent = '主錢包餘額';
     $('.gift-status b', page).textContent = 'G ' + coins(me.mainAvailable);
-    $('.gift-safe', page).textContent = '餘額與交易紀錄由 GD 會員後端帳務系統提供。';
+    const [promos, received] = await Promise.all([myPromotions().catch(() => null), api.call('/gifts?direction=receive').catch(() => null)]);
+    if (promos) $('[data-m="locked"]', page).textContent = coins(promos.reduce((n, p) => n + p.balance.total, 0));
+    if (received) {
+      const pending = received.gifts.filter((g) => g.status === 'PENDING');
+      $('[data-m="pending"]', page).textContent = pending.length ? `${coins(pending.reduce((n, g) => n + g.receive_amount, 0))}（${pending.length} 筆）` : '0';
+    }
   }
 
-  $('#openGift').addEventListener('click', () => { if (!requireLogin()) return; renderGiftRules(); renderGiftWallet(); });
+  /** 禮物頁資料：開啟時、登入後與每次更新會員資料時預先讀好，打開就不會先看到舊畫面。 */
+  const giftLayerEl = $('#giftLayer');
+  const loadGift = () => { renderGiftRules().catch((err) => console.warn('gift', err)); renderGiftWallet().catch((err) => console.warn('gift wallet', err)); };
+  $('#openGift').addEventListener('click', () => { if (!requireLogin()) return; loadGift(); });
   $$('.gift-subtab').forEach((tab) => tab.addEventListener('click', () => { if (tab.dataset.giftSub === 'history') renderGiftHistory(); }));
 
   // ---------- 家族 ----------
@@ -1367,12 +1426,47 @@
 
   // ---------- 會員中心：遊戲紀錄 ----------
   const RECORD_PERIODS = ['today', 'yesterday', 'week', 'lastweek'];
+  const PERIOD_NAMES = { today: '今日', yesterday: '昨日', week: '本週', lastweek: '上週' };
+  const recordStyle = document.createElement('style');
+  recordStyle.textContent = `
+    #recordRows tr[data-rec]{cursor:pointer}
+    #recordRows tr[data-rec]:hover td{background:#ffffff0d}
+    #recordRows td small{color:#aeb8e8}
+    #recordRows .win{color:#2fe39a}#recordRows .lose{color:#ff7a8a}
+    #recordRows .rec-go{color:#ffd166;font-size:12px;white-space:nowrap}
+    #recordRows .rec-head td{text-align:left;background:#1b2350;color:#ffd166;font-weight:900}
+    #recordRows .rec-head button,#recordRows .rec-more{border:0;border-radius:999px;padding:4px 12px;font:inherit;font-weight:900;background:#2b3566;color:#ffd166;cursor:pointer}
+    #recordRows .rec-cancel{color:#8a93bd;text-decoration:line-through}`;
+  document.head.appendChild(recordStyle);
+  const winLose = (v) => `<b class="${v > 0 ? 'win' : v < 0 ? 'lose' : ''}">${v > 0 ? '+' : ''}${coins(v)}</b>`;
+  let recordPeriod = 'today';
   async function loadRecords(period = 'today') {
     if (!me) return;
+    recordPeriod = period;
     const { records } = await api.call('/me/game-records?period=' + period);
-    $('#recordRows').innerHTML = records.map((r) => `<tr><td>${esc(r.gameName)}<br><small>${num(r.rounds)} 局</small></td><td>${coins(r.wager)}</td></tr>`).join('') || '<tr><td colspan="2">這段期間沒有遊戲紀錄</td></tr>';
+    $('#recordRows').innerHTML = records.map((r, i) => `<tr data-rec="${i}"><td>${esc(r.gameName)}<br><small>${num(r.rounds)} 局</small> <span class="rec-go">細單 ›</span></td><td>${coins(r.wager)}<br><small>有效 ${coins(r.validWager ?? r.wager)}</small></td><td>${winLose(r.payout - r.wager)}</td></tr>`).join('') || '<tr><td colspan="3">這段期間沒有遊戲紀錄</td></tr>';
+    $$('[data-rec]', $('#recordRows')).forEach((tr) => (tr.onclick = () => loadBets(records[Number(tr.dataset.rec)]).catch((err) => toast(err.message))));
   }
-  $('[data-panel="records"] .page-note').textContent = '遊戲紀錄即時更新（台灣時間）';
+  /** 投注細單：該遊戲在同一期間的每一筆投注，新到舊，一次 50 筆。 */
+  async function loadBets(r, before) {
+    const q = `/me/bets?period=${recordPeriod}&provider=${encodeURIComponent(r.provider)}&gameId=${encodeURIComponent(r.gameId)}${before ? '&before=' + encodeURIComponent(before) : ''}`;
+    const { bets, next } = await api.call(q);
+    const rows = bets.map((b) => {
+      const cancelled = b.status === 'CANCELLED';
+      return `<tr class="${cancelled ? 'rec-cancel' : ''}"><td>${time(b.createdAt)}<br><small>局號 ${esc(String(b.roundId).slice(-10))}${b.wallet === 'PROMO' ? '・優惠' : ''}</small></td><td>${coins(b.amount)}<br><small>${cancelled ? '已取消' : '有效 ' + coins(b.validWager)}</small></td><td>${cancelled ? '—' : winLose(b.payout - b.amount)}<br><small>派彩 ${coins(b.payout)}</small></td></tr>`;
+    }).join('');
+    const body = $('#recordRows');
+    body.querySelector('.rec-more-row')?.remove();
+    if (!before) {
+      body.innerHTML = `<tr class="rec-head"><td colspan="3"><button type="button" data-rec-back>‹ 返回</button>　${esc(r.gameName)}・${PERIOD_NAMES[recordPeriod]}投注細單</td></tr>` + (rows || '<tr><td colspan="3">這段期間沒有投注</td></tr>');
+      $('[data-rec-back]', body).onclick = () => loadRecords(recordPeriod).catch(() => {});
+    } else body.insertAdjacentHTML('beforeend', rows);
+    if (next) {
+      body.insertAdjacentHTML('beforeend', '<tr class="rec-more-row"><td colspan="3" style="text-align:center"><button type="button" class="rec-more">載入更多</button></td></tr>');
+      $('.rec-more', body).onclick = () => loadBets(r, next).catch((err) => toast(err.message));
+    }
+  }
+  $('[data-panel="records"] .page-note').textContent = '遊戲紀錄即時更新（台灣時間）・點遊戲可看投注細單';
   $$('.periods button').forEach((b, i) => b.addEventListener('click', () => loadRecords(RECORD_PERIODS[i]).catch(() => {})));
   $('[data-page="records"]').addEventListener('click', () => loadRecords(RECORD_PERIODS[$$('.periods button').findIndex((b) => b.classList.contains('active'))] || 'today').catch(() => {}));
 
