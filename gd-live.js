@@ -828,7 +828,7 @@
   // ---------- 自家哈希遊戲：由 GDBO 發 token，用會員錢包下注 ----------
   const HASH_GAMES = { 珠珠寶貝: 'plinko', 寶石探險: 'mines', 沖高高: 'crash', 六子骰: 'dice', 黑粒仔: 'pai-gow-tiles', 全壘打: 'home-run-derby', 戰神賽特: 'seth' };
   // SLOTS（LKS 機率）：一律經 GDBO 啟動（會員帳號、後踢前）。GDBO 依 LKS_GAME_URLS 決定開 GD_Slots 新版或 LKS（GCP）舊版，
-  // 大廳不用跟著切換。index.html 的 lkgLaunch（瀏覽器直連 GCP）保留不動，登入後由這裡先攔截。
+  // 大廳不用跟著切換。未登入時 requireLogin 會先要求登入，不會直連 GCP。
   const SLOT_GAMES = { 雷神索爾: 91004, 惡魔偵探: 91008, 財神: 91009, 羅馬競技場: 91006, 金銀島: 91005, 開心農場: 91007 };
   // 啟動中：按鈕變灰顯示「載入中…」，不可重按；失敗或從遊戲按上一頁回來（bfcache）時恢復
   let launching = false;
