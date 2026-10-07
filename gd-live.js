@@ -830,14 +830,36 @@
   // SLOTS（LKS 機率）：一律經 GDBO 啟動（會員帳號、後踢前）。GDBO 依 LKS_GAME_URLS 決定開 GD_Slots 新版或 LKS（GCP）舊版，
   // 大廳不用跟著切換。index.html 的 lkgLaunch（瀏覽器直連 GCP）保留不動，登入後由這裡先攔截。
   const SLOT_GAMES = { 雷神索爾: 91004, 惡魔偵探: 91008, 財神: 91009, 羅馬競技場: 91006, 金銀島: 91005, 開心農場: 91007 };
+  // 啟動中：按鈕變灰顯示「載入中…」，不可重按；失敗或從遊戲按上一頁回來（bfcache）時恢復
+  let launching = false;
+  const setLaunching = (on) => {
+    launching = on;
+    playButton.disabled = on;
+    playButton.textContent = on ? '載入中…' : '進入遊戲';
+  };
+  // 打開遊戲卡片時，若沒有正在啟動，按鈕一律可按（避免上一次的停用狀態殘留）
+  $('#games').addEventListener('click', () => { if (!launching) setLaunching(false); }, true);
+  window.addEventListener('pageshow', (e) => {
+    if (!e.persisted) return;
+    setLaunching(false);
+    modalStatus.hidden = true;
+    if (dialog.open) dialog.close();
+  });
   // capture 階段先攔截，未登入或後端失敗時不落回舊的展示連結
   playButton.addEventListener('click', async (e) => {
     const gameId = HASH_GAMES[selectedGame];
     const productId = SLOT_GAMES[selectedGame];
     if (!gameId && !productId) return;
     e.stopImmediatePropagation();
-    if (!requireLogin()) { dialog.close(); return; }
-    playButton.disabled = true;
+    if (launching) return;
+    setLaunching(true);
+    // 剛回到大廳時會員資料可能還在讀取：有登入 token 就先等它讀完，不要誤跳登入畫面
+    if (!me && localStorage.getItem('gd-member-token')) {
+      modalStatus.textContent = '正在讀取會員資料…';
+      modalStatus.hidden = false;
+      await refresh().catch(() => {});
+    }
+    if (!requireLogin()) { setLaunching(false); dialog.close(); return; }
     modalStatus.textContent = '正在取得遊戲連線…';
     modalStatus.hidden = false;
     try {
@@ -854,9 +876,11 @@
       location.href = url;
     } catch (err) {
       modalStatus.textContent = '遊戲連線失敗：' + err.message;
-      playButton.disabled = false;
+      setLaunching(false);
     }
   }, true);
+  // index.html 的載入保護在這之後放行「進入遊戲」
+  window.GDLiveReady = true;
 
   // ---------- 優惠鎖定錢包：進遊戲前確認、錢包頁進度與領取 ----------
   const HASH_PROVIDER = 'sha';
