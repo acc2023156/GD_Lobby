@@ -1,8 +1,8 @@
 {
   "id": "/GD_Lobby/",
-  "name": "金龍娛樂城",
-  "short_name": "GD Casino",
-  "description": "Golden Dragon Casino 金龍娛樂城行動大廳",
+  "name": "金龍俱樂部",
+  "short_name": "GD Club",
+  "description": "Golden Dragon Club 金龍俱樂部行動大廳",
   "lang": "zh-TW",
   "dir": "ltr",
   "start_url": "./",

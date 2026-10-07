@@ -253,7 +253,8 @@
     document.querySelectorAll(BUTTONS).forEach((b) => {
       if (b.hasAttribute('data-gd-audio-text')) return;
       const muted = !prefs.sfx && (!prefs.music || player.paused);
-      b.textContent = muted ? '🔇' : '🔊';
+      // 音符圖示；音樂與音效都關閉時變淡（off／gda-off）
+      b.textContent = '🎵';
       b.classList.toggle('off', muted);
       b.title = '音源';
       b.setAttribute('aria-label', '音源');
