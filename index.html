@@ -110,6 +110,28 @@
     html.ios .app{padding-top:var(--ios-top)}
     html.ios .profile-layer,html.ios .activity-layer,html.ios .rank-layer,html.ios .shop-layer,html.ios .gift-layer,html.ios .clan-layer,html.ios .tool-layer,html.ios .wallet-layer,html.ios .fam-sheet,html.ios .gd-chat{top:var(--ios-top)}
   </style>
+  <!-- 禮物頁：與大廳同色系（深藍＋金色＋紫粉漸層），不再用紅字；內容與分隔線留出間距 -->
+  <style>
+    .gift-subtabs{border-color:#35406d;margin-bottom:14px}
+    .gift-subtab{color:#aeb8e8}
+    .gift-subtab.active{color:#ffd166}
+    .gift-subtab.active:after{background:#ffd166;box-shadow:0 0 8px #ffd16688}
+    .gift-subpage>:first-child{margin-top:2px}
+    .gift-center-tabs{margin:0 0 14px}
+    .gift-center-tab{background:#1b2350;color:#aeb8e8;border:1px solid #35406d}
+    .gift-center-tab.active{background:linear-gradient(100deg,#783dff,#ff3d9e);color:#fff;border-color:transparent;box-shadow:0 0 10px #ff3d9e55}
+    .gift-status b{color:#fff;text-shadow:0 2px 6px #0005}
+    .gift-metric{background:#1b2350;border:1px solid #35406d;box-shadow:none}
+    .gift-metric small{color:#aeb8e8}
+    .gift-metric b{color:#ffd166}
+    .gift-metric em{display:block;margin-top:3px;font-style:normal;font-size:11px;color:#8a93bd;line-height:1.4}
+    .gift-lock{background:#1b2350;border:1px solid #35406d;color:#aeb8e8}
+    .gift-lock strong{color:#ffd166}
+    .gift-safe{background:#141b40;color:#aeb8e8}
+    .gift-table th{color:#aeb8e8}
+    .gift-table td{background:#1b2350;color:#f8faff}
+    .gift-blank{color:#aeb8e8}
+  </style>
 </head>
 <body>
 <div class="ios-title" aria-hidden="true">金龍GD娛樂城</div>
@@ -309,7 +331,32 @@
       document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') reg.update().catch(() => {}); });
     }));
   }
+  // 手機主畫面 App（PWA）常常整頁留在記憶體裡，上滑關掉再開也還是舊畫面：
+  // 開啟和回到前景時向伺服器比對大廳版本（gd-live.js?v=），線上比較新就清掉快取重新載入一次
+  (() => {
+    let busy = false;
+    async function checkBuild() {
+      // gd-live.js 的 script 在這段之後，執行時才讀版本
+      const mine = (document.querySelector('script[src^="gd-live.js"]')?.getAttribute('src') || '').split('v=')[1] || '';
+      if (busy || !mine) return;
+      busy = true;
+      try {
+        const html = await (await fetch('./index.html?build=' + Date.now(), { cache: 'no-store' })).text();
+        const live = (html.match(/gd-live\.js\?v=([\w.-]+)/) || [])[1];
+        let tried = '';
+        try { tried = sessionStorage.getItem('gd-build-reload') || ''; } catch {}
+        if (live && live !== mine && tried !== live) {
+          try { sessionStorage.setItem('gd-build-reload', live); } catch {}
+          if (window.caches) await Promise.all((await caches.keys()).map((k) => caches.delete(k)));
+          location.reload();
+        }
+      } catch {} finally { busy = false; }
+    }
+    window.addEventListener('load', checkBuild);
+    window.addEventListener('pageshow', (e) => { if (e.persisted) checkBuild(); });
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkBuild(); });
+  })();
 </script>
-<script src="gd-live.js?v=20261007b"></script>
+<script src="gd-live.js?v=20261007d"></script>
 </body>
 </html>
