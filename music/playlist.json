@@ -1,53 +1,59 @@
 {
-  "cover": "music/dance2026.webp",
-  "tracks": [
+  "albums": [
     {
-      "title": "Shake it now梅西乾啦",
-      "src": "https://pub-cbcfe92c96fb4e09b5f34588e112e0bb.r2.dev/dance26/track01.mp3"
-    },
-    {
-      "title": "來到東京晚上不能沒有酒精",
-      "src": "https://pub-cbcfe92c96fb4e09b5f34588e112e0bb.r2.dev/dance26/track02.mp3"
-    },
-    {
-      "title": "歐金珠名模",
-      "src": "https://pub-cbcfe92c96fb4e09b5f34588e112e0bb.r2.dev/dance26/track03.mp3"
-    },
-    {
-      "title": "港都的小王子",
-      "src": "https://pub-cbcfe92c96fb4e09b5f34588e112e0bb.r2.dev/dance26/track04.mp3"
-    },
-    {
-      "title": "特攻、行くぞ",
-      "src": "https://pub-cbcfe92c96fb4e09b5f34588e112e0bb.r2.dev/dance26/track05.mp3"
-    },
-    {
-      "title": "瘋首爾",
-      "src": "https://pub-cbcfe92c96fb4e09b5f34588e112e0bb.r2.dev/dance26/track06.mp3"
-    },
-    {
-      "title": "越來夜亮",
-      "src": "https://pub-cbcfe92c96fb4e09b5f34588e112e0bb.r2.dev/dance26/track07.mp3"
-    },
-    {
-      "title": "音樂若落去",
-      "src": "https://pub-cbcfe92c96fb4e09b5f34588e112e0bb.r2.dev/dance26/track08.mp3"
-    },
-    {
-      "title": "馬尼拉舞鞋",
-      "src": "https://pub-cbcfe92c96fb4e09b5f34588e112e0bb.r2.dev/dance26/track09.mp3"
-    },
-    {
-      "title": "魔曲大帝國 首部曲",
-      "src": "https://pub-cbcfe92c96fb4e09b5f34588e112e0bb.r2.dev/dance26/track12.mp3"
-    },
-    {
-      "title": "魔曲大帝國 二部曲",
-      "src": "https://pub-cbcfe92c96fb4e09b5f34588e112e0bb.r2.dev/dance26/track11.mp3"
-    },
-    {
-      "title": "魔曲大帝國 三部曲",
-      "src": "https://pub-cbcfe92c96fb4e09b5f34588e112e0bb.r2.dev/dance26/track10.mp3"
+      "id": "dance26",
+      "title": "魔曲大帝國 2026",
+      "cover": "music/dance2026.webp",
+      "tracks": [
+        {
+          "title": "Shake it now梅西乾啦",
+          "src": "https://pub-cbcfe92c96fb4e09b5f34588e112e0bb.r2.dev/dance26/track01.mp3"
+        },
+        {
+          "title": "來到東京晚上不能沒有酒精",
+          "src": "https://pub-cbcfe92c96fb4e09b5f34588e112e0bb.r2.dev/dance26/track02.mp3"
+        },
+        {
+          "title": "歐金珠名模",
+          "src": "https://pub-cbcfe92c96fb4e09b5f34588e112e0bb.r2.dev/dance26/track03.mp3"
+        },
+        {
+          "title": "港都的小王子",
+          "src": "https://pub-cbcfe92c96fb4e09b5f34588e112e0bb.r2.dev/dance26/track04.mp3"
+        },
+        {
+          "title": "特攻、行くぞ",
+          "src": "https://pub-cbcfe92c96fb4e09b5f34588e112e0bb.r2.dev/dance26/track05.mp3"
+        },
+        {
+          "title": "瘋首爾",
+          "src": "https://pub-cbcfe92c96fb4e09b5f34588e112e0bb.r2.dev/dance26/track06.mp3"
+        },
+        {
+          "title": "越來夜亮",
+          "src": "https://pub-cbcfe92c96fb4e09b5f34588e112e0bb.r2.dev/dance26/track07.mp3"
+        },
+        {
+          "title": "音樂若落去",
+          "src": "https://pub-cbcfe92c96fb4e09b5f34588e112e0bb.r2.dev/dance26/track08.mp3"
+        },
+        {
+          "title": "馬尼拉舞鞋",
+          "src": "https://pub-cbcfe92c96fb4e09b5f34588e112e0bb.r2.dev/dance26/track09.mp3"
+        },
+        {
+          "title": "魔曲大帝國 首部曲",
+          "src": "https://pub-cbcfe92c96fb4e09b5f34588e112e0bb.r2.dev/dance26/track12.mp3"
+        },
+        {
+          "title": "魔曲大帝國 二部曲",
+          "src": "https://pub-cbcfe92c96fb4e09b5f34588e112e0bb.r2.dev/dance26/track11.mp3"
+        },
+        {
+          "title": "魔曲大帝國 三部曲",
+          "src": "https://pub-cbcfe92c96fb4e09b5f34588e112e0bb.r2.dev/dance26/track10.mp3"
+        }
+      ]
     }
   ]
 }
