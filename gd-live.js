@@ -1485,7 +1485,7 @@
     ${navigator.share ? '<button class="fam-btn ghost" data-native>其他分享方式</button>' : ''}`;
   const bindShare = (s, url, text) => {
     $('[data-copy]', s).onclick = () => copyText(url, '已複製連結');
-    if ($('[data-native]', s)) $('[data-native]', s).onclick = () => navigator.share({ title: 'GD 金龍娛樂城', text, url }).catch(() => {});
+    if ($('[data-native]', s)) $('[data-native]', s).onclick = () => navigator.share({ title: 'GD 金龍俱樂部', text, url }).catch(() => {});
   };
 
   /** 推薦分享：一個連結同時帶推薦碼與家族邀請；顯示獎勵規則與補綁推薦人。 */
