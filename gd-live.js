@@ -1344,7 +1344,8 @@
     const { bets, next } = await api.call(q);
     const rows = bets.map((b) => {
       const cancelled = b.status === 'CANCELLED';
-      return `<tr class="${cancelled ? 'rec-cancel' : ''}"><td>${time(b.createdAt)}<br><small>局號 ${esc(String(b.roundId).slice(-10))}${b.wallet === 'PROMO' ? '・優惠' : ''}</small></td><td>${coins(b.amount)}<br><small>${cancelled ? '已取消' : '有效 ' + coins(b.validWager)}</small></td><td>${cancelled ? '—' : winLose(b.payout - b.amount)}<br><small>派彩 ${coins(b.payout)}</small></td></tr>`;
+      const detail = b.hasDetail ? ` <span class="rec-go" data-round="${esc(b.roundId)}">盤面 ›</span>` : '';
+      return `<tr class="${cancelled ? 'rec-cancel' : ''}"><td>${time(b.createdAt)}<br><small>局號 ${esc(String(b.roundId).slice(-10))}${b.wallet === 'PROMO' ? '・優惠' : ''}</small>${detail}</td><td>${coins(b.amount)}<br><small>${cancelled ? '已取消' : '有效 ' + coins(b.validWager)}</small></td><td>${cancelled ? '—' : winLose(b.payout - b.amount)}<br><small>派彩 ${coins(b.payout)}</small></td></tr>`;
     }).join('');
     const body = $('#recordRows');
     body.querySelector('.rec-more-row')?.remove();
@@ -1352,11 +1353,65 @@
       body.innerHTML = `<tr class="rec-head"><td colspan="3"><button type="button" data-rec-back>‹ 返回</button>　${esc(r.gameName)}・${PERIOD_NAMES[recordPeriod]}投注細單</td></tr>` + (rows || '<tr><td colspan="3">這段期間沒有投注</td></tr>');
       $('[data-rec-back]', body).onclick = () => loadRecords(recordPeriod).catch(() => {});
     } else body.insertAdjacentHTML('beforeend', rows);
+    $$('[data-round]', body).forEach((el) => (el.onclick = (e) => { e.stopPropagation(); openRound(el.dataset.round).catch((err) => toast(err.message)); }));
     if (next) {
       body.insertAdjacentHTML('beforeend', '<tr class="rec-more-row"><td colspan="3" style="text-align:center"><button type="button" class="rec-more">載入更多</button></td></tr>');
       $('.rec-more', body).onclick = () => loadBets(r, next).catch((err) => toast(err.message));
     }
   }
+  // ---------- SLOTS 每局盤面（GDBO /me/rounds；符號圖取自 SLOTS 的 skin） ----------
+  const SLOTS_BASE = 'https://lks.sha-platform.workers.dev/slots';
+  const SLOT_SKINS = { 91004: 'thor', 91008: 'demon', 91009: 'gof', 91006: 'roma', 91005: 'pirate', 91007: 'farm' };
+  const skinCache = {};
+  const loadSkin = (game) => (skinCache[game] ??= fetch(`${SLOTS_BASE}/skins/${game}/skin.json`).then((r) => r.json()).catch(() => ({ symbols: {} })));
+  const roundStyle = document.createElement('style');
+  roundStyle.textContent = `
+    .gd-round{position:fixed;inset:0;z-index:80;display:grid;place-items:center;background:#05081acc}
+    .gd-round[hidden]{display:none}
+    .gd-round article{width:min(94vw,420px);max-height:86vh;overflow:auto;border-radius:16px;background:#121a40;border:1px solid #35406d;color:#eef1ff;padding:14px}
+    .gd-round header{display:flex;justify-content:space-between;align-items:center;font-weight:900;color:#ffd166}
+    .gd-round header button{border:0;background:none;color:#fff;font-size:22px;cursor:pointer}
+    .gd-round .sum{margin:6px 0 10px;color:#aeb8e8;font-size:13px}
+    .gd-round h4{margin:12px 0 6px;color:#ffd166;font-size:14px}
+    .gd-board{display:grid;grid-template-columns:repeat(var(--reels),1fr);gap:3px;background:#0a0f2a;border-radius:10px;padding:5px}
+    .gd-board img{width:100%;aspect-ratio:1;object-fit:contain;display:block}
+    .gd-board span{display:grid;place-items:center;aspect-ratio:1;background:#1b2350;border-radius:6px;font-size:11px}
+    .gd-awards{margin:6px 0 0;padding:0;list-style:none;font-size:12px;color:#d7dcff}
+    .gd-awards li{display:flex;justify-content:space-between;border-bottom:1px solid #ffffff12;padding:3px 0}
+    .gd-free{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .gd-free small{display:block;color:#aeb8e8;margin-bottom:3px}`;
+  document.head.appendChild(roundStyle);
+  const roundLayer = document.createElement('div');
+  roundLayer.className = 'gd-round';
+  roundLayer.hidden = true;
+  roundLayer.addEventListener('click', (e) => { if (e.target === roundLayer || e.target.closest('[data-round-close]')) roundLayer.hidden = true; });
+  document.body.appendChild(roundLayer);
+  async function openRound(roundId) {
+    const r = await api.call('/me/rounds/' + encodeURIComponent(roundId));
+    const d = r.detail;
+    const head = `<header><span>${esc(r.gameName)}・本局明細</span><button type="button" data-round-close aria-label="關閉">×</button></header>
+      <div class="sum">${time(r.createdAt)}・局號 ${esc(String(r.roundId).slice(-12))}<br>投注 ${coins(r.wager ?? 0)}　派彩 ${coins(r.payout ?? 0)}　${winLose((r.payout ?? 0) - (r.wager ?? 0))}</div>`;
+    const game = SLOT_SKINS[r.gameId];
+    if (!game || !d || d.v !== 1) {
+      // 戰神賽特等其他格式：只顯示金額
+      roundLayer.innerHTML = `<article>${head}</article>`;
+      roundLayer.hidden = false;
+      return;
+    }
+    const skin = await loadSkin(game);
+    const rows = d.boards[0].g.length / 5;
+    const cell = (id) => (skin.symbols?.[id] ? `<img src="${SLOTS_BASE}/skins/${game}/${skin.symbols[id]}" alt="">` : `<span>${esc(String(id))}</span>`);
+    const grid = (b) => {
+      let h = '';
+      for (let row = 0; row < rows; row++) for (let reel = 0; reel < 5; reel++) h += cell(b.g[reel * rows + row]);
+      return `<div class="gd-board" style="--reels:5">${h}</div>`;
+    };
+    const awards = (b) => (b.a.length ? `<ul class="gd-awards">${b.a.map(([line, sym, count, win]) => `<li><span>${line >= 0 ? `第 ${line + 1} 線` : '任意位置'}・${cell(sym).replace('<img', '<img style="width:18px;vertical-align:middle"')} × ${count}</span><b>${coins(win)}</b></li>`).join('')}</ul>` : '');
+    const [main, ...free] = d.boards;
+    roundLayer.innerHTML = `<article>${head}<h4>主遊戲・贏 ${coins(main.w)}</h4>${grid(main)}${awards(main)}${free.length ? `<h4>免費遊戲 ${free.length} 次・贏 ${coins(free.reduce((t, b) => t + b.w, 0))}</h4><div class="gd-free">${free.map((b, i) => `<div><small>第 ${i + 1} 轉・贏 ${coins(b.w)}${b.r ? `・再觸發 +${b.r}` : ''}</small>${grid(b)}</div>`).join('')}</div>` : ''}</article>`;
+    roundLayer.hidden = false;
+  }
+
   $('[data-panel="records"] .page-note').textContent = '遊戲紀錄即時更新（台灣時間）・點遊戲可看投注細單';
   $$('.periods button').forEach((b, i) => b.addEventListener('click', () => loadRecords(RECORD_PERIODS[i]).catch(() => {})));
   $('[data-page="records"]').addEventListener('click', () => loadRecords(RECORD_PERIODS[$$('.periods button').findIndex((b) => b.classList.contains('active'))] || 'today').catch(() => {}));
