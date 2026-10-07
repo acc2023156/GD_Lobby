@@ -383,15 +383,55 @@
     handleShareLink();
   }
 
-  // ---------- 商城：模擬付款 → 後端模擬儲值 ----------
-  $('.payment-demo').onclick = async () => {
+  // ---------- 商城：暫代儲值流程（選金額 → 付款方式 → 確認付款 → 後端模擬入帳，不會實際扣款） ----------
+  const shopStyle = document.createElement('style');
+  shopStyle.textContent = `
+    .pay-result{margin-top:12px;border:1px solid #2fe39a;border-radius:14px;padding:12px;background:#0f2b2a;color:#f8faff;text-align:center;display:grid;gap:8px}
+    .pay-result b{color:#2fe39a;font-size:18px}.pay-result small{color:#aeb8e8}
+    .pay-result div{display:flex;gap:8px;justify-content:center}
+    .pay-result button{border:0;border-radius:999px;padding:8px 16px;font:inherit;font-weight:900;cursor:pointer;background:linear-gradient(180deg,#ffd166,#f4a51c);color:#4a2b00}
+    .pay-result button.ghost{background:#2b3566;color:#ffd166}
+    .payment-demo:disabled{opacity:.6}`;
+  document.head.appendChild(shopStyle);
+  const payRows = () => $$('.pay-detail .pay-row b');
+  const payButton = $('.payment-demo');
+  const plansNote = $('[data-shop-page="plans"] .shop-note');
+  if (plansNote) plansNote.textContent = '測試期間：選金額 → 選付款方式 → 確認付款即完成儲值（暫代金流，不會實際扣款）。送禮需達 VIP 2（依近 60 日有效投注）。';
+  const payNote = $('.pay-detail .shop-note');
+  if (payNote) payNote.textContent = '暫代金流：按「確認付款」即視為付款成功並入帳，不會收集卡號、帳密或任何付款資料。';
+  // 每次選好付款方式就開一張新訂單
+  $$('[data-method]').forEach((b) => b.addEventListener('click', () => {
+    const d = new Date();
+    const ymd = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+    const [, orderNo, status] = payRows();
+    if (orderNo) orderNo.textContent = `GD-${ymd}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
+    if (status) { status.textContent = '等待付款'; status.style.color = ''; }
+    $('.pay-result')?.remove();
+    payButton.disabled = false;
+    payButton.textContent = '確認付款（測試）';
+  }));
+  payButton.textContent = '確認付款（測試）';
+  payButton.onclick = async () => {
     if (!requireLogin()) return;
     const amountNtd = Number($('#paymentAmount').textContent.replace(/,/g, ''));
+    payButton.disabled = true;
+    payButton.textContent = '處理中…';
     try {
-      const r = await api.call('/dev/deposits', { method: 'POST', body: { amountNtd }, idempotent: true });
+      const from = me.mainAvailable;
+      await api.call('/dev/deposits', { method: 'POST', body: { amountNtd }, idempotent: true });
       await refresh();
-      toast(`儲值成功：${num(amountNtd)} G幣，目前 VIP ${r.vipLevel}`);
-    } catch (err) { toast(err.message); }
+      countUp($('#balance'), from, me.mainAvailable);
+      const status = payRows()[2];
+      if (status) { status.textContent = '付款成功 ✓'; status.style.color = '#2fe39a'; }
+      payButton.textContent = '已完成付款';
+      $('.pay-detail').insertAdjacentHTML('beforeend', `<div class="pay-result"><b>儲值成功 +${num(amountNtd)} G幣</b><small>主錢包 ${coins(me.mainAvailable)} G幣</small><div><button type="button" data-pay-again>再儲值一筆</button><button type="button" class="ghost" data-pay-gift>前往送禮</button></div></div>`);
+      $('[data-pay-again]').onclick = () => { $('.pay-result')?.remove(); showShop('plans'); };
+      $('[data-pay-gift]').onclick = () => { $('#shopLayer').hidden = true; $('#openGift').click(); };
+    } catch (err) {
+      toast(err.message);
+      payButton.disabled = false;
+      payButton.textContent = '確認付款（測試）';
+    }
   };
 
   // ---------- 禮物 ----------
@@ -409,7 +449,13 @@
     metrics[3].textContent = phone ? '已開通' : '需綁定手機';
     const lock = $('.gift-lock', page);
     if (!phone) { lock.innerHTML = '<strong>請先綁定手機</strong><span>綁定手機後才能贈禮與私訊。</span>'; return; }
-    if (!e.canSend) { lock.innerHTML = '<strong>VIP 2 以上即可贈禮</strong><span>儲值累積達 VIP 2 後開放。</span>'; return; }
+    if (!e.canSend) {
+      // 顯示目前進度：VIP 依近 60 日有效投注升級，達 VIP 2 即可贈禮
+      const v = me.vipProgress;
+      const need = v && v.next ? `近 60 日有效投注 ${coins(v.rollingWager)} / ${num(v.next.wagerThreshold)}，達標升 VIP ${v.next.level}` : '';
+      lock.innerHTML = `<strong>VIP 2 以上即可贈禮（目前 VIP ${me.vip.level}）</strong><span>${need || 'VIP 依近 60 日有效投注升級。'}</span>`;
+      return;
+    }
     lock.className = 'gift-lock gd-send';
     lock.innerHTML = '<strong>四步驟安全送禮</strong><span>確認對象 → 輸入金額 → 確認明細 → 完成</span><br><button type="button">開始送禮</button>';
     $('button', lock).onclick = () => giftWizard();
