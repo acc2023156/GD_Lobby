@@ -1360,7 +1360,8 @@
     }
   }
   // ---------- SLOTS 每局盤面（GDBO /me/rounds；符號圖取自 SLOTS 的 skin） ----------
-  const SLOTS_BASE = 'https://lks.sha-platform.workers.dev/slots';
+  // gdclub.cc：SLOTS 與大廳同網址；舊網址（GitHub Pages）讀 lks Worker
+  const SLOTS_BASE = /(^|\.)gdclub\.cc$/.test(location.hostname) ? '/slots' : 'https://lks.sha-platform.workers.dev/slots';
   const SLOT_SKINS = { 91004: 'thor', 91008: 'demon', 91009: 'gof', 91006: 'roma', 91005: 'pirate', 91007: 'farm' };
   const skinCache = {};
   const loadSkin = (game) => (skinCache[game] ??= fetch(`${SLOTS_BASE}/skins/${game}/skin.json`).then((r) => r.json()).catch(() => ({ symbols: {} })));
