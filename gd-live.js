@@ -827,10 +827,14 @@
 
   // ---------- 自家哈希遊戲：由 GDBO 發 token，用會員錢包下注 ----------
   const HASH_GAMES = { 珠珠寶貝: 'plinko', 寶石探險: 'mines', 沖高高: 'crash', 六子骰: 'dice', 黑粒仔: 'pai-gow-tiles', 全壘打: 'home-run-derby', 戰神賽特: 'seth' };
+  // SLOTS（LKS 機率）：一律經 GDBO 啟動（會員帳號、後踢前）。GDBO 依 LKS_GAME_URLS 決定開 GD_Slots 新版或 LKS（GCP）舊版，
+  // 大廳不用跟著切換。index.html 的 lkgLaunch（瀏覽器直連 GCP）保留不動，登入後由這裡先攔截。
+  const SLOT_GAMES = { 雷神索爾: 91004, 惡魔偵探: 91008, 財神: 91009, 羅馬競技場: 91006, 金銀島: 91005, 開心農場: 91007 };
   // capture 階段先攔截，未登入或後端失敗時不落回舊的展示連結
   playButton.addEventListener('click', async (e) => {
     const gameId = HASH_GAMES[selectedGame];
-    if (!gameId) return;
+    const productId = SLOT_GAMES[selectedGame];
+    if (!gameId && !productId) return;
     e.stopImmediatePropagation();
     if (!requireLogin()) { dialog.close(); return; }
     playButton.disabled = true;
@@ -843,7 +847,9 @@
         pendingOffer = null;
         modalStatus.textContent = '正在取得遊戲連線…';
       }
-      const { url } = await api.call('/game-sessions', { method: 'POST', body: { gameId, returnUrl: location.origin + location.pathname + (gameId === 'seth' ? '?cat=slots' : '?cat=exclusive') } });
+      const slots = productId || gameId === 'seth';
+      const returnUrl = location.origin + location.pathname + (slots ? '?cat=slots' : '?cat=exclusive');
+      const { url } = await api.call('/game-sessions', { method: 'POST', body: productId ? { productId, returnUrl } : { gameId, returnUrl } });
       await window.GDMusic?.fadeOut();
       location.href = url;
     } catch (err) {
