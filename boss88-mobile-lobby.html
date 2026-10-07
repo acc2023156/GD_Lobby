@@ -179,7 +179,6 @@
     <button class="wallet-close" aria-label="關閉錢包">×</button>
   </div>
 </section>
-<script src="lks-config.js"></script>
 <script>
   const catalog=[
     ['急速百家','🎴','#a72831','#4b1018','poker','','','speed_baccarat_TCH.png'],['21點','♠️','#5a2c75','#241038','poker','','','blackjack_TCH.png'],['三路百家','🃏','#b0392e','#521513','poker','','','3_road_baccarat_TCH.png'],['急速龍虎','🐯','#513285','#1f153f','poker','','','speed_dragon_tiger_TCH.png'],['射龍門','🎯','#d94d26','#7d170e','poker','','','inbetween_TCH.png'],['經典龍虎','🐉','#7b2d75','#351236','poker','','','classic_dragon_tiger_TCH.png'],
@@ -188,33 +187,20 @@
     ['黑粒仔','🀫','#1f5a45','#07170f','exclusive','1,168','','paigowtiles_TCH.png'],['六子骰','🎲','#5d3a1c','#1d130b','exclusive','1,992','','dice_TCH.png'],['全壘打','⚾','#b4292e','#37131c','exclusive','954','','homerun_TCH.png'],['沖高高','🚀','#28609c','#0a1b34','exclusive','1,307','','crash_TCH.png'],['寶石探險','💎','#24527f','#061528','exclusive','2,129','','mines_TCH.png'],['珠珠寶貝','⚪','#61421f','#1c1208','exclusive','1,581','','plinko_TCH.png']
   ];
   const games=document.querySelector('#games'),dialog=document.querySelector('#gameDialog'),modalArt=document.querySelector('#modalArt'),modalOfferName=document.querySelector('#modalOfferName'),modalStatus=document.querySelector('#modalStatus'),playButton=document.querySelector('.play'),balance=document.querySelector('#balance');let active='slots',selectedGame='';const favorites=new Set([1]);
-  const lkgDemoBase=LKS_CONFIG.mainUrl;
-  /* LKS games are opened through the LKS API, not through the LKS website:
-     CreateMember + CreateGameToken on the game service -> the API returns the game's own URL with a one-time token -> go there.
-     Product IDs are the ones the LKS lobby uses. DEMO ONLY: partner id/key sit in this page like they do on the LKS pages;
-     a production version must sign these calls on a server and never ship the key to the browser. */
-  const lkgApi=LKS_CONFIG.apiUrl,lkgPartner=LKS_CONFIG.partner;
-  /* Games are told where the player came from, so the game's back button returns to this lobby (labelled 返回大廳). */
-  const lkgReturn=encodeURIComponent(location.origin+location.pathname);
-  const lkgProducts={'雷神索爾':91004,'惡魔偵探':91008,'財神':91009,'羅馬競技場':91006,'金銀島':91005,'開心農場':91007};
-  function lkgLoadMd5(){return window.md5?Promise.resolve():new Promise((ok,fail)=>{const sc=document.createElement('script');sc.src=lkgApi+'/web/js/md5.min.js';sc.onload=ok;sc.onerror=()=>fail(new Error('md5'));document.head.appendChild(sc)})}
-  async function lkgCall(path){const stamp=String(parseInt(Date.now()/10000000)),key='1234'+md5(lkgPartner.sid+lkgPartner.skey+stamp)+'5678',r=await fetch(lkgApi+path,{headers:{lkssid:lkgPartner.sid,lkskey:key}});return r.json()}
-  async function lkgLaunch(pid){await lkgLoadMd5();const acc=encodeURIComponent(lkgPartner.account),m=await lkgCall('/lks/CreateMember?AccountName='+acc+'&AccountPWD=1234');if(m.StatusResult!==0)throw new Error('CreateMember '+m.StatusResult);const t=await lkgCall('/lks/CreateGameToken?PID='+pid+'&AccountName='+acc);if(t.StatusResult!==0||!t.Url||!t.Token)throw new Error('CreateGameToken '+t.StatusResult);
-    /* the LKS client splits its URL on '?', so the format is fixed: <game>?lang=<lang>?otp=<token>?return=<this lobby> */
-    location.href=t.Url+'?lang='+lkgPartner.lang+'?otp='+t.Token+'?return='+lkgReturn}
+  // 遊戲返回大廳用的網址
+  const lobbyReturn=encodeURIComponent(location.origin+location.pathname);
   const gameRoutes={
     '麻將胡了':'https://acc2023156.github.io/MJW/',
-    '珠珠寶貝':`https://acc2023156.github.io/Plinko/?return=${lkgReturn}`,
+    '珠珠寶貝':`https://acc2023156.github.io/Plinko/?return=${lobbyReturn}`,
     '沖高高':'https://acc2023156.github.io/Crash/',
-    '全壘打':`https://acc2023156.github.io/HomeRun/?return=${lkgReturn}`,
-    '寶石探險':`https://acc2023156.github.io/MINES/?return=${lkgReturn}`,
-    '六子骰':`https://acc2023156.github.io/Dice/?return=${lkgReturn}`,
-    '黑粒仔':`https://acc2023156.github.io/PaiGowTiles/?return=${lkgReturn}`,
-    '戰神賽特':`${lkgDemoBase}/seth-slot/slot_game.html?lang=zh-TW&return=${lkgReturn}`
+    '全壘打':`https://acc2023156.github.io/HomeRun/?return=${lobbyReturn}`,
+    '寶石探險':`https://acc2023156.github.io/MINES/?return=${lobbyReturn}`,
+    '六子骰':`https://acc2023156.github.io/Dice/?return=${lobbyReturn}`,
+    '黑粒仔':`https://acc2023156.github.io/PaiGowTiles/?return=${lobbyReturn}`
   };
   function render(){games.innerHTML='';catalog.forEach((g,i)=>{if(g[4]!==active)return;const exclusive=g[4]==='exclusive',slots=g[4]==='slots',maintenance=g[6]==='maintenance',coming=g[6]==='coming-soon',unavailable=maintenance||coming,symbol=g[7]?`<img src="${g[7]}" alt="">`:g[1],badge=exclusive?'<span class="exp">2X EXP</span>':slots?'':`<button class="fav ${favorites.has(i)?'on':''}" aria-label="收藏">♥</button>`;const b=document.createElement('article');b.className='game'+(exclusive?' exclusive':'')+(slots?' slots':'')+(maintenance?' maintenance':'')+(coming?' coming-soon':'');b.tabIndex=unavailable?-1:0;b.role='button';b.style.setProperty('--c1',g[2]);b.style.setProperty('--c2',g[3]);b.innerHTML=`${badge}<span class="symbol">${symbol}</span>${exclusive?`<span class="playing">${g[5]} 人在玩</span>`:slots?(coming?'<span class="coming">即將上市 <span aria-hidden="true">🔒</span></span>':`<span class="rtp">LIVE RTP <b>${g[5]}</b></span>`):'<span class="vip">VIP1 <span class="lock">🔒</span></span>'}${maintenance?'<span class="maintenance">維護中</span>':''}`;const fav=b.querySelector('.fav');if(fav)fav.onclick=e=>{e.stopPropagation();favorites.has(i)?favorites.delete(i):favorites.add(i);render()};if(!unavailable){b.onclick=()=>{selectedGame=g[0];modalArt.innerHTML=g[7]?`<img src="${g[7]}" alt="${g[0]} ICON">`:`<span aria-hidden="true">${g[1]}</span>`;modalOfferName.textContent=g[0];modalStatus.hidden=true;modalStatus.textContent='';playButton.textContent='進入遊戲';dialog.showModal()};b.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();b.click()}}};games.appendChild(b)})}
   const catFx={exclusive:'cat-fx-exclusive',slots:'cat-fx-slots',poker:'cat-fx-poker',fish:'cat-fx-fish'};document.querySelectorAll('.cat').forEach(b=>b.onclick=()=>{const fx=catFx[b.dataset.cat];document.querySelectorAll('.cat').forEach(x=>{x.classList.remove('active');x.classList.remove(...Object.values(catFx))});b.classList.add('active');active=b.dataset.cat;render();renderHero(active);requestAnimationFrame(()=>b.classList.add(fx));setTimeout(()=>b.classList.remove(fx),950)});
-  document.querySelector('.cancel').onclick=()=>dialog.close();playButton.onclick=()=>{const pid=lkgProducts[selectedGame];if(pid){playButton.disabled=true;modalStatus.textContent='正在取得遊戲連線…';modalStatus.hidden=false;lkgLaunch(pid).catch(e=>{console.error(e);modalStatus.textContent='遊戲連線失敗，請稍後再試（'+e.message+'）';playButton.disabled=false});return}const route=gameRoutes[selectedGame];if(route){location.href=route;return}modalStatus.textContent='模擬完成：取得短效 token → 建立供應商 iframe → 等待遊戲 Canvas 載入。';modalStatus.hidden=false};
+  document.querySelector('.cancel').onclick=()=>dialog.close();playButton.onclick=()=>{const route=gameRoutes[selectedGame];if(route){location.href=route;return}modalStatus.textContent='模擬完成：取得短效 token → 建立供應商 iframe → 等待遊戲 Canvas 載入。';modalStatus.hidden=false};
   document.querySelector('.up').onclick=()=>scrollTo({top:0,behavior:'smooth'});
   const nativeSetInterval=window.setInterval;window.setInterval=(fn,delay,...args)=>nativeSetInterval(fn,delay===3800?10000:delay,...args);
   const hero=document.querySelector('.hero'),heroBanners={exclusive:[{image:true,bg:"url('banner-vip-levelup-zh.png')"},{eye:'獨家遊戲加碼',title:'2X EXP 開啟',sub:'專屬遊戲，雙倍體驗。',bg:'linear-gradient(135deg,#132a59,#52268f)'},{eye:'鑽石任務',title:'挑戰每日目標',sub:'完成任務，解鎖專屬獎勵。',bg:'linear-gradient(135deg,#075e73,#11234b)'},{eye:'VIP 特權',title:'專屬遊戲優先玩',sub:'精選遊戲限時開放。',bg:'linear-gradient(135deg,#4a1d0a,#a34e0a)'},{eye:'本週精選',title:'獨家好禮上線',sub:'立即探索 GD 專屬內容。',bg:'linear-gradient(135deg,#5b123c,#d93d65)'}],slots:[{image:true,bg:"url('slots-banner-01.png')"},{image:true,bg:"url('slots-banner-02.png')"},{image:true,bg:"url('slots-banner-03.png')"},{image:true,bg:"url('slots-banner-04.png')"},{image:true,bg:"url('slots-banner-05.png')"}],poker:[{eye:'桌上遊戲',title:'急速百家',sub:'經典玩法，快速入座。',bg:'linear-gradient(135deg,#5c1623,#b83726)'},{eye:'熱門牌桌',title:'3路百家',sub:'選擇你的遊戲桌。',bg:'linear-gradient(135deg,#102f5a,#276f9f)'},{eye:'經典玩法',title:'21 點與龍虎',sub:'更多撲克牌遊戲等你探索。',bg:'linear-gradient(135deg,#1f4b31,#0b1d19)'}],fish:[{eye:'深海獵手',title:'捕魚彩金任務',sub:'潛入深海，尋找幸運魚群。',bg:'linear-gradient(135deg,#07577a,#102b67)'},{eye:'海底寶藏',title:'黃金魚場開放',sub:'探索繽紛海洋世界。',bg:'linear-gradient(135deg,#116d7c,#1caa9b)'},{eye:'海龍王',title:'限時挑戰登場',sub:'集結火力，迎接深海霸主。',bg:'linear-gradient(135deg,#17428e,#5630a1)'}]};let heroSlides=[],heroDots=[],heroIndex=0;function selectHero(index){if(!heroSlides.length)return;heroIndex=index;heroSlides.forEach((slide,i)=>slide.classList.toggle('active',i===index));heroDots.forEach((dot,i)=>dot.classList.toggle('active',i===index));}function renderHero(category){const banners=heroBanners[category];hero.innerHTML=banners.map((b,i)=>`<article class="hero-slide ${i===0?'active':''}${b.image?' image-banner':''}" style="--banner-bg:${b.bg}"><div class="hero-copy"><small>${b.eye||''}</small><h1>${b.title||''}</h1><strong>${b.sub||''}</strong></div></article>`).join('')+`<div class="dots">${banners.map((_,i)=>`<button class="${i===0?'active':''}" aria-label="第${i+1}張"></button>`).join('')}</div>`;heroSlides=[...hero.querySelectorAll('.hero-slide')];heroDots=[...hero.querySelectorAll('.dots button')];heroIndex=0;heroDots.forEach((dot,i)=>dot.onclick=()=>selectHero(i));}setInterval(()=>selectHero((heroIndex+1)%heroSlides.length),3800);renderHero(active);render();
