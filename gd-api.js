@@ -1,8 +1,11 @@
 /* GD 會員後端（Cloudflare Workers）連線設定與共用呼叫。
  * 後端網址只在這裡設定；登入後的 token 存在 localStorage，關閉瀏覽器後仍保持登入（12 小時內）。 */
 window.GD_API = (() => {
-  // 正式網域 gdclub.cc 用 api.gdclub.cc；舊網址（GitHub Pages）仍用 workers.dev
-  const baseUrl = /(^|\.)gdclub\.cc$/.test(location.hostname) ? 'https://api.gdclub.cc' : 'https://gdbo-api.sha-platform.workers.dev';
+  // 依網址選 API：開發 dev.gdclub.cc → api-dev.gdclub.cc；正式 gdclub.cc → api.gdclub.cc；舊網址（GitHub Pages）仍用 workers.dev
+  const host = location.hostname;
+  const baseUrl = host === 'dev.gdclub.cc' ? 'https://api-dev.gdclub.cc'
+    : /(^|\.)gdclub\.cc$/.test(host) ? 'https://api.gdclub.cc'
+    : 'https://gdbo-api.sha-platform.workers.dev';
   const TOKEN_KEY = 'gd-member-token';
   const store = {
     get: () => { try { return localStorage.getItem(TOKEN_KEY); } catch { return null; } },
