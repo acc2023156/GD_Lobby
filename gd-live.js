@@ -263,6 +263,7 @@
     syncLobby(level);
     // 所屬家族
     loadMail().catch(() => {});
+    checkChatNotice().catch(() => {});
     loadMyFamily();
     loadReferral().catch(() => {});
     handleShareLink();
@@ -1197,6 +1198,7 @@
     if (!me) return;
     const { mail, unread } = await api.call('/mail');
     mailItem.innerHTML = `<span>✉️</span>信箱（${unread}）`;
+    $('#openTools').classList.toggle('has-new', unread > 0);
     const page = $('[data-tool-page="mail"]');
     page.innerHTML = '<button class="tool-back">← 返回設定</button><h3>信箱</h3>' + (mail.map((m) => `<div class="tool-row"><b>${m.read_at ? '' : '● '}${esc(m.title)}</b><small>${time(m.created_at)}${m.expires_at ? '・到期 ' + time(m.invite_expires_at || m.expires_at) : ''}</small><p style="margin:8px 0;white-space:pre-wrap">${esc(m.body)}</p>${
       m.reward_coins ? (m.claimed_at ? `<small>已領取 ${coins(m.reward_coins)} G幣</small>` : `<button class="gd-act" data-claim="${esc(m.id)}">領取 ${coins(m.reward_coins)} G幣</button>`) : ''}${
@@ -1228,6 +1230,21 @@
       if (accept) accept.onclick = async () => { try { await api.call(`/legal/${doc.id}/accept`, { method: 'POST' }); accept.replaceWith('已同意'); } catch (err) { toast(err.message); } };
     } catch { /* 後台尚未發布時保留原本說明 */ }
   }));
+
+  // ---------- 提示燈：右上工具列＝有未讀信件、家族＝有未讀聊天（家族聊天室＋私訊）；沒有就熄滅 ----------
+  async function checkChatNotice() {
+    if (!me) return;
+    const { unread } = await api.call('/chat');
+    $('#openClan').classList.toggle('has-new', unread > 0);
+  }
+  // 登入後、回到前景時、每 30 秒檢查一次（畫面在背景時不檢查）
+  const checkNotices = () => {
+    if (!me || document.hidden) return;
+    loadMail().catch(() => {});
+    checkChatNotice().catch(() => {});
+  };
+  setInterval(checkNotices, 30_000);
+  document.addEventListener('visibilitychange', checkNotices);
 
   // ---------- 獎勵中心：每日簽到、每日任務／本週加碼、家族任務 ----------
   const msStyle = document.createElement('style');
