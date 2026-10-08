@@ -183,6 +183,32 @@
   renderNowPlaying();
 
   // ---------- 會員資料 ----------
+  // ---------- 大廳遊戲表（VIP 限定、EXP 倍數）與會員最愛 ----------
+  // index.html 的 lobby 狀態由這裡填入；開大廳時讀遊戲表，登入後讀最愛（綁會員，換裝置登入也在）
+  lobby.needLogin = showLogin;
+  lobby.notify = toast;
+  api.call('/lobby/games')
+    .then(({ games }) => { lobby.games = Object.fromEntries(games.map((g) => [g.name, g])); render(); })
+    .catch((err) => console.warn('lobby games', err));
+  let favoritesOf = null;
+  function syncLobby(level) {
+    const aid = me.profile.aid;
+    const vipChanged = lobby.vip !== level;
+    lobby.vip = level;
+    lobby.toggle = async (key, on) => {
+      const r = await api.call(`/me/favorites/${encodeURIComponent(key)}`, { method: on ? 'PUT' : 'DELETE' });
+      lobby.favorites = r.favorites;
+      lobby.max = r.max;
+    };
+    // 最愛每次登入讀一次（之後由點愛心的回應更新）；VIP 變動時重畫鎖頭
+    if (favoritesOf !== aid) {
+      favoritesOf = aid;
+      api.call('/me/favorites')
+        .then((r) => { lobby.favorites = r.favorites; lobby.max = r.max; render(); })
+        .catch((err) => console.warn('favorites', err));
+    } else if (vipChanged) render();
+  }
+
   let giftPrimed = false;
   async function refresh() {
     if (!api.isLoggedIn()) return;
@@ -234,6 +260,7 @@
     $('.shop-balance b').textContent = 'G ' + coins(me.mainAvailable);
     if (!$('#walletLayer').hidden) renderWallet();
     if (!giftPrimed || !giftLayerEl.hidden) { giftPrimed = true; loadGift(); }
+    syncLobby(level);
     // 所屬家族
     loadMail().catch(() => {});
     loadMyFamily();
