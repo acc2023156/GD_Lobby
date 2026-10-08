@@ -61,6 +61,8 @@ window.GD_API = (() => {
     ERR_PHONE_NOT_BOUND: '請先綁定手機才能私訊與送禮',
     ERR_CHAT_RATE_LIMITED: '訊息太頻繁，請稍後再試',
     ERR_NOT_FOUND: '找不到這位玩家或資料',
+    ERR_VIP_REQUIRED: 'VIP 等級不足，無法進入這款遊戲',
+    ERR_FAVORITES_FULL: '每個分類最多 3 個最愛，請先取消一個',
   };
 
   async function call(path, { method = 'GET', body, idempotent } = {}) {
