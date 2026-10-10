@@ -94,13 +94,31 @@
     // 記住播到哪裡：進遊戲或回大廳時從這裡接著播
     if (Math.abs((prefs.pos || 0) - player.currentTime) > 3) { prefs.pos = Math.floor(player.currentTime); save(); }
   });
-  const remember = () => { prefs.playing = !player.paused; prefs.pos = Math.floor(player.currentTime || 0); save(); };
+  // 遊戲暫時讓出（hold）時仍算在播放，回大廳或下一款遊戲會接著播
+  const remember = () => { prefs.playing = held || !player.paused; prefs.pos = Math.floor(player.currentTime || 0); save(); };
   player.addEventListener('play', () => { remember(); changed(); });
   player.addEventListener('pause', () => { if (document.visibilityState === 'visible') remember(); changed(); });
   player.addEventListener('error', () => { if (tracks.length > 1 && player.src) setTimeout(nextTrack, 800); });
   window.addEventListener('pagehide', () => { prefs.pos = Math.floor(player.currentTime || 0); save(); });
 
+  /*
+   * 遊戲暫時讓出音樂：例如免費遊戲有自己的背景音樂時，淡出並暫停，結束後 release() 接著播。
+   * 不算玩家按暫停（不改 userPaused），玩家在讓出期間自己操作音樂（播放、調音量）就取消讓出。
+   */
+  let held = false;
+  function hold() {
+    if (held || player.paused) return Promise.resolve(false);
+    held = true;
+    return fadeTo(0, 450).then(() => { if (held) player.pause(); return held; });
+  }
+  function release() {
+    if (!held) return;
+    held = false;
+    if (prefs.music && !prefs.userPaused && player.src) startPlaying();
+  }
+
   function action(name) {
+    held = false;
     if (name === 'prev') playTrack(current - 1);
     else if (name === 'next') nextTrack();
     else if (name === 'shuffle') { prefs.shuffle = !prefs.shuffle; upcoming = pickNext(); preloaded = false; save(); changed(); }
@@ -109,6 +127,7 @@
     else { prefs.userPaused = true; save(); player.pause(); }
   }
   function setMusic(level) {
+    held = false;
     prefs.music = level;
     save();
     if (!level) player.pause();
@@ -278,6 +297,10 @@
     /** 音樂音量 0–1 */
     get music() { return prefs.music / 100; },
     fadeOut: (ms = 450) => (player.paused ? Promise.resolve() : fadeTo(0, ms)),
+    /** 遊戲暫時讓出音樂（淡出暫停）；音樂沒在播時不做事。回傳是否真的暫停了 */
+    hold,
+    /** 結束讓出：hold 暫停的音樂接著播 */
+    release,
     /** 大廳設定列顯示用 */
     status() {
       if (!tracks.length) return '歌曲即將上架';
