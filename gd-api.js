@@ -9,7 +9,13 @@ window.GD_API = (() => {
   const TOKEN_KEY = 'gd-member-token';
   const store = {
     get: () => { try { return localStorage.getItem(TOKEN_KEY); } catch { return null; } },
-    set: (t) => { try { t ? localStorage.setItem(TOKEN_KEY, t) : localStorage.removeItem(TOKEN_KEY); } catch {} },
+    set: (t) => {
+      try {
+        t ? localStorage.setItem(TOKEN_KEY, t) : localStorage.removeItem(TOKEN_KEY);
+        // 換 token（登入、登出、過期）時清掉大廳暫存的最愛，避免顯示到上一位玩家的設定
+        localStorage.removeItem('gd-lobby-favorites');
+      } catch {}
+    },
   };
 
   /** 後端錯誤碼轉成玩家看得懂的訊息。 */

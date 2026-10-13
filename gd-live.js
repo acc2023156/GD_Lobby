@@ -187,24 +187,47 @@
   // index.html 的 lobby 狀態由這裡填入；開大廳時讀遊戲表，登入後讀最愛（綁會員，換裝置登入也在）
   lobby.needLogin = showLogin;
   lobby.notify = toast;
+  // 遊戲表與最愛都會存到客戶端（index.html 的 lobbyCache），下次開大廳先用暫存排好，API 回來內容有變才重畫
+  const sameJson = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   api.call('/lobby/games')
-    .then(({ games }) => { lobby.games = Object.fromEntries(games.map((g) => [g.name, g])); render(); })
+    .then(({ games }) => {
+      const next = Object.fromEntries(games.map((g) => [g.name, g]));
+      lobbyCache.set('games', next);
+      if (sameJson(next, lobby.games)) return;
+      lobby.games = next;
+      render();
+    })
     .catch((err) => console.warn('lobby games', err));
+  const emptyFavorites = () => ({ exclusive: [], slots: [], poker: [], fish: [] });
+  function setFavorites(aid, r) {
+    const changed = !sameJson(r.favorites, lobby.favorites) || r.max !== lobby.max;
+    lobby.favorites = r.favorites;
+    lobby.max = r.max;
+    lobbyCache.set('favorites', { aid, favorites: r.favorites, max: r.max });
+    return changed;
+  }
+  // 暫存的最愛屬於哪位會員（index.html 從暫存讀出）；null＝還沒向伺服器核對過
   let favoritesOf = null;
+  const cachedFavoritesOf = lobby.favoritesOf ?? null;
   function syncLobby(level) {
     const aid = me.profile.aid;
     const vipChanged = lobby.vip !== level;
     lobby.vip = level;
     lobby.toggle = async (key, on) => {
       const r = await api.call(`/me/favorites/${encodeURIComponent(key)}`, { method: on ? 'PUT' : 'DELETE' });
-      lobby.favorites = r.favorites;
-      lobby.max = r.max;
+      setFavorites(aid, r);
     };
-    // 最愛每次登入讀一次（之後由點愛心的回應更新）；VIP 變動時重畫鎖頭
+    // 最愛每次開大廳向伺服器核對一次（之後由點愛心的回應更新）；暫存不是這位會員的就先清掉
     if (favoritesOf !== aid) {
       favoritesOf = aid;
+      let cleared = false;
+      if (cachedFavoritesOf !== aid && !sameJson(lobby.favorites, emptyFavorites())) {
+        lobby.favorites = emptyFavorites();
+        cleared = true;
+      }
+      if (cleared || vipChanged) render();
       api.call('/me/favorites')
-        .then((r) => { lobby.favorites = r.favorites; lobby.max = r.max; render(); })
+        .then((r) => { if (setFavorites(aid, r)) render(); })
         .catch((err) => console.warn('favorites', err));
     } else if (vipChanged) render();
   }
