@@ -192,6 +192,8 @@
     .gda-card{width:min(100%,440px);max-height:100%;display:flex;flex-direction:column;border:2px solid #783dff;border-radius:22px;background:linear-gradient(155deg,#171f49,#0d1430);color:#f8faff;box-shadow:0 18px 70px #000c,0 0 20px #783dff55;overflow:hidden}
     .gda-head{flex:none;position:relative;padding:12px 44px;text-align:center;font-size:18px;font-weight:900;background:linear-gradient(100deg,#783dff,#ff3d9e 60%,#ff8a3d)}
     .gda-x{position:absolute;right:8px;top:50%;transform:translateY(-50%);width:32px;height:32px;border:0;border-radius:50%;background:#0003;color:#fff;font-size:18px;cursor:pointer}
+    .gda-cd{flex:none;height:220px;border-bottom:1px solid #35406d;background:radial-gradient(circle at 50% 45%,#2a2f66,#0d1430 75%)}
+    .gda-cd[hidden]{display:none}
     .gda-body{flex:1;min-height:0;overflow:auto;padding:14px;display:grid;gap:12px;align-content:start;overscroll-behavior:contain}
     .gda-sec{display:grid;gap:8px}
     .gda-sec>b{font-size:14px;color:#ffd166}
@@ -226,8 +228,37 @@
   const seg = (kind, value) => `<div class="gda-seg">${LEVELS.map((v) => `<button type="button" data-${kind}="${v}" class="${v === value ? 'on' : ''}">${levelName(v)}</button>`).join('')}</div>`;
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
+  // ---------- CD 盒（只在大廳）：打開音源才載入 gd-cd.js（3D 版再載 Three.js），關掉音源就釋放 ----------
+  let cdScript = null, cdOn = false;
+  const cdState = () => ({ cover: album ? album.cover : '', title: album ? album.title : '', playing: !player.paused });
+  function cdSync() {
+    if (!IN_LOBBY || !layer || layer.hidden || !album) return;
+    if (cdOn) { if (window.GDCD) window.GDCD.update(cdState()); return; }
+    const stage = layer.querySelector('.gda-cd');
+    cdOn = true;
+    stage.hidden = false;
+    cdScript = cdScript || new Promise((ok, fail) => {
+      if (window.GDCD) return ok();
+      const s = document.createElement('script');
+      s.src = new URL('music/gd-cd.js?v=1', LOBBY).href;
+      s.onload = ok;
+      s.onerror = fail;
+      document.head.appendChild(s);
+    });
+    cdScript.then(() => { if (cdOn) window.GDCD.mount(stage, cdState(), { toggle: () => action('play') }); })
+      .catch(() => { cdScript = null; cdOn = false; stage.hidden = true; });
+  }
+  function cdOff() {
+    if (!cdOn) return;
+    cdOn = false;
+    if (window.GDCD) window.GDCD.unmount();
+    const stage = layer && layer.querySelector('.gda-cd');
+    if (stage) stage.hidden = true;
+  }
+
   function render() {
     if (!layer || layer.hidden) return;
+    cdSync();
     const t = tracks[current];
     const cover = (t && t.cover) || (album && album.cover) || '';
     const playing = !player.paused;
@@ -248,7 +279,7 @@
       layer = document.createElement('div');
       layer.className = 'gda-layer';
       layer.hidden = true;
-      layer.innerHTML = '<div class="gda-card" role="dialog" aria-label="音源"><div class="gda-head">音源<button type="button" class="gda-x" aria-label="關閉">✕</button></div><div class="gda-body"></div></div>';
+      layer.innerHTML = '<div class="gda-card" role="dialog" aria-label="音源"><div class="gda-head">音源<button type="button" class="gda-x" aria-label="關閉">✕</button></div><div class="gda-cd" hidden></div><div class="gda-body"></div></div>';
       document.body.appendChild(layer);
       layer.addEventListener('click', (e) => {
         if (e.target === layer || e.target.closest('.gda-x')) return close();
@@ -264,7 +295,7 @@
     layer.hidden = false;
     render();
   }
-  function close() { if (layer) layer.hidden = true; }
+  function close() { cdOff(); if (layer) layer.hidden = true; }
 
   // ---------- 喇叭按鈕：data-gd-audio，或舊遊戲的 #soundBtn／#sound ----------
   const BUTTONS = '[data-gd-audio], #soundBtn, button#sound';
