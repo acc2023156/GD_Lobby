@@ -172,13 +172,36 @@
     .tool-music .music-go{color:#ffd166;font-weight:900;flex:none}
     .tool-music.hot{border:1px solid #ff67c6;background:linear-gradient(105deg,#783dff,#ff3d9e 66%,#ff8a3d);color:#fff;box-shadow:inset 0 1px #fff5,0 5px 13px #0007}
     .tool-music.hot .music-open small{color:#fff;opacity:.9}
-    .tool-music.hot .music-go{color:#fff}`;
+    .tool-music.hot .music-go{color:#fff}
+    /* 小 CD：透明塑膠盒，專輯印在光碟上，光碟滑出一半；播放中光碟慢慢轉 */
+    .tool-music .music-open{grid-template-columns:auto 1fr;align-items:center;column-gap:12px}
+    .mini-cd{grid-row:span 2;position:relative;width:58px;height:50px;margin-right:16px}
+    .mini-cd i{position:absolute;inset:0;border-radius:4px;border:1.5px solid #ffffffa6;background:linear-gradient(125deg,#ffffff40,#ffffff0d 45%,#ffffff26);box-shadow:inset 0 0 8px #fff3,0 4px 10px #0005;z-index:2}
+    .mini-cd b{position:absolute;top:3px;left:14px;width:44px;height:44px;border-radius:50%;background:radial-gradient(circle,transparent 0 7%,#dfe3ec 8% 15%,#ffffff59 16% 24%,transparent 25%),var(--cover,linear-gradient(135deg,#783dff,#ff3d9e)) center/cover;box-shadow:0 0 0 1px #fff8,0 3px 8px #0006;animation:mini-cd-spin 6s linear infinite;animation-play-state:paused;z-index:1;transition:left .4s cubic-bezier(.2,.8,.2,1)}
+    .mini-cd.on b{left:30px;animation-play-state:running}
+    .tool-music .music-open strong{font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    @keyframes mini-cd-spin{to{transform:rotate(360deg)}}
+    @media (prefers-reduced-motion:reduce){.mini-cd b{animation:none}}`;
   document.head.appendChild(musicStyle);
   const musicRow = $('.tool-music');
-  musicRow.innerHTML = '<button type="button" class="music-open"><span>🎵 音源</span><small id="nowPlaying"></small></button><span class="music-go">›</span>';
+  musicRow.innerHTML = '<button type="button" class="music-open" aria-label="音源"><span class="mini-cd" id="miniCd"><b></b><i></i></span><strong id="nowTitle"></strong><small id="nowPlaying"></small></button><span class="music-go">›</span>';
   musicRow.style.cursor = 'pointer';
   musicRow.onclick = () => window.GDAudio?.open();
-  const renderNowPlaying = () => { $('#nowPlaying').textContent = window.GDAudio ? GDAudio.status() : ''; };
+  // 小 CD＋曲名＋專輯／狀態（取代原本的「🎵 音源」字樣）
+  const renderNowPlaying = () => {
+    const now = window.GDAudio && GDAudio.now ? GDAudio.now() : null;
+    const cd = $('#miniCd');
+    if (!now || !now.title) {
+      $('#nowTitle').textContent = '音源';
+      $('#nowPlaying').textContent = window.GDAudio ? GDAudio.status() : '';
+      cd.classList.remove('on');
+      return;
+    }
+    $('#nowTitle').textContent = now.title;
+    $('#nowPlaying').textContent = `${now.muted ? '音樂已靜音' : now.playing ? '播放中' : '暫停'}・${now.album}`;
+    cd.classList.toggle('on', now.playing);
+    cd.style.setProperty('--cover', now.cover ? `url("${now.cover.replace(/"/g, '%22')}")` : '');
+  };
   window.addEventListener('gd-audio-change', renderNowPlaying);
   renderNowPlaying();
 
