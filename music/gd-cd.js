@@ -193,8 +193,24 @@
 
     const root = new T.Group(); scene.add(root);
     // 透明塑膠：很淡的面＋亮的邊線＋高光
-    const plastic = new T.MeshPhongMaterial({ color: 0xffffff, transparent: true, opacity: 0.09, shininess: 220, specular: 0xffffff, side: T.DoubleSide, depthWrite: false });
-    const edge = new T.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6 });
+    // 透明塑膠（自訂著色器）：正對鏡頭的面很淡，越斜看越亮（菲涅耳），加上一道高光；
+    // 盒邊、框條有厚度，側面斜對鏡頭就會亮起來，讀起來像塑膠而不是一片淡色玻璃
+    const plastic = new T.ShaderMaterial({
+      transparent: true, depthWrite: false, side: T.DoubleSide,
+      uniforms: { tint: { value: [0.78, 0.86, 1.0] }, base: { value: 0.06 }, rim: { value: 0.75 } },
+      vertexShader: `varying vec3 vN; varying vec3 vV;
+        void main() { vec4 mv = modelViewMatrix * vec4(position, 1.0); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }`,
+      fragmentShader: `uniform vec3 tint; uniform float base; uniform float rim; varying vec3 vN; varying vec3 vV;
+        void main() {
+          vec3 n = normalize(vN); if (!gl_FrontFacing) n = -n;
+          float f = pow(1.0 - abs(dot(n, vV)), 2.2);
+          vec3 h = normalize(normalize(vec3(-0.45, 0.6, 0.65)) + vV);
+          float spec = pow(max(dot(n, h), 0.0), 60.0);
+          float a = base + rim * f + spec * 0.85;
+          gl_FragColor = vec4(mix(tint, vec3(1.0), clamp(f + spec, 0.0, 1.0)), clamp(a, 0.0, 0.9));
+        }`,
+    });
+    const edge = new T.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.38 });
     const faint = new T.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.28 });
     const clearBox = (w, h, d) => {
       const g = new T.Group();
@@ -225,6 +241,14 @@
     root.add(loop(ring(9), zf, edge));
     root.add(loop(ring(17), zf, faint));
     const spine = clearBox(5, H, D); spine.position.set(-W / 2 + 2.5, 0, 0); root.add(spine);
+    // 托盤四周有厚度的框條，四個角的 L 形卡榫（像參考圖的托盤）
+    const bar = (w, h, x, y) => { const b = clearBox(w, h, 5); b.position.set(x, y, -D / 2 + 4); root.add(b); };
+    bar(W - 6, 4, 2, H / 2 - 2); bar(W - 6, 4, 2, -H / 2 + 2); bar(4, H - 8, W / 2 - 2, 0);
+    for (const [sx, sy] of [[-1, -1], [-1, 1], [1, -1], [1, 1]]) {
+      const cx = sx * (W / 2 - 14) + 2, cy = sy * (H / 2 - 12);
+      const a = clearBox(18, 3, 4); a.position.set(cx - sx * 6, cy, -D / 2 + 4.5); root.add(a);
+      const b = clearBox(3, 16, 4); b.position.set(cx + sx * 1.5, cy - sy * 6, -D / 2 + 4.5); root.add(b);
+    }
 
     // 光碟：正面印專輯（霧面）、背面雷射面；側邊銀色
     const frontTex = new T.CanvasTexture(frontCanvas(null)); frontTex.colorSpace = T.SRGBColorSpace;
@@ -239,7 +263,7 @@
 
     // 盒蓋：以左邊鉸鏈為軸，打開時翻到左邊攤平
     const lid = new T.Group(); lid.position.set(-W / 2, 0, D / 2 - 0.8); root.add(lid);
-    const lidBox = clearBox(W, H, 1.6); lidBox.position.x = W / 2; lid.add(lidBox);
+    const lidBox = clearBox(W, H, 2.4); lidBox.position.x = W / 2; lid.add(lidBox);
     const lidFrame = loop(roundRect(W - 10, H - 10, 6), -0.9, faint); lidFrame.position.x = W / 2; lid.add(lidFrame);
 
     // ---- 狀態與只在需要時重畫 ----
