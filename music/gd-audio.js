@@ -194,6 +194,10 @@
     .gda-x{position:absolute;right:8px;top:50%;transform:translateY(-50%);width:32px;height:32px;border:0;border-radius:50%;background:#0003;color:#fff;font-size:18px;cursor:pointer}
     .gda-cd{flex:none;height:220px;border-bottom:1px solid #35406d;background:radial-gradient(circle at 50% 45%,#2a2f66,#0d1430 75%)}
     .gda-cd[hidden]{display:none}
+    .gda-cap{flex:none;padding:10px 14px 0;text-align:center}
+    .gda-cap[hidden]{display:none}
+    .gda-cap small{color:#aeb8e8;font-size:12px}
+    .gda-cap b{display:block;color:#ffd166;font-size:17px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .gda-body{flex:1;min-height:0;overflow:auto;padding:14px;display:grid;gap:12px;align-content:start;overscroll-behavior:contain}
     .gda-sec{display:grid;gap:8px}
     .gda-sec>b{font-size:14px;color:#ffd166}
@@ -246,7 +250,7 @@
       document.head.appendChild(s);
     });
     cdScript.then(() => { if (cdOn) window.GDCD.mount(stage, cdState(), { toggle: () => action('play') }); })
-      .catch(() => { cdScript = null; cdOn = false; stage.hidden = true; });
+      .catch(() => { cdScript = null; cdOn = false; stage.hidden = true; render(); });
   }
   function cdOff() {
     if (!cdOn) return;
@@ -254,6 +258,8 @@
     if (window.GDCD) window.GDCD.unmount();
     const stage = layer && layer.querySelector('.gda-cd');
     if (stage) stage.hidden = true;
+    const cap = layer && layer.querySelector('.gda-cap');
+    if (cap) cap.hidden = true;
   }
 
   function render() {
@@ -262,9 +268,15 @@
     const t = tracks[current];
     const cover = (t && t.cover) || (album && album.cover) || '';
     const playing = !player.paused;
+    // 大廳有 CD 盒：封面、專輯名、曲名整合在 CD 盒下方，專輯只有一張時不另外列出、下面不再重複封面
+    const cd = cdOn;
+    const cap = layer.querySelector('.gda-cap');
+    cap.hidden = !(cd && t);
+    if (cd && t) cap.innerHTML = `<small>${playing ? '正在播放' : '目前選擇'}・${esc(album.title)}</small><b>${esc(t.title)}</b>`;
+    const showAlbums = albums.length > (cd ? 1 : 0);
     $body().innerHTML = `
-      ${albums.length ? `<div class="gda-sec"><b>專輯</b><div class="gda-albums">${albums.map((a) => `<button type="button" class="gda-album ${album && a.id === album.id ? 'on' : ''}" data-album="${esc(a.id)}">${a.cover ? `<img src="${esc(a.cover)}" alt="">` : ''}<span>${esc(a.title)}</span></button>`).join('')}</div></div>` : ''}
-      ${t ? `<div class="gda-now"><div class="gda-now-head">${cover ? `<img src="${esc(cover)}" alt="">` : ''}<div><small>${playing ? '正在播放' : '目前選擇'}・${esc(album.title)}</small><b>${esc(t.title)}</b></div></div>
+      ${showAlbums ? `<div class="gda-sec"><b>專輯</b><div class="gda-albums">${albums.map((a) => `<button type="button" class="gda-album ${album && a.id === album.id ? 'on' : ''}" data-album="${esc(a.id)}">${a.cover && !cd ? `<img src="${esc(a.cover)}" alt="">` : ''}<span>${esc(a.title)}</span></button>`).join('')}</div></div>` : ''}
+      ${t ? `<div class="gda-now">${cd ? '' : `<div class="gda-now-head">${cover ? `<img src="${esc(cover)}" alt="">` : ''}<div><small>${playing ? '正在播放' : '目前選擇'}・${esc(album.title)}</small><b>${esc(t.title)}</b></div></div>`}
         <div class="gda-ctrl"><button type="button" data-act="prev">⏮ 上一首</button><button type="button" data-act="next">⏭ 下一首</button><button type="button" data-act="play">${playing ? '⏸ 暫停' : '▶ 播放'}</button><button type="button" data-act="shuffle" class="${prefs.shuffle ? 'on' : ''}">🔀 隨機：${prefs.shuffle ? '開' : '關'}</button></div>
         <label class="gda-carry">進入遊戲後繼續播放<button type="button" class="gda-switch ${prefs.carry === false ? '' : 'on'}" data-act="carry" aria-label="進入遊戲後繼續播放"></button></label></div>` : '<div class="gda-empty">歌曲即將上架，敬請期待。</div>'}
       <div class="gda-sec"><b>🎵 音樂音量</b>${seg('music', prefs.music)}</div>
@@ -279,7 +291,7 @@
       layer = document.createElement('div');
       layer.className = 'gda-layer';
       layer.hidden = true;
-      layer.innerHTML = '<div class="gda-card" role="dialog" aria-label="音源"><div class="gda-head">音源<button type="button" class="gda-x" aria-label="關閉">✕</button></div><div class="gda-cd" hidden></div><div class="gda-body"></div></div>';
+      layer.innerHTML = '<div class="gda-card" role="dialog" aria-label="音源"><div class="gda-head">音源<button type="button" class="gda-x" aria-label="關閉">✕</button></div><div class="gda-cd" hidden></div><div class="gda-cap" hidden></div><div class="gda-body"></div></div>';
       document.body.appendChild(layer);
       layer.addEventListener('click', (e) => {
         if (e.target === layer || e.target.closest('.gda-x')) return close();
@@ -339,6 +351,8 @@
       return `${player.paused ? '暫停' : '播放中'}：${tracks[current].title}`;
     },
     state: () => ({ music: prefs.music, sfx: prefs.sfx, playing: !player.paused, album: album && album.id, track: current }),
+    /** 大廳設定列顯示用：目前專輯封面、專輯名、曲名、是否播放中 */
+    now: () => ({ cover: (tracks[current] && tracks[current].cover) || (album && album.cover) || '', album: album ? album.title : '', title: tracks[current] ? tracks[current].title : '', playing: !player.paused, muted: !prefs.music }),
   };
   window.GDAudio = api;
   window.GDMusic = { fadeOut: api.fadeOut };
