@@ -173,12 +173,13 @@
     .tool-music.hot{border:1px solid #ff67c6;background:linear-gradient(105deg,#783dff,#ff3d9e 66%,#ff8a3d);color:#fff;box-shadow:inset 0 1px #fff5,0 5px 13px #0007}
     .tool-music.hot .music-open small{color:#fff;opacity:.9}
     .tool-music.hot .music-go{color:#fff}
-    /* 小 CD：透明塑膠盒，專輯印在光碟上，光碟滑出一半；播放中光碟慢慢轉 */
-    .tool-music .music-open{grid-template-columns:auto 1fr;align-items:center;column-gap:12px}
-    .mini-cd{grid-row:span 2;position:relative;width:58px;height:50px;margin-right:16px}
-    .mini-cd i{position:absolute;inset:0;border-radius:4px;border:1.5px solid #ffffffa6;background:linear-gradient(125deg,#ffffff40,#ffffff0d 45%,#ffffff26);box-shadow:inset 0 0 8px #fff3,0 4px 10px #0005;z-index:2}
-    .mini-cd b{position:absolute;top:3px;left:14px;width:44px;height:44px;border-radius:50%;background:radial-gradient(circle,transparent 0 7%,#dfe3ec 8% 15%,#ffffff59 16% 24%,transparent 25%),var(--cover,linear-gradient(135deg,#783dff,#ff3d9e)) center/cover;box-shadow:0 0 0 1px #fff8,0 3px 8px #0006;animation:mini-cd-spin 6s linear infinite;animation-play-state:paused;z-index:1;transition:left .4s cubic-bezier(.2,.8,.2,1)}
-    .mini-cd.on b{left:30px;animation-play-state:running}
+    /* 小 CD：光碟留在透明塑膠盒裡，專輯印在光碟上；播放中原地慢慢轉。光碟中心孔對齊盒子上的中心卡榫圈 */
+    .tool-music .music-open{grid-template-columns:auto 1fr;align-items:center;column-gap:14px}
+    .mini-cd{grid-row:span 2;position:relative;width:56px;height:50px}
+    .mini-cd b{position:absolute;left:7px;top:3px;width:44px;height:44px;border-radius:50%;background:radial-gradient(circle,transparent 0 7%,#dfe3ec 8% 15%,#ffffff59 16% 24%,transparent 25%),var(--cover,linear-gradient(135deg,#783dff,#ff3d9e)) center/cover;box-shadow:0 0 0 1px #fff8,0 2px 6px #0006;animation:mini-cd-spin 6s linear infinite;animation-play-state:paused}
+    .mini-cd.on b{animation-play-state:running}
+    .mini-cd i{position:absolute;inset:0;border-radius:4px;border:1.5px solid #ffffffb3;background:linear-gradient(125deg,#ffffff4d,#ffffff0d 42%,#ffffff05 60%,#ffffff33);box-shadow:inset 4px 0 0 #ffffff2e,inset 0 0 8px #fff3,0 4px 10px #0005}
+    .mini-cd i:after{content:'';position:absolute;left:21px;top:17px;width:13px;height:13px;border-radius:50%;border:1px solid #ffffffb3;box-sizing:border-box}
     .tool-music .music-open strong{font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     @keyframes mini-cd-spin{to{transform:rotate(360deg)}}
     @media (prefers-reduced-motion:reduce){.mini-cd b{animation:none}}`;
