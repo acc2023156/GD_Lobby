@@ -926,6 +926,8 @@
       const slots = productId || gameId === 'seth';
       const returnUrl = location.origin + location.pathname + (slots ? '?cat=slots' : '?cat=exclusive');
       const { url } = await api.call('/game-sessions', { method: 'POST', body: productId ? { productId, returnUrl } : { gameId, returnUrl } });
+      // 進遊戲：依分類配色的 LOADING 蓋住大廳（老虎機＝霓虹、獨家＝墨金；gd-loading.js）
+      window.GDLoading?.show(slots ? 'slots' : 'exclusive');
       await window.GDMusic?.fadeOut();
       location.href = url;
     } catch (err) {
