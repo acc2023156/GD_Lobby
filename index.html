@@ -4,7 +4,9 @@
   <meta charset="utf-8">
   <!-- 舊網址（GitHub Pages）一律轉到 gdclub.cc -->
   <script>if (location.hostname === 'acc2023156.github.io') location.replace('https://gdclub.cc' + location.pathname.replace(/^\/GD_Lobby/, '') + location.search + location.hash);</script>
-  <script src="gd-loading.js?v=20261015b"></script>
+  <script src="gd-loading.js?v=20261015d"></script>
+  <!-- 手機點擊不顯示系統預設的方形高亮（每個區塊都會出現）；改成卡片按下時微縮的回饋 -->
+  <style>*{-webkit-tap-highlight-color:transparent}.game{transition:transform .12s ease}.game:active{transform:scale(.96)}</style>
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#0B1026">
   <meta name="application-name" content="金龍俱樂部">
@@ -407,7 +409,7 @@
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkBuild(); });
   })();
 </script>
-<script src="music/gd-audio.js?v=1"></script>
+<script src="music/gd-audio.js?v=2"></script>
 <script>
   // gd-live.js 載入完成前先擋下「進入遊戲」：SLOTS 與哈希遊戲都要由它經 GDBO 啟動
   document.querySelector('.play').addEventListener('click', (e) => {
