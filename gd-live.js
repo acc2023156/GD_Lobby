@@ -916,22 +916,28 @@
     if (!requireLogin()) { setLaunching(false); dialog.close(); return; }
     modalStatus.textContent = '正在取得遊戲連線…';
     modalStatus.hidden = false;
+    const slots = productId || gameId === 'seth';
+    // 進遊戲：立刻用依分類配色的 LOADING 蓋住大廳（老虎機＝霓虹、獨家＝墨金；gd-loading.js），一路接到遊戲自己的 LOADING。
+    // 遊戲卡片是 showModal 對話框（在最上層），要先關掉才看得到；優惠勾選框關掉後仍可讀
+    const offerChecked = !!$('input', offerCard)?.checked;
+    if (window.GDLoading) { dialog.close(); window.GDLoading.show(slots ? 'slots' : 'exclusive'); }
     try {
-      if (pendingOffer && $('input', offerCard)?.checked) {
+      if (pendingOffer && offerChecked) {
         modalStatus.textContent = '正在鎖定優惠錢包…';
         await api.call(`/promotions/${pendingOffer.promotionId}/accept`, { method: 'POST', body: { tierIdx: pendingOffer.tierIdx, gameId }, idempotent: true });
         pendingOffer = null;
         modalStatus.textContent = '正在取得遊戲連線…';
       }
-      const slots = productId || gameId === 'seth';
       const returnUrl = location.origin + location.pathname + (slots ? '?cat=slots' : '?cat=exclusive');
       const { url } = await api.call('/game-sessions', { method: 'POST', body: productId ? { productId, returnUrl } : { gameId, returnUrl } });
-      // 進遊戲：依分類配色的 LOADING 蓋住大廳（老虎機＝霓虹、獨家＝墨金；gd-loading.js）
-      window.GDLoading?.show(slots ? 'slots' : 'exclusive');
       await window.GDMusic?.fadeOut();
       location.href = url;
     } catch (err) {
+      // 失敗：拿掉 LOADING，重新打開遊戲卡片顯示原因
+      window.GDLoading?.hide();
+      if (!dialog.open) dialog.showModal();
       modalStatus.textContent = '遊戲連線失敗：' + err.message;
+      modalStatus.hidden = false;
       setLaunching(false);
     }
   }, true);
