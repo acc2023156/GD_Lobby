@@ -3,7 +3,7 @@
    - 音效：遊戲內音效音量 靜音／25%／50%／75%／100%（遊戲的 sound.js 讀 GDAudio.sfx）
    - 設定存在 localStorage 的 gd-music（大廳與遊戲在同一個網址：gdclub.cc，或舊的 acc2023156.github.io，同一份設定）
    使用方式：頁面載入這支檔案；右上喇叭按鈕加 data-gd-audio（舊遊戲的 #soundBtn、#sound 也會自動接上）。
-   歌單與曲名：music/playlist.json（albums → tracks 的 title 就是前端顯示的曲名）。 */
+   歌單與曲名：GDBO 的 /songs（登入 /me/songs），後台「鑽石商城 → 單曲」管理；未解鎖的歌沒有音檔網址，顯示 🔒。 */
 (function () {
   'use strict';
   if (window.GDAudio) return;
@@ -122,6 +122,7 @@
     if (name === 'prev') playTrack(current - 1);
     else if (name === 'next') nextTrack();
     else if (name === 'shuffle') { prefs.shuffle = !prefs.shuffle; upcoming = pickNext(); preloaded = false; save(); changed(); }
+    else if (name === 'shop') { close(); if (window.GDShop) window.GDShop.openDiamond(); return; }
     else if (name === 'carry') { prefs.carry = prefs.carry === false; save(); changed(); }
     else if (player.paused) { prefs.userPaused = false; save(); if (player.src) startPlaying(); else playTrack(current); }
     else { prefs.userPaused = true; save(); player.pause(); }
@@ -163,26 +164,41 @@
     }, true);
   }
 
-  fetch(new URL('music/playlist.json', LOBBY), { cache: 'no-store' })
-    .then((r) => (r.ok ? r.json() : {}))
-    .then((data) => {
-      // 新格式 { albums: [{ id, title, cover, tracks }] }；舊格式 { cover, tracks } 視為一張專輯
-      const list = data.albums || [{ id: 'default', title: data.title || '歌單', cover: data.cover, tracks: data.tracks }];
-      albums = list.map((a) => ({
-        id: String(a.id),
-        title: a.title || '歌單',
-        cover: a.cover ? new URL(a.cover, LOBBY).href : '',
-        tracks: (a.tracks || []).filter((t) => t && t.title && t.src).map((t) => ({ ...t, cover: t.cover ? new URL(t.cover, LOBBY).href : '' })),
-      })).filter((a) => a.tracks.length);
-      useAlbum(prefs.album);
-      current = Math.min(Number(prefs.track) || 0, Math.max(0, tracks.length - 1));
-      if (shouldAutoplay()) {
-        load(current, prefs.playing ? prefs.pos || 0 : 0);
-        startPlaying();
-      }
-      changed();
-    })
-    .catch(() => changed());
+  // 歌單由 GDBO 提供（後台「鑽石商城 → 單曲」管理）：登入後只回傳已解鎖歌曲的音檔，未解鎖的歌顯示 🔒，到鑽石商城抽到才能聽
+  const API = location.hostname === 'dev.gdclub.cc' ? 'https://api-dev.gdclub.cc'
+    : /(^|\.)gdclub\.cc$/.test(location.hostname) ? 'https://api.gdclub.cc'
+    : 'https://gdbo-api.sha-platform.workers.dev';
+  let locked = 0;
+  function loadSongs() {
+    let token = null;
+    try { token = localStorage.getItem('gd-member-token'); } catch (e) { /* storage unavailable */ }
+    const get = (path, auth) => fetch(API + path, { cache: 'no-store', headers: auth ? { Authorization: 'Bearer ' + auth } : {} })
+      .then((r) => (r.ok ? r.json() : Promise.reject(r.status)));
+    return (token ? get('/me/songs', token).catch(() => get('/songs')) : get('/songs'))
+      .then((data) => {
+        const wasSrc = tracks[current] && tracks[current].src;
+        albums = (data.albums || []).map((a) => ({
+          id: String(a.id),
+          title: a.title || '歌單',
+          cover: a.cover ? new URL(a.cover, LOBBY).href : '',
+          all: (a.tracks || []).map((t) => ({ id: t.id, title: t.title, src: t.unlocked ? t.src : null, cover: t.cover ? new URL(t.cover, LOBBY).href : '' })),
+        })).filter((a) => a.all.length);
+        albums.forEach((a) => { a.tracks = a.all.filter((t) => t.src); });
+        locked = albums.reduce((n, a) => n + a.all.length - a.tracks.length, 0);
+        albums = albums.filter((a) => a.tracks.length || a.all.length);
+        useAlbum(prefs.album);
+        current = Math.min(Number(prefs.track) || 0, Math.max(0, tracks.length - 1));
+        // 換帳號後目前這首已不能聽：停止播放
+        if (wasSrc && !tracks.some((t) => t.src === wasSrc)) { player.pause(); player.removeAttribute('src'); }
+        if (shouldAutoplay() && player.paused && !player.src) {
+          load(current, prefs.playing ? prefs.pos || 0 : 0);
+          startPlaying();
+        }
+        changed();
+      })
+      .catch(() => changed());
+  }
+  loadSongs();
 
   // ---------- 彈窗 ----------
   const style = document.createElement('style');
@@ -220,6 +236,8 @@
     .gda-list{display:grid;gap:6px}
     .gda-list button{display:flex;gap:10px;align-items:center;text-align:left;border:1px solid #35406d;border-radius:12px;padding:9px 12px;background:#121a40;color:#f8faff;font:inherit;font-size:14px;cursor:pointer}
     .gda-list button.on{border-color:#ffd166;box-shadow:0 0 8px #ffd16666}
+    .gda-list button.locked{opacity:.5;cursor:default}
+    .gda-go{margin-left:6px;border:0;border-radius:99px;background:linear-gradient(100deg,#783dff,#ff3d9e);color:#fff;font:inherit;font-size:11px;font-weight:800;padding:3px 10px;cursor:pointer}
     .gda-list i{font-style:normal;color:#8993bd;width:22px;text-align:right;flex:none}
     .gda-empty{color:#8993bd;text-align:center;padding:16px 8px}
     .gda-note{color:#8993bd;font-size:11px;line-height:1.5}
@@ -278,11 +296,11 @@
       ${showAlbums ? `<div class="gda-sec"><b>專輯</b><div class="gda-albums">${albums.map((a) => `<button type="button" class="gda-album ${album && a.id === album.id ? 'on' : ''}" data-album="${esc(a.id)}">${a.cover && !cd ? `<img src="${esc(a.cover)}" alt="">` : ''}<span>${esc(a.title)}</span></button>`).join('')}</div></div>` : ''}
       ${t ? `<div class="gda-now">${cd ? '' : `<div class="gda-now-head">${cover ? `<img src="${esc(cover)}" alt="">` : ''}<div><small>${playing ? '正在播放' : '目前選擇'}・${esc(album.title)}</small><b>${esc(t.title)}</b></div></div>`}
         <div class="gda-ctrl"><button type="button" data-act="prev">⏮ 上一首</button><button type="button" data-act="next">⏭ 下一首</button><button type="button" data-act="play">${playing ? '⏸ 暫停' : '▶ 播放'}</button><button type="button" data-act="shuffle" class="${prefs.shuffle ? 'on' : ''}">🔀 隨機：${prefs.shuffle ? '開' : '關'}</button></div>
-        <label class="gda-carry">進入遊戲後繼續播放<button type="button" class="gda-switch ${prefs.carry === false ? '' : 'on'}" data-act="carry" aria-label="進入遊戲後繼續播放"></button></label></div>` : '<div class="gda-empty">歌曲即將上架，敬請期待。</div>'}
+        <label class="gda-carry">進入遊戲後繼續播放<button type="button" class="gda-switch ${prefs.carry === false ? '' : 'on'}" data-act="carry" aria-label="進入遊戲後繼續播放"></button></label></div>` : (album && album.all.length ? '<div class="gda-empty">還沒有解鎖的歌曲，到鑽石商城抽單曲吧！</div>' : '<div class="gda-empty">歌曲即將上架，敬請期待。</div>')}
       <div class="gda-sec"><b>🎵 音樂音量</b>${seg('music', prefs.music)}</div>
       <div class="gda-sec"><b>🔊 音效音量（遊戲內）</b>${seg('sfx', prefs.sfx)}</div>
       ${isIOS ? '<p class="gda-note">iPhone／iPad 的音樂只能用靜音或手機音量鍵調整大小聲；音效音量可在這裡調整。</p>' : ''}
-      ${tracks.length ? `<div class="gda-sec"><b>歌單</b><div class="gda-list">${tracks.map((x, i) => `<button type="button" data-track="${i}" class="${i === current ? 'on' : ''}"><i>${i === current && playing ? '♪' : i + 1}</i><span>${esc(x.title)}</span></button>`).join('')}</div></div>` : ''}`;
+      ${album && album.all.length ? `<div class="gda-sec"><b>歌單${locked ? `（已解鎖 ${tracks.length}／${album.all.length}）` : ''}</b><div class="gda-list">${album.all.map((x, n) => { const i = tracks.indexOf(x); return i < 0 ? `<button type="button" class="locked" data-locked="1"><i>🔒</i><span>${esc(x.title)}</span></button>` : `<button type="button" data-track="${i}" class="${i === current ? 'on' : ''}"><i>${i === current && playing ? '♪' : n + 1}</i><span>${esc(x.title)}</span></button>`; }).join('')}</div>${locked ? `<p class="gda-note">🔒 的歌曲可在「GD 禮物 → 鑽石商城」抽到後解鎖收聽。${IN_LOBBY ? '<button type="button" class="gda-go" data-act="shop">前往鑽石商城</button>' : ''}</p>` : ''}</div>` : ''}`;
   }
   const $body = () => layer.querySelector('.gda-body');
 
@@ -350,6 +368,8 @@
       if (!prefs.music) return '音樂已靜音';
       return `${player.paused ? '暫停' : '播放中'}：${tracks[current].title}`;
     },
+    /** 登入、登出或抽到新歌後重新讀取歌單 */
+    reload: loadSongs,
     state: () => ({ music: prefs.music, sfx: prefs.sfx, playing: !player.paused, album: album && album.id, track: current }),
     /** 大廳設定列顯示用：目前專輯封面、專輯名、曲名、是否播放中 */
     now: () => ({ cover: (tracks[current] && tracks[current].cover) || (album && album.cover) || '', album: album ? album.title : '', title: tracks[current] ? tracks[current].title : '', playing: !player.paused, muted: !prefs.music }),

@@ -84,6 +84,9 @@
         loginLayer.hidden = true;
         await refresh();
         loadNotices().catch(() => {});
+        // 登入後重讀歌單（已解鎖的單曲）、商城方案（首購）與鑽石商城
+        window.GDAudio?.reload?.();
+        window.GDShop?.loadProducts();
       }
     } catch (err) {
       error.textContent = err.message;
@@ -164,7 +167,7 @@
   }
 
   // ---------- 設定 → 音源：共用彈窗 music/gd-audio.js（遊戲內右上喇叭也是同一個） ----------
-  // 專輯與曲名在 music/playlist.json：{ "albums": [{ "id", "title", "cover", "tracks": [{ "title": "曲名", "src": "歌曲網址" }] }] }
+  // 專輯與曲名由 GDBO 提供（後台「鑽石商城 → 單曲」）：未解鎖的歌顯示 🔒，到鑽石商城抽到才能聽
   const musicStyle = document.createElement('style');
   musicStyle.textContent = `
     .tool-music .music-open{all:unset;cursor:pointer;flex:1;display:grid;gap:2px;min-width:0}
@@ -305,6 +308,8 @@
     $('.wallet-summary b').textContent = coins(me.mainAvailable);
     $('.shop-balance span').textContent = 'VIP ' + level;
     $('.shop-balance b').textContent = 'G ' + coins(me.mainAvailable);
+    const dia = $('.shop-balance [data-dia]');
+    if (dia) dia.textContent = '💎 ' + num(me.diamonds || 0);
     if (!$('#walletLayer').hidden) renderWallet();
     if (!giftPrimed || !giftLayerEl.hidden) { giftPrimed = true; loadGift(); }
     syncLobby(level);
@@ -315,8 +320,10 @@
     loadReferral().catch(() => {});
     handleShareLink();
   }
+  // 商城、鑽石商城（shop/gd-shop.js）購買或抽獎後更新餘額
+  window.GDRefresh = refresh;
 
-  // ---------- 商城：暫代儲值流程（選金額 → 付款方式 → 確認付款 → 後端模擬入帳，不會實際扣款） ----------
+  // ---------- 商城：方案、訂單、付款在 shop/gd-shop.js（方案由後台設定），這裡只放付款結果的樣式 ----------
   const shopStyle = document.createElement('style');
   shopStyle.textContent = `
     .pay-result{margin-top:12px;border:1px solid #2fe39a;border-radius:14px;padding:12px;background:#0f2b2a;color:#f8faff;text-align:center;display:grid;gap:8px}
@@ -326,46 +333,6 @@
     .pay-result button.ghost{background:#2b3566;color:#ffd166}
     .payment-demo:disabled{opacity:.6}`;
   document.head.appendChild(shopStyle);
-  const payRows = () => $$('.pay-detail .pay-row b');
-  const payButton = $('.payment-demo');
-  const plansNote = $('[data-shop-page="plans"] .shop-note');
-  if (plansNote) plansNote.textContent = '測試期間：選金額 → 選付款方式 → 確認付款即完成儲值（暫代金流，不會實際扣款）。送禮需達 VIP 2（依近 60 日有效投注）。';
-  const payNote = $('.pay-detail .shop-note');
-  if (payNote) payNote.textContent = '暫代金流：按「確認付款」即視為付款成功並入帳，不會收集卡號、帳密或任何付款資料。';
-  // 每次選好付款方式就開一張新訂單
-  $$('[data-method]').forEach((b) => b.addEventListener('click', () => {
-    const d = new Date();
-    const ymd = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
-    const [, orderNo, status] = payRows();
-    if (orderNo) orderNo.textContent = `GD-${ymd}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
-    if (status) { status.textContent = '等待付款'; status.style.color = ''; }
-    $('.pay-result')?.remove();
-    payButton.disabled = false;
-    payButton.textContent = '確認付款（測試）';
-  }));
-  payButton.textContent = '確認付款（測試）';
-  payButton.onclick = async () => {
-    if (!requireLogin()) return;
-    const amountNtd = Number($('#paymentAmount').textContent.replace(/,/g, ''));
-    payButton.disabled = true;
-    payButton.textContent = '處理中…';
-    try {
-      const from = me.mainAvailable;
-      await api.call('/dev/deposits', { method: 'POST', body: { amountNtd }, idempotent: true });
-      await refresh();
-      countUp($('#balance'), from, me.mainAvailable);
-      const status = payRows()[2];
-      if (status) { status.textContent = '付款成功 ✓'; status.style.color = '#2fe39a'; }
-      payButton.textContent = '已完成付款';
-      $('.pay-detail').insertAdjacentHTML('beforeend', `<div class="pay-result"><b>儲值成功 +${num(amountNtd)} G幣</b><small>主錢包 ${coins(me.mainAvailable)} G幣</small><div><button type="button" data-pay-again>再儲值一筆</button><button type="button" class="ghost" data-pay-gift>前往送禮</button></div></div>`);
-      $('[data-pay-again]').onclick = () => { $('.pay-result')?.remove(); showShop('plans'); };
-      $('[data-pay-gift]').onclick = () => { $('#shopLayer').hidden = true; $('#openGift').click(); };
-    } catch (err) {
-      toast(err.message);
-      payButton.disabled = false;
-      payButton.textContent = '確認付款（測試）';
-    }
-  };
 
   // ---------- 禮物 ----------
   async function renderGiftRules() {
@@ -876,7 +843,7 @@
     if (target !== chatTarget || !messages.length) return;
     chatLast = messages.at(-1).id;
     const showName = target === 'family';
-    chatBody.insertAdjacentHTML('beforeend', messages.map((m) => m.kind && m.kind !== 'TEXT' ? `<div class="msg sys${m.kind === 'JOIN' ? ' join' : ''}">${m.kind === 'JOIN' ? '🎉 ' : ''}${esc(m.body)}<small>${time(m.created_at)}</small></div>` : `<div class="msg${m.mine ? ' mine' : ''}"><small>${showName && !m.mine ? esc(m.nickname || m.aid) + '・' : ''}${time(m.created_at)}</small>${esc(m.body)}</div>`).join(''));
+    chatBody.insertAdjacentHTML('beforeend', messages.map((m) => m.kind === 'SHARE' && m.share_id ? `<button type="button" class="msg share" data-share-open="${esc(m.share_id)}"><small>${esc(m.nickname || m.aid)}・${time(m.created_at)}</small>${esc(m.body)}<em>點開看看${m.mine ? '' : '，有機會獲得 G幣紅利'}</em></button>` : m.kind && m.kind !== 'TEXT' ? `<div class="msg sys${m.kind === 'JOIN' ? ' join' : ''}">${m.kind === 'JOIN' ? '🎉 ' : ''}${esc(m.body)}<small>${time(m.created_at)}</small></div>` : `<div class="msg${m.mine ? ' mine' : ''}"><small>${showName && !m.mine ? esc(m.nickname || m.aid) + '・' : ''}${time(m.created_at)}</small>${esc(m.body)}</div>`).join(''));
     chatBody.scrollTop = chatBody.scrollHeight;
   }
 
