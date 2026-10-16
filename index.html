@@ -411,27 +411,20 @@
 </script>
 <script>
   // GD 卡冊：打開會員中心才載入 cards/gd-cards.js（比照音源 CD），關掉會員中心就拆掉。
-  // 資料：登入時取 GDBO GET /me/cards；後端還沒上線前，只有開發服／本機改用 cards/gd-cards-catalog.js 的預覽資料，正式服維持原本橫條文字。
+  // 卡片、系列、稀有度、效果全部由後台（GDBO）提供：登入時 GET /me/cards，未登入 GET /cards；取不到就維持原本的橫條文字。
   (() => {
     const el = document.getElementById('gdCards'), layer = document.getElementById('profileLayer');
-    if (!el || !layer) return;
-    const V = '20261016a', MOTTO = el.textContent;
-    const PREVIEW = /^(dev\.gdclub\.cc|localhost|127\.0\.0\.1)$/.test(location.hostname);
+    if (!el || !layer || !window.GD_API) return;
+    const V = '20261017a', MOTTO = el.textContent;
     const load = (src) => new Promise((ok, fail) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = fail; document.head.append(s); });
     let mounted = false, busy = false;
-    async function cards() {
-      if (window.GD_API && GD_API.isLoggedIn()) { try { const d = await GD_API.call('/me/cards'); if (d && d.cards && d.cards.length) return d.cards; } catch {} }
-      if (!PREVIEW) return null;
-      if (!window.GD_CARDS_PREVIEW) await load('cards/gd-cards-catalog.js?v=' + V);
-      return window.GD_CARDS_PREVIEW;
-    }
     async function show() {
       if (mounted || busy) return;
       busy = true;
       try {
-        const [list] = await Promise.all([cards(), window.GDCards ? null : load('cards/gd-cards.js?v=' + V)]);
-        if (!list || layer.hidden) return;
-        el.classList.remove('motto'); GDCards.mount(el, list); mounted = true;
+        const [data] = await Promise.all([GD_API.call(GD_API.isLoggedIn() ? '/me/cards' : '/cards'), window.GDCards ? null : load('cards/gd-cards.js?v=' + V)]);
+        if (!data || !data.cards || !data.cards.length || layer.hidden) return;
+        el.classList.remove('motto'); GDCards.mount(el, data); mounted = true;
       } catch {} finally { busy = false; }
     }
     function hide() {
