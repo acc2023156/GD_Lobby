@@ -6,31 +6,30 @@
  * - 卡背：所有卡共用；中間是正式 LOGO（gd-loading.js 同一份 Playfair Display Black 向量路徑：GD＋Club）。
  * 類名一律 gdc- 開頭、SVG 漸層 id 每份卡背各自加流水號，不會和大廳既有樣式衝突。
  * 用法：
- *   GDCards.mount(容器, cards, { onLocked })   // cards 由 GET /me/cards 回傳（見 CARD 欄位）
- *   GDCards.update(cards)                       // 收到新卡後重畫
+ *   GDCards.mount(容器, data, { onLocked })    // data＝GDBO GET /me/cards（登入）或 GET /cards（未登入）的回應：{ meta, cards }
+ *   GDCards.update(data)                        // 收到新卡後重畫
+ *   GDCards.preview(card, meta)                 // 後台預覽：直接開觀看器（不需卡冊）
  *   GDCards.open(cardId)                        // 直接開某張已收集的卡（例：剛抽到卡）
  *   GDCards.unmount()                           // 離開個人頁：拆掉 DOM 與所有事件
- * CARD：{ id, no, gameKey?, name, category, rarity, fx, power, owned, img?, thumb?, w?, h?, icon?, colors?:[c1,c2] }
+ * 前端只負責顯示：卡片、系列、稀有度配色、效果強度都在後台「卡冊」設定，這支程式不寫死任何卡片資料。
+ * CARD：{ id, code, series, name, rarity, effect, face, power, owned, img?, thumb?, w, h, icon?, colors?:[c1,c2] }
  *   w／h：卡圖原始尺寸（預設 773×1024 直式）；w > h 為橫式卡，觀看器、縮圖、卡背都跟著改成橫式。thumb：卡冊縮圖（小圖）。
- *   未收集的卡後端只回 id／no／rarity／category（不回 name、icon、power）。
+ *   未收集的卡後端只回 id／code／series／rarity／w／h（不回 name、圖、power）。
  */
 (() => {
   'use strict';
   if (window.GDCards) return;
 
-  /** 稀有度：7 階。戰鬥力區間由後端 card_rarities 決定，這裡只管顏色與名稱（後端也會回 rarityName，以後端為準）。 */
-  const RARITY = {
-    N:   { name: '普通',     frame: ['#e9edf5', '#8d97ab', '#e9edf5'], badge: ['#f4f6fa', '#9aa3b5'], ink: '#26303f' },
-    R:   { name: '稀有',     frame: ['#bfe6ff', '#2f8fe0', '#bfe6ff'], badge: ['#d6efff', '#3b9cf0'], ink: '#062a4d' },
-    SR:  { name: '超稀有',   frame: ['#ead4ff', '#8f47ff', '#ead4ff'], badge: ['#f0e0ff', '#a066ff'], ink: '#2a0a52' },
-    SSR: { name: '特級稀有', frame: ['#fff3c4', '#e2a83a', '#fff6d6'], badge: ['#fff3c4', '#e2a83a'], ink: '#3a2300' },
-    UR:  { name: '極稀有',   frame: ['#ffd0dc', '#ff3d6e', '#ffd0dc'], badge: ['#ffe0e8', '#ff4f7a'], ink: '#4a0016' },
-    LR:  { name: '傳說',     frame: 'rainbow',                          badge: 'rainbow',               ink: '#1a0a2e' },
-    GDR: { name: '金龍',     frame: 'dragon',                           badge: 'dragon',                ink: '#fff2c0' },
-  };
-  const RARITY_ORDER = ['N', 'R', 'SR', 'SSR', 'UR', 'LR', 'GDR'];
-  const CATEGORY = { exclusive: 'GD獨家', slots: '老虎機', poker: '撲克牌', fish: '捕魚', moto: '經典機車' };
-  const FX = [['holo', 'Rainbow Holo'], ['glitter', 'Glitter'], ['cosmos', 'Cosmos'], ['reverse', 'Reverse Holo'], ['gold', 'Gold Foil'], ['rainbow', 'Rainbow Rare'], ['etched', 'Etched'], ['prism', 'Prism'], ['radiant', 'Radiant'], ['aurora', 'Aurora'], ['plain', '無閃']];
+  /** 卡冊資料全部來自後台（GDBO GET /cards、/me/cards 的 meta）：系列、稀有度（名稱與配色）、效果組合。這裡只有後台資料缺漏時的備用值。 */
+  const FALLBACK_RARITY = { code: 'N', name: '', frame: ['#e9edf5', '#8d97ab', '#e9edf5'], badge: ['#f4f6fa', '#9aa3b5'], ink: '#26303f' };
+  let META = { series: [], rarities: [], effects: [] };
+  const rarity = (code) => META.rarities.find((r) => r.code === code) || { ...FALLBACK_RARITY, code };
+  const seriesName = (code) => (META.series.find((s) => s.code === code) || {}).name || '';
+  const effectOf = (key) => META.effects.find((e) => e.key === key) || { key, name: key, base: 'holo', intensity: 1, glare: 1 };
+  const isDragon = (r) => r.frame === 'dragon';
+  const badgeBg = (spec) => spec === 'rainbow' ? 'linear-gradient(100deg,#ff8a8a,#ffe17a,#8affb0,#7ad8ff,#c69bff)'
+    : spec === 'dragon' ? 'linear-gradient(#2a0505,#7a0d12)' : `linear-gradient(${(Array.isArray(spec) ? spec : FALLBACK_RARITY.badge).join(',')})`;
+  const escHtml = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const LOGO_GD = 'M82.1 18.6Q89.3 18.6 93.9 20.5Q98.5 22.5 102 25.2Q103.1 26.1 104 26.1Q106 26.1 106.6 20H108.9Q108.7 24.1 108.6 30Q108.5 35.9 108.5 45.6H106.2Q105.5 38.2 103.7 33.3Q101.9 28.3 96.8 24.8Q94.6 23.4 91.7 22.6Q88.9 21.7 86.2 21.7Q80.3 21.7 76.4 25Q72.5 28.2 70.2 33.4Q67.9 38.5 66.9 44.6Q65.9 50.7 65.9 56.5Q65.9 74.9 70.4 83.4Q75 91.9 82.4 91.9Q84.1 91.9 85.3 91.6Q86.5 91.3 87.4 90.7Q88.6 89.8 89.1 88.6Q89.6 87.4 89.6 85.5V75.3Q89.6 70.3 88.8 67.8Q88.1 65.4 85.8 64.4Q83.6 63.5 79.3 63.4V61.4Q81.6 61.5 85 61.5Q88.4 61.6 92.1 61.6Q95.7 61.7 98.8 61.7Q103.7 61.7 107.9 61.6Q112 61.5 114.6 61.4V63.4Q112.8 63.5 111.9 64.1Q111 64.7 110.7 66.6Q110.4 68.4 110.4 72.2V92.5H108.3Q108.2 90.8 107.5 88.7Q106.8 86.7 105.2 86.7Q104.3 86.7 102.9 87.1Q101.4 87.5 98.2 89Q94.2 91 89.8 92.4Q85.3 93.9 80.9 93.9Q68.1 93.9 59.5 89.5Q50.9 85.1 46.6 76.8Q42.4 68.5 42.4 56.9Q42.4 45.4 47.5 36.8Q52.5 28.2 61.5 23.4Q70.4 18.6 82.1 18.6ZM153.1 20Q174.6 20 185 29.2Q195.4 38.3 195.4 55.4Q195.4 66.6 190.3 74.9Q185.1 83.3 175.5 87.9Q165.8 92.5 152.2 92.5Q150.5 92.5 147.8 92.4Q145.1 92.3 142.1 92.2Q139.2 92.2 136.8 92.2Q131.7 92.2 126.8 92.2Q122 92.3 119 92.5V90.4Q122.2 90.2 123.7 89.6Q125.2 89 125.7 87.2Q126.3 85.3 126.3 81.6V30.9Q126.3 27.1 125.7 25.3Q125.2 23.5 123.6 22.8Q122.1 22.2 119 22V20Q122 20.1 126.8 20.3Q131.7 20.4 136.6 20.3Q140.4 20.2 145.1 20.1Q149.9 20 153.1 20ZM154.6 21.8Q149.9 21.8 148.5 23.6Q147 25.3 147 30.6V81.8Q147 87.2 148.5 88.9Q150 90.7 154.7 90.7Q161.7 90.7 165.9 86.6Q170.1 82.6 172 74.8Q173.9 67 173.9 55.8Q173.9 44.4 171.9 36.8Q169.9 29.3 165.6 25.6Q161.4 21.8 154.6 21.8Z';
   const LOGO_CLUB = 'M63.8 97.8Q66 97.8 67.5 98.5Q68.9 99.1 70.1 100Q70.8 100.5 71.1 100.2Q71.5 99.8 71.6 98.3H72.4Q72.3 99.7 72.3 101.6Q72.3 103.6 72.3 106.8H71.5Q71.3 105.2 71 103.9Q70.7 102.6 70.1 101.6Q69.5 100.7 68.3 99.9Q67.6 99.4 66.8 99.1Q66 98.9 65.2 98.9Q63.2 98.9 61.9 100Q60.7 101 60 102.8Q59.3 104.5 59 106.5Q58.7 108.5 58.7 110.4Q58.7 112.4 59 114.4Q59.3 116.4 60 118.1Q60.7 119.9 61.9 120.9Q63.2 122 65.2 122Q66 122 66.8 121.7Q67.6 121.4 68.3 121Q70 119.9 70.6 118.2Q71.2 116.4 71.5 113.6H72.3Q72.3 116.9 72.3 119Q72.3 121.1 72.4 122.5H71.6Q71.5 121 71.1 120.6Q70.8 120.2 70.1 120.7Q68.8 121.6 67.4 122.3Q66 122.9 63.8 122.9Q59.9 122.9 57 121.5Q54.1 120 52.5 117.2Q50.9 114.5 50.9 110.6Q50.9 106.8 52.5 103.9Q54.2 101 57.1 99.4Q60 97.8 63.8 97.8ZM102.5 95.8V119.3Q102.5 120.7 102.9 121.2Q103.4 121.7 104.4 121.7V122.5Q103.8 122.4 102.4 122.4Q101 122.3 99.6 122.3Q98.2 122.3 96.7 122.4Q95.2 122.4 94.5 122.5V121.7Q95.5 121.7 96 121.2Q96.4 120.7 96.4 119.3V99.9Q96.4 98.3 96 97.6Q95.6 96.9 94.5 96.9V96.1Q95.6 96.2 96.6 96.2Q98.3 96.2 99.8 96.1Q101.3 96 102.5 95.8ZM143.5 104.4V118.7Q143.5 120.3 143.9 121Q144.3 121.7 145.4 121.7V122.5Q144.3 122.4 143.3 122.4Q141.6 122.4 140.1 122.5Q138.6 122.6 137.3 122.8V120.4Q136.5 121.7 135.1 122.3Q133.7 122.9 131.9 122.9Q130.3 122.9 129.4 122.5Q128.5 122.2 128 121.6Q127.5 121 127.3 119.9Q127.1 118.9 127.1 117.2V108.5Q127.1 106.9 126.6 106.2Q126.2 105.5 125.1 105.5V104.7Q126.2 104.8 127.3 104.8Q129 104.8 130.4 104.7Q131.9 104.6 133.2 104.4V119Q133.2 119.7 133.4 120.2Q133.5 120.7 133.9 120.9Q134.3 121.2 134.9 121.2Q135.5 121.2 136.1 120.9Q136.6 120.6 137 120Q137.3 119.4 137.3 118.7V108.5Q137.3 106.9 136.9 106.2Q136.5 105.5 135.4 105.5V104.7Q136.5 104.8 137.5 104.8Q139.2 104.8 140.7 104.7Q142.2 104.6 143.5 104.4ZM179.2 104.3Q181.7 104.3 183.4 106.4Q185.1 108.5 185.1 112.8Q185.1 116.7 184 118.9Q182.9 121.1 181.1 122Q179.3 122.9 177.2 122.9Q176 122.9 175.1 122.8Q174.5 122.7 174 122.5Q172.9 122.1 171.7 122Q170.5 122 169.6 122.3Q168.6 122.5 168.1 123L167.6 122.7Q167.8 122.2 167.8 121.7Q167.9 121.3 167.9 120.8V99.9Q167.9 98.3 167.5 97.6Q167 96.9 166 96.9V96.1Q167 96.2 168.1 96.2Q169.8 96.2 171.3 96.1Q172.7 96 174 95.8V106.8Q174.8 105.5 176.1 104.9Q177.5 104.3 179.2 104.3ZM174 121.8Q174.3 122 174.6 122.1Q175.1 122.3 175.6 122.3Q177.2 122.3 178 120.1Q178.8 118 178.8 113.6Q178.8 110.6 178.4 108.9Q178.1 107.3 177.6 106.7Q177.1 106 176.5 106Q175.5 106 174.8 106.7Q174 107.4 174 108.5Z';
 
@@ -62,12 +61,6 @@
 @keyframes gdc-shake{25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
 .gdc-rar{display:inline-block;font:900 8px/1 Cinzel,Georgia,serif;padding:2px 4px;border-radius:3px;color:#3a2300;background:linear-gradient(#fff3c4,#e2a83a);letter-spacing:.02em}
 .gdc-art .gdc-rar{position:absolute;top:3px;left:3px;z-index:3}
-.gdc-rar[data-r=N]{background:linear-gradient(#f4f6fa,#9aa3b5);color:#26303f}
-.gdc-rar[data-r=R]{background:linear-gradient(#d6efff,#3b9cf0);color:#062a4d}
-.gdc-rar[data-r=SR]{background:linear-gradient(#f0e0ff,#a066ff);color:#2a0a52}
-.gdc-rar[data-r=UR]{background:linear-gradient(#ffe0e8,#ff4f7a);color:#4a0016}
-.gdc-rar[data-r=LR]{background:linear-gradient(100deg,#ff8a8a,#ffe17a,#8affb0,#7ad8ff,#c69bff);color:#1a0a2e}
-.gdc-rar[data-r=GDR]{background:linear-gradient(#2a0505,#7a0d12);color:#ffe08a;box-shadow:inset 0 0 0 1px #ffd36e}
 .gdc-toast{position:fixed;left:50%;bottom:28px;transform:translate(-50%,20px);background:#000c;color:#fff;border:1px solid #fff3;padding:8px 16px;border-radius:99px;font-size:13px;opacity:0;transition:.25s;pointer-events:none;z-index:2147482001}
 .gdc-toast.show{opacity:1;transform:translate(-50%,0)}
 
@@ -103,9 +96,9 @@
 .gdc-face.back{transform:rotateY(180deg) translateZ(.5px)}
 .gdc-face canvas,.gdc-face img,.gdc-face svg{width:100%;height:100%;display:block;object-fit:cover;pointer-events:none}
 .gdc-shine,.gdc-glare{position:absolute;inset:0;pointer-events:none}
-.gdc-glare{mix-blend-mode:overlay;opacity:var(--o);background:radial-gradient(farthest-corner circle at var(--mx) var(--my),hsla(0,0%,100%,.85) 10%,hsla(0,0%,100%,.5) 22%,hsla(0,0%,0%,.5) 90%)}
+.gdc-glare{mix-blend-mode:overlay;opacity:calc(var(--o) * var(--fx-g,1));background:radial-gradient(farthest-corner circle at var(--mx) var(--my),hsla(0,0%,100%,.85) 10%,hsla(0,0%,100%,.5) 22%,hsla(0,0%,0%,.5) 90%)}
 .gdc-glare::after{content:"";position:absolute;inset:0;mix-blend-mode:soft-light;opacity:.6;background:radial-gradient(farthest-corner circle at var(--mx) var(--my),#fff 0%,transparent 30%)}
-.gdc-shine{opacity:var(--o);mix-blend-mode:color-dodge}
+.gdc-shine{opacity:calc(var(--o) * var(--fx-k,1));mix-blend-mode:color-dodge}
 .gdc-shine::after{content:none;position:absolute;inset:0}
 .gdc-card[data-fx=plain] .gdc-shine{display:none}
 
@@ -121,7 +114,7 @@
 .gdc-card[data-fx=gold] .gdc-shine{mix-blend-mode:color-dodge;filter:brightness(.9) contrast(1.6);background-image:var(--gdc-sparkle-gold),linear-gradient(115deg,transparent 18%,#6b4300 30%,#ffd46b 40%,#fff6cf 46%,#c98a12 54%,#5a3600 64%,transparent 80%),radial-gradient(farthest-corner circle at var(--mx) var(--my),#ffcf6a55 0%,#0000 55%);
   background-size:120px 120px,300% 300%,100% 100%;background-position:center,var(--bx) var(--by),center;background-blend-mode:screen,normal}
 .gdc-card[data-fx=gold] .gdc-shine::after{content:"";mix-blend-mode:soft-light;opacity:.55;background:linear-gradient(160deg,#ffe8a3,#b8860b 50%,#ffefb5)}
-.gdc-card[data-fx=rainbow] .gdc-shine{mix-blend-mode:color;opacity:calc(.25 + var(--o)*.45);background-image:linear-gradient(-30deg,hsl(0,100%,65%),hsl(45,100%,62%),hsl(100,90%,62%),hsl(180,100%,62%),hsl(230,100%,68%),hsl(290,100%,68%),hsl(340,100%,66%),hsl(0,100%,65%));background-size:400% 400%;background-position:var(--bx) var(--by)}
+.gdc-card[data-fx=rainbow] .gdc-shine{mix-blend-mode:color;opacity:calc((.25 + var(--o)*.45) * var(--fx-k,1));background-image:linear-gradient(-30deg,hsl(0,100%,65%),hsl(45,100%,62%),hsl(100,90%,62%),hsl(180,100%,62%),hsl(230,100%,68%),hsl(290,100%,68%),hsl(340,100%,66%),hsl(0,100%,65%));background-size:400% 400%;background-position:var(--bx) var(--by)}
 .gdc-card[data-fx=rainbow] .gdc-shine::after{content:"";mix-blend-mode:color-dodge;opacity:var(--o);filter:contrast(2.5) brightness(.8);background-image:var(--gdc-sparkle),radial-gradient(farthest-corner circle at var(--mx) var(--my),#fff6 0%,#0000 50%);background-size:140px 140px,100% 100%}
 .gdc-card[data-fx=etched] .gdc-shine{filter:brightness(.8) contrast(2.4) saturate(1.2);background-image:repeating-linear-gradient(55deg,#000 0 3px,#fff 3px 4px,#000 4px 7px),repeating-linear-gradient(-20deg,hsl(0,100%,70%) 0%,hsl(60,100%,68%) 6%,hsl(150,100%,68%) 12%,hsl(210,100%,72%) 18%,hsl(290,100%,72%) 24%,hsl(360,100%,70%) 30%),radial-gradient(farthest-corner circle at var(--mx) var(--my),#fff5 0%,#0006 70%);
   background-blend-mode:multiply,hard-light;background-size:100% 100%,300% 300%,100% 100%;background-position:center,var(--bx) var(--by),center}
@@ -130,9 +123,9 @@
 .gdc-card[data-fx=radiant] .gdc-shine{filter:brightness(.85) contrast(2) saturate(1.1);background-image:repeating-linear-gradient(45deg,#0000 0 10px,#fff8 12px,#0000 14px 24px),repeating-linear-gradient(-45deg,#0000 0 10px,#fff8 12px,#0000 14px 24px),linear-gradient(115deg,hsl(10,100%,70%),hsl(50,100%,70%),hsl(140,100%,70%),hsl(200,100%,72%),hsl(280,100%,72%),hsl(340,100%,70%));
   background-size:200% 200%,200% 200%,300% 300%;background-position:var(--bx) var(--by),calc(100% - var(--bx)) var(--by),var(--bx) var(--by);background-blend-mode:overlay,overlay,normal;
   -webkit-mask-image:radial-gradient(farthest-corner circle at var(--mx) var(--my),#000 0%,#0009 45%,#0003 90%);mask-image:radial-gradient(farthest-corner circle at var(--mx) var(--my),#000 0%,#0009 45%,#0003 90%)}
-/* Aurora：強度為原版一半（不透明度 .75→.375、閃粉 .7→.35） */
-.gdc-card[data-fx=aurora] .gdc-shine{mix-blend-mode:screen;opacity:calc(var(--o)*.375);filter:blur(6px) saturate(1.4);background-image:radial-gradient(ellipse 60% 25% at calc(var(--bx)*1.2 - 10%) 30%,hsla(160,100%,60%,.7),transparent 70%),radial-gradient(ellipse 55% 22% at calc(110% - var(--bx)*1.2) 55%,hsla(280,100%,65%,.65),transparent 70%),radial-gradient(ellipse 70% 20% at var(--mx) calc(var(--by) + 25%),hsla(200,100%,65%,.6),transparent 70%)}
-.gdc-card[data-fx=aurora] .gdc-shine::after{content:"";mix-blend-mode:color-dodge;filter:none;opacity:.35;background-image:var(--gdc-sparkle);background-size:200px 200px}
+/* 各效果的強度（--fx-k）與反光（--fx-g）由後台「效果組合」設定 */
+.gdc-card[data-fx=aurora] .gdc-shine{mix-blend-mode:screen;opacity:calc(var(--o)*.75*var(--fx-k,1));filter:blur(6px) saturate(1.4);background-image:radial-gradient(ellipse 60% 25% at calc(var(--bx)*1.2 - 10%) 30%,hsla(160,100%,60%,.7),transparent 70%),radial-gradient(ellipse 55% 22% at calc(110% - var(--bx)*1.2) 55%,hsla(280,100%,65%,.65),transparent 70%),radial-gradient(ellipse 70% 20% at var(--mx) calc(var(--by) + 25%),hsla(200,100%,65%,.6),transparent 70%)}
+.gdc-card[data-fx=aurora] .gdc-shine::after{content:"";mix-blend-mode:color-dodge;filter:none;opacity:.7;background-image:var(--gdc-sparkle);background-size:200px 200px}
 @media (prefers-reduced-motion:reduce){.gdc-club::before,.gdc-art::after{animation:none}}
 `;
 
@@ -141,7 +134,6 @@
   const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
   const wrap = (a) => ((a + 180) % 360 + 360) % 360 - 180;
   const fmt = (n) => Number(n || 0).toLocaleString('en-US');
-  const pad = (n) => 'No.' + String(n).padStart(3, '0');
   const h = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
   const SANS = '"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif';
   const SERIF = 'Cinzel,"Cinzel Decorative",Georgia,"Times New Roman",serif';
@@ -212,7 +204,6 @@ ${corner(52, 52, 0, p)}${corner(w - 52, 52, 90, p)}${corner(w - 52, hh - 52, 180
     if (!src) return Promise.resolve(null);
     if (!imgCache.has(src)) imgCache.set(src, new Promise((res) => {
       const im = new Image();
-      if (!/^data:|^blob:/.test(src)) im.crossOrigin = 'anonymous';
       im.onload = () => res(im); im.onerror = () => res(null); im.src = src;
     }));
     return imgCache.get(src);
@@ -228,10 +219,11 @@ ${corner(52, 52, 0, p)}${corner(w - 52, 52, 90, p)}${corner(w - 52, hh - 52, 180
   function rr(g, x, y, w, hh, r) { g.beginPath(); if (g.roundRect) g.roundRect(x, y, w, hh, r); else { g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + hh, r); g.arcTo(x + w, y + hh, x, y + hh, r); g.arcTo(x, y + hh, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); } }
   function grad(g, stops, x0, y0, x1, y1) { const gr = g.createLinearGradient(x0, y0, x1, y1); stops.forEach((c, i) => gr.addColorStop(i / (stops.length - 1), c)); return gr; }
   function frameFill(g, rar) {
-    const f = RARITY[rar]?.frame || RARITY.N.frame;
+    const f = rarity(rar).frame;
     if (f === 'rainbow') return grad(g, ['#ff7a7a', '#ffd86b', '#7dffa6', '#6bd6ff', '#9c8bff', '#ff7ad9', '#ff7a7a'], 0, 0, W, H);
     if (f === 'dragon') return grad(g, ['#fff4c4', '#d9a640', '#fff1b8', '#9c6514', '#ffe08a', '#b8860b', '#fff4c4'], 0, 0, W, H);
-    return grad(g, [f[0], f[1], f[2], f[1]], 0, 0, W, H);
+    const cs = Array.isArray(f) && f.length ? f : FALLBACK_RARITY.frame;
+    return grad(g, cs.length >= 3 ? [...cs, cs[1]] : cs.length === 1 ? [cs[0], cs[0]] : cs, 0, 0, W, H);
   }
 
   /** opts.thumb：縮圖只畫圖與外框（字太小看不到，名稱與稀有度改用 HTML 顯示）。 */
@@ -239,7 +231,7 @@ ${corner(52, 52, 0, p)}${corner(w - 52, 52, 90, p)}${corner(w - 52, hh - 52, 180
     const [icon] = await Promise.all([loadImg(card.icon), waitFonts()]);
     const c = document.createElement('canvas'); c.width = Math.round(W * scale); c.height = Math.round(H * scale);
     const g = c.getContext('2d'); g.scale(scale, scale);
-    const rar = RARITY[card.rarity] ? card.rarity : 'N', R = RARITY[rar];
+    const R = rarity(card.rarity), rar = R.code;
     const [c1, c2] = card.colors || ['#3a1a5e', '#120822'];
     rr(g, 0, 0, W, H, 36); g.save(); g.clip();
     // 底：遊戲主色放射漸層＋光芒＋暗角
@@ -260,10 +252,10 @@ ${corner(52, 52, 0, p)}${corner(w - 52, 52, 90, p)}${corner(w - 52, hh - 52, 180
       rr(g, 44, 44, tw, 64, 12);
       g.fillStyle = R.badge === 'rainbow' ? grad(g, ['#ff8a8a', '#ffe17a', '#8affb0', '#7ad8ff', '#c69bff'], 44, 0, 44 + tw, 0)
         : R.badge === 'dragon' ? grad(g, ['#2a0505', '#7a0d12'], 0, 44, 0, 108) : grad(g, R.badge, 0, 44, 0, 108);
-      g.fill(); if (rar === 'GDR') { g.strokeStyle = '#ffd36e'; g.lineWidth = 3; g.stroke(); }
+      g.fill(); if (isDragon(R)) { g.strokeStyle = '#ffd36e'; g.lineWidth = 3; g.stroke(); }
       g.fillStyle = R.ink; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(rar, 44 + tw / 2, 78);
-      g.font = `700 28px ${SERIF}`; g.textAlign = 'right'; g.fillStyle = 'rgba(255,255,255,.85)'; g.fillText(pad(card.no ?? card.id), 729, 78);
-      if (rar === 'GDR') { // 金龍：右上加一枚正式 GD LOGO
+      g.font = `700 28px ${SERIF}`; g.textAlign = 'right'; g.fillStyle = 'rgba(255,255,255,.85)'; g.fillText(card.code || '', 729, 78);
+      if (isDragon(R)) { // 金龍：右上加一枚正式 GD LOGO
         g.save(); g.translate(560, 52); g.scale(.36, .36); g.translate(-42, -18);
         g.fillStyle = grad(g, ['#fffbe0', '#ffd36e', '#a8701a', '#ffe9a3'], 0, 18, 0, 94); g.fill(new Path2D(LOGO_GD)); g.restore();
       }
@@ -272,7 +264,7 @@ ${corner(52, 52, 0, p)}${corner(w - 52, 52, 90, p)}${corner(w - 52, hh - 52, 180
       g.lineWidth = 3; g.strokeStyle = frameFill(g, rar); g.stroke();
       g.textAlign = 'center'; g.fillStyle = '#fff'; g.font = `900 56px ${SANS}`; g.fillText(card.name || '', 386.5, 820);
       g.fillStyle = 'rgba(255,255,255,.18)'; g.fillRect(92, 860, 589, 2);
-      const cat = CATEGORY[card.category] || ''; g.font = `700 28px ${SANS}`; const cw = g.measureText(cat).width + 36;
+      const cat = seriesName(card.series); g.font = `700 28px ${SANS}`; const cw = g.measureText(cat).width + 36;
       rr(g, 92, 888, cw, 50, 25); g.fillStyle = 'rgba(255,255,255,.12)'; g.fill(); g.fillStyle = '#e6e8ff'; g.textAlign = 'left'; g.fillText(cat, 110, 914);
       g.textAlign = 'right'; g.font = `900 58px ${SERIF}`; g.fillStyle = grad(g, ['#fff6cf', '#ffd36e', '#c98a12'], 0, 885, 0, 945); g.fillText(fmt(card.power), 681, 916);
       const pw = g.measureText(fmt(card.power)).width; g.font = `700 26px ${SANS}`; g.fillStyle = '#c9cdee'; g.fillText('戰鬥力', 681 - pw - 14, 918);
@@ -280,7 +272,7 @@ ${corner(52, 52, 0, p)}${corner(w - 52, 52, 90, p)}${corner(w - 52, hh - 52, 180
     g.restore();
     // 外框
     rr(g, 11, 11, W - 22, H - 22, 30); g.lineWidth = 22; g.strokeStyle = frameFill(g, rar); g.stroke();
-    rr(g, 30, 30, W - 60, H - 60, 20); g.lineWidth = 2; g.strokeStyle = rar === 'GDR' ? 'rgba(200,16,46,.9)' : 'rgba(255,255,255,.55)'; g.stroke();
+    rr(g, 30, 30, W - 60, H - 60, 20); g.lineWidth = 2; g.strokeStyle = isDragon(R) ? 'rgba(200,16,46,.9)' : 'rgba(255,255,255,.55)'; g.stroke();
     return c;
   }
   const dims = (c) => [c.w || W, c.h || H];
@@ -297,7 +289,11 @@ ${corner(52, 52, 0, p)}${corner(w - 52, 52, 90, p)}${corner(w - 52, hh - 52, 180
     if (!toastEl) { toastEl = h('div', 'gdc-toast'); document.body.append(toastEl); }
     toastEl.textContent = m; toastEl.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => toastEl.classList.remove('show'), 1600);
   }
-  function rarBadge(r) { const b = h('span', 'gdc-rar', r); b.dataset.r = r; return b; }
+  function rarBadge(code) {
+    const r = rarity(code), b = h('span', 'gdc-rar', code);
+    b.style.background = badgeBg(r.badge); b.style.color = r.ink; if (isDragon(r)) b.style.boxShadow = 'inset 0 0 0 1px #ffd36e';
+    return b;
+  }
   function render() {
     if (!root) return;
     const owned = cards.filter((c) => c.owned), total = cards.length;
@@ -307,17 +303,17 @@ ${corner(52, 52, 0, p)}${corner(w - 52, 52, 90, p)}${corner(w - 52, hh - 52, 180
     const sub = h('div', 'gdc-sub'); const bar = h('div', 'gdc-bar'), fill = h('i'); bar.append(fill);
     const pw = h('span'); pw.append('總戰力 ', h('b', '', fmt(power))); sub.append(bar, pw);
     const shelf = h('div', 'gdc-shelf');
-    // 已收集的排前面，其餘依編號
-    const order = [...cards].sort((x, y) => (y.owned - x.owned) || ((x.no ?? x.id) - (y.no ?? y.id)));
+    // 已收集的排前面，其餘照後台順序（系列、編號）
+    const order = [...cards].sort((x, y) => y.owned - x.owned);
     for (const c of order) {
       const b = h('button', 'gdc-mini' + (c.owned ? '' : ' locked')); b.type = 'button';
-      b.setAttribute('aria-label', c.owned ? `${c.name}（${c.rarity}）` : `${pad(c.no ?? c.id)} 未收集`);
+      b.setAttribute('aria-label', c.owned ? `${c.name}（${c.rarity}）` : `${c.code} 未收集`);
       const art = h('div', 'gdc-art'), [cw, ch] = dims(c);
       art.style.aspectRatio = `${cw}/${ch}`; if (cw > ch) b.classList.add('land');
       if (c.owned) faceArt(c, { scale: .26, thumb: true }).then((el) => art.prepend(el));
       else { art.innerHTML = backSVG(cw, ch); art.append(h('div', 'gdc-lock', '🔒')); }
       art.append(rarBadge(c.rarity));
-      b.append(art, h('div', 'gdc-name', c.owned ? c.name : pad(c.no ?? c.id)));
+      b.append(art, h('div', 'gdc-name', c.owned ? c.name : c.code));
       b.onclick = () => {
         if (c.owned) return openViewer(c);
         b.classList.remove('shake'); void b.offsetWidth; b.classList.add('shake');
@@ -347,7 +343,7 @@ ${corner(52, 52, 0, p)}${corner(w - 52, 52, 90, p)}${corner(w - 52, hh - 52, 180
     v.style.setProperty('--gdc-sparkle', sparkle(false)); v.style.setProperty('--gdc-sparkle-gold', sparkle(true));
     v.innerHTML = `<div class="gdc-vhead"><span class="gdc-rar" data-k="rar"></span><span class="gdc-vt" data-k="name"></span><span class="gdc-vcat" data-k="cat"></span><span class="gdc-vpow"><small>戰鬥力</small><span data-k="pow"></span></span><button class="gdc-x" data-k="close" aria-label="關閉">✕</button></div>
 <div class="gdc-stage" data-k="stage"><div class="gdc-side" data-k="side">正面</div><div class="gdc-card" data-k="card"><div class="gdc-body"><div class="gdc-face front" data-k="front"><div class="gdc-shine"></div><div class="gdc-glare"></div></div><div class="gdc-face back" data-k="back">${backSVG()}<div class="gdc-shine"></div><div class="gdc-glare"></div></div></div></div></div>
-<div class="gdc-panel"><div class="gdc-fx" data-k="fx">${FX.map(([k, n]) => `<button type="button" data-fx="${k}">${n}</button>`).join('')}</div>
+<div class="gdc-panel"><div class="gdc-fx" data-k="fx"></div>
 <div class="gdc-prow"><div class="gdc-zoom"><button type="button" data-k="zm" aria-label="縮小">−</button><input data-k="zoom" type="range" min="50" max="150" value="100" aria-label="縮放"><button type="button" data-k="zp" aria-label="放大">＋</button><output data-k="zout">100%</output></div></div>
 <div class="gdc-prow"><button type="button" class="primary" data-k="flip">⟲ 翻面</button><button type="button" data-k="reset">歸位</button><button type="button" data-k="gyro" hidden>啟用陀螺儀</button></div>
 <div class="gdc-hint">左右拖曳 360° 翻轉・上下拖曳 ±80°・雙指／滾輪縮放</div></div>`;
@@ -395,18 +391,23 @@ ${corner(52, 52, 0, p)}${corner(w - 52, 52, 90, p)}${corner(w - 52, hh - 52, 180
     if (!on && gyroListening) { removeEventListener('deviceorientation', onOrient); gyroListening = false; gyroOn = false; }
   }
   const onKey = (e) => { if (e.key === 'Escape') closeViewer(); };
-  function setFx(f) {
-    V.card.dataset.fx = f;
-    V.q('fx').querySelectorAll('button').forEach((b) => { const on = b.dataset.fx === f; b.classList.toggle('on', on); if (on) b.scrollIntoView({ inline: 'center', block: 'nearest' }); });
+  /** 效果組合（後台）：基本動畫＋強度。 */
+  function setFx(key) {
+    const e = effectOf(key);
+    V.card.dataset.fx = e.base; V.card.style.setProperty('--fx-k', e.intensity ?? 1); V.card.style.setProperty('--fx-g', e.glare ?? 1);
+    V.q('fx').querySelectorAll('button').forEach((b) => { const on = b.dataset.fx === key; b.classList.toggle('on', on); if (on) b.scrollIntoView({ inline: 'center', block: 'nearest' }); });
   }
   function setZoom(z) { T.zoom = clamp(z, .5, 1.5); V.zoom.value = Math.round(T.zoom * 100); V.zout.textContent = V.zoom.value + '%'; }
   let openSeq = 0;
   async function openViewer(c) {
     if (!V) buildViewer();
     const seq = ++openSeq, q = V.q, rb = q('rar');
-    rb.textContent = c.rarity; rb.dataset.r = c.rarity; rb.title = RARITY[c.rarity]?.name || '';
-    q('name').textContent = c.name; q('cat').textContent = CATEGORY[c.category] || ''; q('pow').textContent = fmt(c.power);
-    setFx(c.fx || 'holo');
+    const R = rarity(c.rarity);
+    rb.textContent = c.rarity; rb.title = R.name || ''; rb.style.background = badgeBg(R.badge); rb.style.color = R.ink; rb.style.boxShadow = isDragon(R) ? 'inset 0 0 0 1px #ffd36e' : '';
+    q('name').textContent = c.name; q('cat').textContent = seriesName(c.series); q('cat').hidden = !q('cat').textContent; q('pow').textContent = fmt(c.power);
+    const fxList = META.effects.filter((e) => e.status !== 'HIDDEN' || e.key === c.effect);
+    q('fx').innerHTML = fxList.map((e) => `<button type="button" data-fx="${escHtml(e.key)}">${escHtml(e.name)}</button>`).join('');
+    setFx(c.effect || fxList[0]?.key);
     V.front.querySelector('canvas,img')?.remove();
     const [cw, ch] = dims(c), land = cw > ch, orient = `${cw}x${ch}`;
     V.card.classList.toggle('land', land); V.card.style.setProperty('--ar', cw / ch);
@@ -443,13 +444,14 @@ ${corner(52, 52, 0, p)}${corner(w - 52, 52, 90, p)}${corner(w - 52, hh - 52, 180
 
   // ---------- 對外 ----------
   window.GDCards = {
-    RARITY, RARITY_ORDER, CATEGORY,
-    mount(container, list, o = {}) {
-      ensureStyle(); this.unmount(); opts = o; cards = list || [];
+    mount(container, data, o = {}) {
+      ensureStyle(); this.unmount(); opts = o; META = data?.meta || META; cards = data?.cards || [];
       root = h('section', 'gdc-club'); root.setAttribute('aria-label', 'GD 卡冊');
       container.replaceChildren(root); render(); return root;
     },
-    update(list) { cards = list || []; render(); },
+    update(data) { META = data?.meta || META; cards = data?.cards || []; render(); },
+    /** 後台預覽：不需要卡冊，直接用這張卡開觀看器。 */
+    preview(card, meta) { ensureStyle(); if (meta) META = meta; openViewer(card); },
     open(id) { const c = cards.find((x) => x.id === id && x.owned); if (c) openViewer(c); },
     close: closeViewer,
     unmount() {
