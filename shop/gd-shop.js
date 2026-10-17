@@ -26,7 +26,7 @@
   const loadScript = (src) => new Promise((ok, no) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = no; document.head.append(s); });
   let cardMeta = null;
   async function cardViewer() {
-    if (!window.GDCards) await loadScript('cards/gd-cards.js?v=20261017c');
+    if (!window.GDCards) await loadScript('cards/gd-cards.js?v=20261017e');
     if (!cardMeta) cardMeta = (await call('/cards')).meta;
     return cardMeta;
   }
@@ -56,8 +56,17 @@
 .gds-odds{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px}.gds-odds td{padding:5px 6px;border-bottom:1px solid #434b79;color:#dce2ff}.gds-odds td:last-child{text-align:right}
 .gds-layer{position:fixed;inset:0;z-index:2147481000;background:#050817e6;display:flex;flex-direction:column;align-items:center;justify-content:safe center;padding:calc(16px + env(safe-area-inset-top,0px)) 16px calc(16px + env(safe-area-inset-bottom,0px));overflow:auto;color:#f8faff;font-family:inherit}
 .gds-layer[hidden]{display:none}.gds-layer h3{margin:0 0 4px}.gds-layer .gds-sum{color:#ffd166;font-weight:900;margin-bottom:10px}
-.gds-res{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;width:min(100%,720px)}
-.gds-item{border:1px solid #4e578c;border-radius:14px;background:#111838;padding:10px;display:flex;flex-direction:column;gap:6px}
+.gds-res{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:12px 10px;width:min(100%,720px)}
+.gds-mini{display:flex;flex-direction:column;align-items:center;gap:3px;text-align:center;min-width:0}
+.gds-art{position:relative;width:100%;aspect-ratio:773/1024;padding:0;border:0;border-radius:8px;overflow:hidden;background:#1c0638;cursor:pointer;box-shadow:0 6px 14px #0008,0 0 0 1.5px #ffffff55}
+.gds-art>canvas,.gds-art>img{width:100%;height:100%;display:block;object-fit:cover}
+.gds-art::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(115deg,transparent 35%,#fff8 48%,#7ad8ff66 52%,transparent 65%);background-size:300% 100%;mix-blend-mode:overlay;animation:gds-sweep 3.2s ease-in-out infinite}
+.gds-mini.rare .gds-art{box-shadow:0 0 0 2px #ffd166,0 0 22px #ffd166aa;animation:gds-glow 1.6s ease-in-out infinite alternate}
+@keyframes gds-sweep{from{background-position:120% 0}to{background-position:-120% 0}}@keyframes gds-glow{to{box-shadow:0 0 0 2px #fff3b0,0 0 34px #ffd166}}
+.gds-mini .gds-tags{position:absolute;top:4px;right:4px;display:flex;gap:3px;z-index:2}.gds-mini em{font-style:normal;font-size:10px;font-weight:900;padding:1px 5px;border-radius:5px;background:#2fe39a;color:#033}.gds-mini em.pity{background:#ff6ec7;color:#fff}
+.gds-mini b{font-size:12px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.gds-mini small{font-size:11px;color:#ffd166}
+.gds-mini .gds-sh{border:1px solid #5d66a0;background:#222b57;color:#ffd166;border-radius:8px;padding:3px 10px;font:inherit;font-size:11px;cursor:pointer}
+.gds-mini.playing .gdc-disc{animation-duration:1.4s}
 .gds-intro{position:relative;width:min(80vw,320px);aspect-ratio:1;display:grid;place-items:center;margin:auto}
 .gds-rays{position:absolute;inset:-30%;border-radius:50%;background:repeating-conic-gradient(#ff3d9e33 0 8deg,#0000 8deg 20deg);animation:gds-spin 3s linear infinite;mask:radial-gradient(#000 20%,#0000 70%);-webkit-mask:radial-gradient(#000 20%,#0000 70%);transition:background .3s}
 .gds-rays.gold{background:repeating-conic-gradient(#ffd166aa 0 8deg,#0000 8deg 20deg)}
@@ -66,14 +75,9 @@
 @keyframes gds-charge{0%{transform:scale(.6);box-shadow:0 0 0 #ffd16600}60%{transform:scale(1) rotate(0)}70%{transform:scale(1.04) rotate(-3deg)}80%{transform:scale(1.06) rotate(3deg)}90%{transform:scale(1.08) rotate(-2deg)}100%{transform:scale(1.12);box-shadow:0 0 60px #fff}}
 .gds-flash{position:fixed;inset:0;background:#fff;pointer-events:none;z-index:2147482400;animation:gds-flash .5s ease-out both}@keyframes gds-flash{from{opacity:.9}to{opacity:0}}
 .gds-spark{position:fixed;width:8px;height:8px;margin:-4px 0 0 -4px;border-radius:50%;background:radial-gradient(#fff,#ffd166 45%,#ff9c32);pointer-events:none;z-index:2147481002}
-.gds-cell{display:grid;animation:gds-in .4s both}.gds-fx{position:fixed;inset:0;pointer-events:none;z-index:2147482500}
-@media (prefers-reduced-motion:reduce){.gds-cell,.gds-rays,.gds-charge{animation:none;transition:none}.gds-flash{display:none}}
-.gds-item.rare{border-color:#ffd166;box-shadow:0 0 18px #ffd16655}
+.gds-cell{animation:gds-in .4s both}.gds-fx{position:fixed;inset:0;pointer-events:none;z-index:2147482500}
+@media (prefers-reduced-motion:reduce){.gds-cell,.gds-rays,.gds-charge,.gds-art::after,.gds-mini.rare .gds-art{animation:none;transition:none}.gds-flash{display:none}}
 @keyframes gds-in{from{opacity:0;transform:translateY(10px) scale(.96)}to{opacity:1;transform:none}}
-.gds-item .t{font-weight:900;font-size:14px;line-height:1.3}.gds-item small{color:#aeb8e8;font-size:12px}
-.gds-item .tag{display:inline-block;font-size:11px;font-weight:900;padding:1px 6px;border-radius:5px;background:#ffd166;color:#4a2b00;margin-right:4px}
-.gds-item .tag.new{background:#2fe39a;color:#033}.gds-item .tag.pity{background:#ff6ec7;color:#fff}
-.gds-item .row{display:flex;gap:6px;flex-wrap:wrap}.gds-item button{border:1px solid #5d66a0;background:#222b57;color:#ffd166;border-radius:8px;padding:5px 8px;font:inherit;font-size:12px;cursor:pointer}
 .gds-close{margin-top:14px;border:0;border-radius:999px;padding:10px 26px;font:inherit;font-weight:900;background:linear-gradient(180deg,#ffd166,#f4a51c);color:#4a2b00;cursor:pointer}
 .msg.share{display:block;text-align:left;cursor:pointer;border:1px solid #ff70c8;background:linear-gradient(135deg,#2a1450,#14183a);color:#f8faff;border-radius:12px;padding:8px 10px;margin:6px 0;font:inherit;width:100%}
 .msg.share small{display:block;color:#aeb8e8}.msg.share em{font-style:normal;color:#ffd166;font-weight:900}`;
@@ -220,8 +224,7 @@
       if (r.draws.some(isRare)) $('.gds-rays', layer)?.classList.add('gold');
       await intro;
       diamonds = r.diamonds;
-      showResults(r);
-      reveal(r.draws);
+      reveal(r);
       refreshWallet();
       try { window.GDAudio && window.GDAudio.reload && window.GDAudio.reload(); } catch (e) { /* ignore */ }
       loadGacha();
@@ -247,7 +250,7 @@
     const list = meta?.rarities || [], i = list.findIndex((x) => x.code === code), R = list[i] || {};
     let rank = list.length > 1 && i >= 0 ? i / (list.length - 1) : (RARE.includes(code) ? 1 : 0);
     if (pity) rank = Math.max(rank, .7);
-    const gold = R.frame === 'dragon' || rank >= 1;
+    const gold = R.frame === 'dragon' || rank >= 1 || pity || RARE.includes(code);
     const colors = gold ? ['#ffd166', '#fff3b0', '#ff9c32'] : Array.isArray(R.frame) && R.frame.length ? R.frame : ['#ffd166', '#ff6ec7'];
     return { rank, gold, colors, rare: pity || RARE.includes(code) };
   }
@@ -304,21 +307,37 @@
       p.animate([{ transform: 'translate(0,0) scale(1)', opacity: 1 }, { transform: `translate(${Math.cos(a) * d}px,${Math.sin(a) * d}px) scale(.3)`, opacity: 0 }], { duration: 700 + Math.random() * 400, easing: 'cubic-bezier(.2,.8,.3,1)' }).finished.then(() => p.remove());
     }
   }
-  /** 抽完直接進閃卡觀看器逐張開卡（蓋牌 → 自動翻到正面），關閉後看到下面的全部結果。 */
-  async function reveal(draws) {
-    const cards = draws.filter((d) => d.kind === 'CARD');
-    if (!cards.length) return;
+  /** 觀看器用的單曲卡（顯示 CD）。 */
+  const songCard = (s) => ({ id: 'song-' + s.id, song: true, name: s.title, album: s.album, src: s.src, cover: s.cover, rarity: '單曲' });
+  const asView = (d) => (d.kind === 'CARD' ? d.card : songCard(d.song));
+  const SONG_FX = { rank: .35, gold: false, colors: ['#c79bff', '#7ad8ff', '#ffffff'], rare: false };
+  /** 稀有卡：金色粒子之外再加白光一閃、畫面震一下、手機震動（iPhone 瀏覽器不支援震動）與稀有音效。 */
+  function rareHit(el) {
+    sfx('rare');
+    try { navigator.vibrate && navigator.vibrate([80, 40, 160]); } catch (e) { /* ignore */ }
+    if (calm()) return;
+    const fl = document.createElement('div'); fl.className = 'gds-flash'; document.body.append(fl); setTimeout(() => fl.remove(), 600);
+    el.closest('.gdc-stage')?.animate([{ transform: 'none' }, { transform: 'translate(-8px,4px)' }, { transform: 'translate(7px,-5px)' }, { transform: 'translate(-5px,-3px)' }, { transform: 'translate(4px,3px)' }, { transform: 'none' }], { duration: 420 });
+  }
+  /** 抽完直接進閃卡觀看器連續開卡（蓋牌 → 翻面 → 停一下 → 下一張；單曲顯示 CD 並試聽），看完或按「跳過」顯示全部結果。 */
+  async function reveal(r) {
+    ensureLayer().innerHTML = '';
     try {
-      const meta = await cardViewer(), list = cards.map((d) => d.card);
+      const meta = await cardViewer(), list = r.draws.map(asView), drawOf = (c) => r.draws[list.indexOf(c)];
       window.GDCards.preview(list[0], meta, list, {
         reveal: true,
-        onReveal: (card, el) => {
-          sfx('flip');
-          const fx = rarityFx(card.rarity, meta, cards[list.indexOf(card)].pity);
-          setTimeout(() => { if (fx.rare) sfx('rare'); burst(el, fx); }, 120);
+        auto: true,
+        hold: (c) => (c.song ? 3000 : isRare(drawOf(c)) ? 2400 : 1000),
+        onReveal: (c, el) => {
+          const d = drawOf(c);
+          stopAudio(); sfx('flip');
+          if (c.song) play(d.song);
+          const fx = c.song ? SONG_FX : rarityFx(c.rarity, meta, d.pity);
+          setTimeout(() => { if (fx.rare) rareHit(el); burst(el, fx); }, 120);
         },
+        onClose: () => { stopAudio(); showResults(r, meta); },
       });
-    } catch (e) { /* 觀看器載入失敗就只看結果列表 */ }
+    } catch (e) { showResults(r); } // 觀看器載入失敗就直接看結果
   }
   /** 抽卡前的蓄力畫面（等後端結果時播放，至少 1.1 秒）。 */
   function showIntro() {
@@ -334,22 +353,25 @@
     layer = document.createElement('div'); layer.className = 'gds-layer'; layer.hidden = true; document.body.append(layer);
     return layer;
   }
-  function stopAudio() { if (audio) { audio.pause(); audio = null; } }
-  function showResults(r) {
-    const l = ensureLayer();
-    const item = (d, i) => d.kind === 'CARD'
-      ? `<div class="gds-item${RARE.includes(d.card.rarity) ? ' rare' : ''}"><div>${d.pity ? '<span class="tag pity">保底</span>' : ''}${d.duplicate ? '' : '<span class="tag new">NEW</span>'}<span class="tag">${esc(d.card.rarity)}</span></div><div class="t">${esc(d.card.code)} ${esc(d.card.name)}</div><small>戰鬥力 ${num(d.card.power)}${d.duplicate ? '・重複' : ''}</small><small>+${num(d.coins)} G幣</small><div class="row"><button type="button" data-view="${i}">看卡面</button><button type="button" data-share="${i}">分享到家族</button></div></div>`
-      : `<div class="gds-item"><div>${d.duplicate ? '' : '<span class="tag new">NEW</span>'}<span class="tag">單曲</span></div><div class="t">🎵 ${esc(d.song.title)}</div><small>${esc(d.song.album)}${d.duplicate ? '・重複' : '・已解鎖'}</small><small>+${num(d.coins)} G幣</small><div class="row"><button type="button" data-play="${i}">試聽</button><button type="button" data-share="${i}">分享到家族</button></div></div>`;
-    l.innerHTML = `<h3>抽獎結果</h3><div class="gds-sum">獲得 ${IC('G')} ${num(r.coins)}・剩餘 ${IC('D')} ${num(r.diamonds)}</div><div class="gds-res">${r.draws.map((d, i) => `<div class="gds-cell" style="animation-delay:${i * 0.06}s">${item(d, i)}</div>`).join('')}</div><button type="button" class="gds-close">關閉</button>`;
-    if (!calm()) { const fl = document.createElement('div'); fl.className = 'gds-flash'; document.body.append(fl); setTimeout(() => fl.remove(), 600); }
+  function stopAudio() { if (audio) { audio.pause(); audio = null; audioId = null; } }
+  function play(song) { stopAudio(); if (!song.src) return; audio = new Audio(song.src); audioId = song.id; audio.play().catch(() => {}); }
+  /** 全部結果：卡牌牆（卡面＋稀有度光框，單曲是 CD）；點卡片進 3D 觀看器，點 CD 試聽。 */
+  function showResults(r, meta) {
+    const l = ensureLayer(), list = r.draws.map(asView), cards = list.filter((c) => !c.song);
+    const cell = (d, i) => `<div class="gds-cell gds-mini${isRare(d) ? ' rare' : ''}" style="animation-delay:${i * 0.06}s"><button type="button" class="gds-art" data-i="${i}" aria-label="${esc(list[i].name)}"><span class="gds-tags">${d.pity ? '<em class="pity">保底</em>' : ''}${d.duplicate ? '' : '<em>NEW</em>'}</span></button><b>${esc(list[i].name)}</b><small>+${num(d.coins)} G幣</small><button type="button" class="gds-sh" data-share="${i}">分享</button></div>`;
+    l.innerHTML = `<h3>抽獎結果</h3><div class="gds-sum">獲得 ${IC('G')} ${num(r.coins)}・剩餘 ${IC('D')} ${num(r.diamonds)}</div><div class="gds-res">${r.draws.map(cell).join('')}</div><button type="button" class="gds-close">關閉</button>`;
     l.hidden = false;
     $('.gds-close', l).onclick = () => { stopAudio(); l.hidden = true; };
-    $$('[data-view]', l).forEach((b) => b.onclick = () => { const cards = r.draws.filter((d) => d.kind === 'CARD').map((d) => d.card); showCard(r.draws[Number(b.dataset.view)].card, cards); });
-    $$('[data-play]', l).forEach((b) => b.onclick = () => {
-      const d = r.draws[Number(b.dataset.play)];
-      if (audio && audioId === d.song.id) { stopAudio(); b.textContent = '試聽'; return; }
-      stopAudio(); audio = new Audio(d.song.src); audioId = d.song.id; audio.play().catch(() => {});
-      $$('[data-play]', l).forEach((x) => x.textContent = '試聽'); b.textContent = '停止';
+    $$('.gds-art', l).forEach((b) => {
+      const c = list[Number(b.dataset.i)];
+      if (window.GDCards) window.GDCards.art(c, meta).then((el) => b.prepend(el)).catch(() => {});
+      else b.prepend(Object.assign(document.createElement('span'), { textContent: c.song ? '🎵' : c.rarity }));
+      b.onclick = () => {
+        if (!c.song) return showCard(c, cards);
+        const song = r.draws[Number(b.dataset.i)].song, on = audioId === song.id;
+        stopAudio(); $$('.gds-mini.playing', l).forEach((x) => x.classList.remove('playing'));
+        if (!on) { play(song); b.parentElement.classList.add('playing'); }
+      };
     });
     $$('[data-share]', l).forEach((b) => b.onclick = async () => {
       const d = r.draws[Number(b.dataset.share)];

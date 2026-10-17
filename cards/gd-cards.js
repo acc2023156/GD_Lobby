@@ -123,7 +123,20 @@
 /* 各效果的強度（--fx-k）與反光（--fx-g）由後台「效果組合」設定 */
 .gdc-card[data-fx=aurora] .gdc-shine{mix-blend-mode:screen;opacity:calc(var(--o)*.75*var(--fx-k,1));filter:blur(6px) saturate(1.4);background-image:radial-gradient(ellipse 60% 25% at calc(var(--bx)*1.2 - 10%) 30%,hsla(160,100%,60%,.7),transparent 70%),radial-gradient(ellipse 55% 22% at calc(110% - var(--bx)*1.2) 55%,hsla(280,100%,65%,.65),transparent 70%),radial-gradient(ellipse 70% 20% at var(--mx) calc(var(--by) + 25%),hsla(200,100%,65%,.6),transparent 70%)}
 .gdc-card[data-fx=aurora] .gdc-shine::after{content:"";mix-blend-mode:color-dodge;filter:none;opacity:.7;background-image:var(--gdc-sparkle);background-size:200px 200px}
-@media (prefers-reduced-motion:reduce){.gdc-club::before,.gdc-art::after{animation:none}}
+.gdc-vpow[hidden]+.gdc-skip,.gdc-vpow[hidden]+.gdc-skip[hidden]+.gdc-x{margin-left:auto}
+.gdc-skip{flex:none;border:1px solid #ffd36e;background:#ffd36e22;color:#ffd36e;border-radius:999px;padding:7px 14px;font:inherit;font-size:13px;font-weight:800;cursor:pointer}.gdc-skip[hidden]{display:none}
+/* 魔曲單曲：2D 旋轉 CD（之後後台有封面圖就放 cover） */
+.gdc-songbox{position:absolute;inset:0;container-type:inline-size;border-radius:inherit}
+.gdc-viewer.pending .gdc-vhead>:not(.gdc-skip):not(.gdc-x){visibility:hidden}
+.gdc-song{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5cqw;padding:7cqw;box-sizing:border-box;border-radius:inherit;border:2.6cqw solid #c79bff;color:#fff;text-align:center;background:radial-gradient(circle at 50% 38%,#6a2bc0,#1c0638 72%)}
+.gdc-disc{position:relative;flex:none;width:84%;aspect-ratio:1;border-radius:50%;box-shadow:0 3cqw 8cqw #000b,inset 0 0 0 1cqw #fff5;animation:gdc-spin 3.2s linear infinite;
+  background:var(--cover,none) center/cover,repeating-radial-gradient(circle,#0000 0 1.1cqw,#0000001c 1.1cqw 1.4cqw),conic-gradient(#d8dbe6,#fff,#b7c6ff,#ffd6f5,#fff,#cfd3dd,#fff6c8,#fff,#b8f0ff,#d8dbe6)}
+.gdc-disc::before{content:"♪";position:absolute;inset:32%;border-radius:50%;display:grid;place-items:center;font-size:9cqw;color:#fff;background:linear-gradient(135deg,#ff3d9e,#783dff);box-shadow:0 0 0 .8cqw #fff9}
+.gdc-disc.cover::before{display:none}
+.gdc-disc i{position:absolute;inset:46.5%;border-radius:50%;background:#14032a;box-shadow:0 0 0 .7cqw #fffb;z-index:1}
+.gdc-song b{font-size:8.5cqw;font-weight:900;line-height:1.2;text-shadow:0 1cqw 3cqw #000a}.gdc-song small{font-size:5.4cqw;color:#d9ccff}
+@keyframes gdc-spin{to{transform:rotate(1turn)}}
+@media (prefers-reduced-motion:reduce){.gdc-club::before,.gdc-art::after,.gdc-disc{animation:none}}
 `;
 
   // ---------- 小工具 ----------
@@ -273,7 +286,16 @@ ${corner(52, 52, 0, p)}${corner(w - 52, 52, 90, p)}${corner(w - 52, hh - 52, 180
     return c;
   }
   const dims = (c) => [c.w || W, c.h || H];
+  /** 單曲卡面：卡片底＋旋轉 CD＋歌名／專輯（thumb 只有 CD）。 */
+  function songArt(c, { thumb = false } = {}) {
+    const box = h('div', 'gdc-songbox'), el = h('div', 'gdc-song'), disc = h('div', 'gdc-disc' + (c.cover ? ' cover' : ''));
+    if (c.cover) disc.style.setProperty('--cover', `url(${JSON.stringify(c.cover)})`);
+    disc.append(h('i')); el.append(disc);
+    if (!thumb) el.append(h('b', '', c.name), h('small', '', c.album || ''));
+    box.append(el); return box;
+  }
   async function faceArt(card, opts = {}) {
+    if (card.song) return songArt(card, opts);
     const src = opts.thumb ? card.thumb || card.img : card.img;
     if (src) { const im = new Image(); im.alt = ''; im.decoding = 'async'; im.src = src; return im; }
     return renderFront(card, opts);
@@ -338,22 +360,23 @@ ${corner(52, 52, 0, p)}${corner(w - 52, 52, 90, p)}${corner(w - 52, hh - 52, 180
   function buildViewer() {
     const v = h('div', 'gdc-viewer'); v.setAttribute('role', 'dialog'); v.setAttribute('aria-modal', 'true'); v.setAttribute('aria-hidden', 'true');
     v.style.setProperty('--gdc-sparkle', sparkle(false)); v.style.setProperty('--gdc-sparkle-gold', sparkle(true));
-    v.innerHTML = `<div class="gdc-vhead"><span class="gdc-rar" data-k="rar"></span><span class="gdc-vt" data-k="name"></span><span class="gdc-vcat" data-k="cat"></span><span class="gdc-vpow"><small>戰鬥力</small><span data-k="pow"></span></span><button class="gdc-x" data-k="close" aria-label="關閉">✕</button></div>
+    v.innerHTML = `<div class="gdc-vhead"><span class="gdc-rar" data-k="rar"></span><span class="gdc-vt" data-k="name"></span><span class="gdc-vcat" data-k="cat"></span><span class="gdc-vpow" data-k="vpow"><small>戰鬥力</small><span data-k="pow"></span></span><button type="button" class="gdc-skip" data-k="skip" hidden>跳過</button><button class="gdc-x" data-k="close" aria-label="關閉">✕</button></div>
 <div class="gdc-stage" data-k="stage"><button type="button" class="gdc-nav prev" data-k="prev" aria-label="上一張" hidden>‹</button><button type="button" class="gdc-nav next" data-k="next" aria-label="下一張" hidden>›</button><div class="gdc-card" data-k="card"><div class="gdc-body"><div class="gdc-face front" data-k="front"><div class="gdc-shine"></div><div class="gdc-glare"></div></div><div class="gdc-face back" data-k="back">${backSVG()}<div class="gdc-shine"></div><div class="gdc-glare"></div></div></div></div></div>
 <div class="gdc-panel">
 <div class="gdc-prow"><div class="gdc-zoom"><button type="button" data-k="zm" aria-label="縮小">−</button><input data-k="zoom" type="range" min="50" max="150" value="100" aria-label="縮放"><button type="button" data-k="zp" aria-label="放大">＋</button><output data-k="zout">100%</output></div></div>
-<div class="gdc-prow"><button type="button" class="primary" data-k="flip">⟲ 翻面</button><button type="button" data-k="reset">歸位</button><span class="gdc-count" data-k="idx"></span><button type="button" class="primary" data-k="done" hidden>看全部結果</button></div>
+<div class="gdc-prow"><button type="button" class="primary" data-k="flip">⟲ 翻面</button><button type="button" data-k="reset">歸位</button><span class="gdc-count" data-k="idx"></span></div>
 <div class="gdc-hint">拖曳卡片翻轉・在卡片外左右滑動換下一張・雙指／滾輪縮放</div></div>`;
     const q = (k) => v.querySelector(`[data-k="${k}"]`);
     V = { el: v, q, card: q('card'), stage: q('stage'), front: q('front'), back: q('back'), zoom: q('zoom'), zout: q('zout') };
     document.body.append(v);
     const { stage, card } = V;
     q('close').onclick = closeViewer;
-    q('done').onclick = closeViewer;
+    q('skip').onclick = closeViewer;
     stage.addEventListener('pointerdown', (e) => {
       askGyro();
       if (e.target.closest('.gdc-nav')) return;
       const r = card.getBoundingClientRect();
+      tapAt = pointers.size ? null : { x: e.clientX, y: e.clientY, t: Date.now() };
       if (pointers.size === 0 && (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom)) { stage.setPointerCapture(e.pointerId); swipe = { id: e.pointerId, x: e.clientX, y: e.clientY }; return; }
       stage.setPointerCapture(e.pointerId); pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (pointers.size === 2) { const [a, b] = [...pointers.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), z: T.zoom }; dragging = false; return; }
@@ -365,6 +388,7 @@ ${corner(52, 52, 0, p)}${corner(w - 52, 52, 90, p)}${corner(w - 52, hh - 52, 180
       if (dragging) {
         const dx = e.clientX - last.x, dy = e.clientY - last.y;
         T.yaw += dx * .6; T.pitch = clamp(T.pitch - dy * .5, -80, 80); vYaw = vYaw * .5 + dx * .3; last = { x: e.clientX, y: e.clientY };
+        if (tapAt && Math.hypot(e.clientX - tapAt.x, e.clientY - tapAt.y) > 8) { tapAt = null; view.paused = true; } // 拖曳看卡：這張先不自動換
       } else if (e.pointerType === 'mouse' && !gyroOn) {
         const r = card.getBoundingClientRect(), inside = e.clientX > r.left && e.clientX < r.right && e.clientY > r.top && e.clientY < r.bottom;
         const px = clamp((e.clientX - r.left) / r.width * 100, 0, 100), py = clamp((e.clientY - r.top) / r.height * 100, 0, 100);
@@ -372,6 +396,7 @@ ${corner(52, 52, 0, p)}${corner(w - 52, 52, 90, p)}${corner(w - 52, hh - 52, 180
       }
     });
     const end = (e) => {
+      if (e.type === 'pointerup' && tapAt && Math.hypot(e.clientX - tapAt.x, e.clientY - tapAt.y) < 10 && Date.now() - tapAt.t < 400) { tapAt = null; swipe = null; pointers.delete(e.pointerId); dragging = false; card.classList.remove('drag'); if (view.reveal) return tap(); return; }
       if (swipe?.id === e.pointerId) { const dx = e.clientX - swipe.x; swipe = null; if (e.type === 'pointerup' && Math.abs(dx) > 50) step(dx < 0 ? 1 : -1); return; }
       pointers.delete(e.pointerId); if (pointers.size < 2) pinch = null; if (!pointers.size) { dragging = false; card.classList.remove('drag'); } };
     stage.addEventListener('pointerup', end); stage.addEventListener('pointercancel', end);
@@ -412,43 +437,55 @@ ${corner(52, 52, 0, p)}${corner(w - 52, 52, 90, p)}${corner(w - 52, hh - 52, 180
   }
   function setZoom(z) { T.zoom = clamp(z, .5, 1.5); V.zoom.value = Math.round(T.zoom * 100); V.zout.textContent = V.zoom.value + '%'; }
   let openSeq = 0;
-  let list = [], idx = 0, swipe = null, view = {};
+  let list = [], idx = 0, swipe = null, view = {}, tapAt = null;
   /** 卡片停住的角度：往左後轉、上方往後仰（Shirley 指定的開卡角度）。 */
   const REST = { yaw: -10, pitch: 5 };
   /**
    * o.reveal：抽卡模式，每張卡先蓋著（看到卡背），停一下自動翻到正面，翻到一半呼叫 o.onReveal(card, 卡片元素)（音效、粒子）；
-   * 同一組卡翻過的不再翻。o.onClose：關閉觀看器時呼叫（抽卡用來顯示全部結果）。
+   * 同一組卡翻過的不再翻。o.auto：翻開後停 o.hold(card) 毫秒（預設 1000）自動換下一張，最後一張停完就關閉；點一下立刻翻／換下一張，拖曳這張就先不自動換。
+   * o.onClose：關閉觀看器時呼叫（抽卡用來顯示全部結果）。卡片 card.song＝魔曲單曲（顯示 CD）。
    */
   async function openViewer(c, group = [c], o = {}) {
     if (!V) buildViewer();
     if (o !== view) { view = o; view.seen = new Set(); }
     list = group.length ? group : [c]; idx = Math.max(0, list.indexOf(c));
-    V.q('done').hidden = !view.reveal;
+    V.q('skip').hidden = !view.reveal; view.paused = false; clearTimeout(view.autoT);
     V.q('prev').hidden = V.q('next').hidden = list.length < 2;
     V.q('idx').textContent = list.length > 1 ? `${idx + 1} / ${list.length}` : '';
     const seq = ++openSeq, q = V.q, rb = q('rar');
     const R = rarity(c.rarity);
     rb.textContent = c.rarity; rb.title = R.name || ''; rb.style.background = badgeBg(R.badge); rb.style.color = R.ink; rb.style.boxShadow = isDragon(R) ? 'inset 0 0 0 1px #ffd36e' : '';
-    q('name').textContent = c.name; q('cat').textContent = seriesName(c.series); q('cat').hidden = !q('cat').textContent; q('pow').textContent = fmt(c.power);
+    q('name').textContent = c.name; q('cat').textContent = c.song ? c.album || '' : seriesName(c.series); q('cat').hidden = !q('cat').textContent; q('pow').textContent = fmt(c.power); q('vpow').hidden = !!c.song;
     setFx(c.effect || META.effects.find((e) => e.status !== 'HIDDEN')?.key);
-    V.front.querySelector('canvas,img')?.remove();
+    V.front.querySelector('canvas,img,.gdc-songbox')?.remove();
     const [cw, ch] = dims(c), land = cw > ch, orient = `${cw}x${ch}`;
     V.card.classList.toggle('land', land); V.card.style.setProperty('--ar', cw / ch);
     if (V.orient !== orient) { V.back.querySelector('svg')?.remove(); V.back.insertAdjacentHTML('afterbegin', backSVG(cw, ch)); V.orient = orient; }
     const hidden = view.reveal && !view.seen.has(c);
     Object.assign(S, { yaw: REST.yaw - 180, pitch: REST.pitch, zoom: .6, hy: 0, hp: 0 }); Object.assign(T, { yaw: hidden ? REST.yaw - 180 : REST.yaw, pitch: REST.pitch, hy: 0, hp: 0 }); vYaw = 0; setZoom(1); // 從背面翻入
-    if (hidden) {
-      view.seen.add(c);
-      setTimeout(() => { if (seq !== openSeq) return; T.yaw = REST.yaw; setTimeout(() => seq === openSeq && view.onReveal?.(c, V.card), 260); }, 650);
-    }
+    view.pending = 0; V.el.classList.toggle('pending', hidden); // 蓋牌時先不顯示卡名
+    if (hidden) { view.seen.add(c); view.pending = seq; view.flipT = setTimeout(() => flipIn(seq, c), 650); }
     V.el.classList.add('open'); V.el.setAttribute('aria-hidden', 'false');
     addEventListener('keydown', onKey); listenGyro(true);
     if (!running) { running = true; requestAnimationFrame(tick); }
     const art = await faceArt(c, { scale: 1 });
     if (seq === openSeq) V.front.prepend(art);
   }
+  function flipIn(seq, c) {
+    if (seq !== openSeq || view.pending !== seq) return;
+    view.pending = 0; clearTimeout(view.flipT); T.yaw = REST.yaw; V.el.classList.remove('pending');
+    setTimeout(() => {
+      if (seq !== openSeq) return;
+      view.onReveal?.(c, V.card);
+      if (view.auto) view.autoT = setTimeout(() => seq === openSeq && !view.paused && advance(), view.hold?.(c) ?? 1000);
+    }, 260);
+  }
+  /** 自動開卡：下一張；最後一張就關閉（顯示全部結果）。 */
+  function advance() { if (idx >= list.length - 1) closeViewer(); else step(1); }
+  function tap() { if (view.pending) flipIn(view.pending, list[idx]); else { clearTimeout(view.autoT); advance(); } }
   function closeViewer() {
     if (!V) return;
+    openSeq++; clearTimeout(view.autoT); clearTimeout(view.flipT);
     const wasOpen = V.el.classList.contains('open');
     V.el.classList.remove('open'); V.el.setAttribute('aria-hidden', 'true'); running = false;
     removeEventListener('keydown', onKey); listenGyro(false);
@@ -481,6 +518,8 @@ ${corner(52, 52, 0, p)}${corner(w - 52, 52, 90, p)}${corner(w - 52, hh - 52, 180
     update(data) { META = data?.meta || META; cards = data?.cards || []; render(); },
     /** 後台預覽：不需要卡冊，直接用這張卡開觀看器。 */
     preview(card, meta, group, o) { ensureStyle(); if (meta) META = meta; openViewer(card, group, o); },
+    /** 卡面小圖（抽卡結果總覽用）：卡片＝含卡名與稀有度的卡面，單曲＝CD。 */
+    art(card, meta) { ensureStyle(); if (meta) META = meta; return faceArt(card, { scale: .4, thumb: !!card.song }); },
     open(id) { const c = cards.find((x) => x.id === id && x.owned); if (c) openViewer(c, cards.filter((x) => x.owned)); },
     close: closeViewer,
     unmount() {
