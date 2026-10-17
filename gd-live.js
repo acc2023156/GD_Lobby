@@ -952,6 +952,12 @@
     @keyframes gdPulse{0%,100%{transform:scale(1);box-shadow:0 0 0 #ffc64100}50%{transform:scale(1.04);box-shadow:0 0 14px #ffc641cc}}
     .modal-offer label{display:flex;gap:6px;align-items:center;margin-top:8px;font-size:13px;font-weight:800}
     .modal-offer .gd-short{display:block;margin-top:8px;color:#ff6e8a;font-weight:900}
+    .gd-fb{display:flex;align-items:center;gap:8px;width:100%;margin-top:9px;padding:9px 11px;border:1px solid #ffd36e;border-radius:12px;background:linear-gradient(100deg,#ffd36e22,#ff3d9e18);color:inherit;font:inherit;text-align:left;cursor:pointer}
+    .gd-fb:disabled{opacity:.6;cursor:wait}
+    .gd-fb i{flex:none;font:900 11px/1 Cinzel,Georgia,serif;font-style:normal;padding:4px 6px;border-radius:4px;color:#3a2300;background:linear-gradient(#fff3c4,#e2a83a)}
+    .gd-fb span{flex:1;min-width:0;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .gd-fb strong{margin:0!important;font-size:18px!important;color:#ffb21e!important;white-space:nowrap}
+    .gd-fb strong small{display:inline!important;margin:0 3px 0 0!important;font-size:11px}
     .gd-coin{position:fixed;z-index:100;width:24px;height:24px;margin:-12px 0 0 -12px;pointer-events:none;background:url(icons/G_COIN.svg) center/contain no-repeat}`;
   document.head.appendChild(promoStyle);
 
@@ -974,14 +980,44 @@
   offerCard.hidden = true;
   demoOffer.after(offerCard);
   let pendingOffer = null;
+
+  // ---------- 卡片免費投注：使用後鎖定在卡片的遊戲，投注先扣戰鬥力；遊戲卡片顯示使用中的卡，點卡片解除 ----------
+  const GAME_BY_KEY = Object.fromEntries([...Object.entries(HASH_GAMES), ...Object.entries(SLOT_GAMES)].map(([name, id]) => [String(id), name]));
+  const selectedKey = () => { const id = HASH_GAMES[selectedGame] ?? SLOT_GAMES[selectedGame]; return id == null ? null : String(id); };
+  const releaseCard = (c) => api.call(`/me/cards/${c.id}/release`, { method: 'POST' });
+  /** 使用卡片後跳往該遊戲：關掉會員中心，打開遊戲卡片（會顯示使用中的卡）。 */
+  async function useCard(c) {
+    await api.call(`/me/cards/${c.id}/use`, { method: 'POST' });
+    const g = catalog.find((x) => x[0] === GAME_BY_KEY[c.gameKey]);
+    window.GDCards?.close();
+    $('#profileLayer').hidden = true;
+    if (g) openGame(g);
+  }
+  window.GDFreeBet = { use: useCard, release: releaseCard };
+  function showFreeBet(card, meta) {
+    const r = meta?.rarities?.find((x) => x.code === card.rarity), bg = Array.isArray(r?.badge) ? `background:linear-gradient(${r.badge.join(',')});color:${r.ink}` : '';
+    offerCard.innerHTML = `<b>免費投注卡</b><small>投注先扣戰鬥力，不夠一注才扣主錢包；贏分直接進主錢包</small><button type="button" class="gd-fb" aria-label="解除免費投注"><i style="${bg}">${esc(card.rarity)}</i><span>${esc(card.name)}</span><strong><small>戰鬥力</small>${coins(card.powerLeft)}</strong></button><em>點卡片可解除免費投注</em>`;
+    offerCard.hidden = false;
+    const b = $('.gd-fb', offerCard);
+    b.onclick = async () => {
+      b.disabled = true;
+      try { await releaseCard(card); prepareOffer(); } catch (err) { toast(err.message); b.disabled = false; }
+    };
+  }
+
   async function prepareOffer() {
     pendingOffer = null;
-    const gameId = HASH_GAMES[selectedGame];
+    const gameId = HASH_GAMES[selectedGame], key = selectedKey();
     demoOffer.hidden = true;
     offerCard.hidden = true;
-    if (!gameId || !me) return;
+    if (!key || !me) return;
     try {
-      const locked = (await myPromotions()).find((p) => p.provider === HASH_PROVIDER && p.gameId === gameId);
+      // 每款遊戲只能用一個優惠：鎖了卡片就只顯示卡片
+      const [deck, promos] = await Promise.all([api.call('/me/cards'), gameId ? myPromotions() : []]);
+      const card = deck.cards.find((c) => c.inUse && c.gameKey === key);
+      if (card) return showFreeBet(card, deck.meta);
+      if (!gameId) return;
+      const locked = promos.find((p) => p.provider === HASH_PROVIDER && p.gameId === gameId);
       if (locked) {
         offerCard.innerHTML = `<b>${esc(locked.promotion)}</b><small>鎖定錢包・${PROMO_STATUS[locked.status]}</small><strong>${coins(locked.balance.total)}</strong><div class="modal-progress"><span></span></div><em>${progressText(locked)}</em>`;
         offerCard.hidden = false;
