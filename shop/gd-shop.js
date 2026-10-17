@@ -236,7 +236,7 @@
   function sfx(name) {
     const level = window.GDAudio ? window.GDAudio.sfx : 1;
     if (!level) return;
-    try { const a = (FX[name] ||= new Audio(`shop/fx/${name}.wav`)).cloneNode(); a.volume = level; a.play().catch(() => {}); } catch (e) { /* ignore */ }
+    try { const a = (FX[name] ||= new Audio(`shop/fx/${name}.mp3`)).cloneNode(); a.volume = level; a.play().catch(() => {}); } catch (e) { /* ignore */ }
   }
   const calm = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
   /**
@@ -353,8 +353,17 @@
     layer = document.createElement('div'); layer.className = 'gds-layer'; layer.hidden = true; document.body.append(layer);
     return layer;
   }
+  /** 插播：單曲（抽卡、試聽、家族分享）播放時原本的音樂淡出暫停，停止或播完後從原本位置接著播。 */
+  function interrupt(a) {
+    const M = window.GDAudio; let on = false;
+    if (!M) return a;
+    const back = () => { if (on) { on = false; M.release(); } };
+    a.addEventListener('play', () => { if (!on) { on = true; M.hold(); } });
+    a.addEventListener('pause', back); a.addEventListener('ended', back);
+    return a;
+  }
   function stopAudio() { if (audio) { audio.pause(); audio = null; audioId = null; } }
-  function play(song) { stopAudio(); if (!song.src) return; audio = new Audio(song.src); audioId = song.id; audio.play().catch(() => {}); }
+  function play(song) { stopAudio(); if (!song.src) return; audio = interrupt(new Audio(song.src)); audioId = song.id; audio.play().catch(() => {}); }
   /** 全部結果：卡牌牆（卡面＋稀有度光框，單曲是 CD）；點卡片進 3D 觀看器，點 CD 試聽。 */
   function showResults(r, meta) {
     const l = ensureLayer(), list = r.draws.map(asView), cards = list.filter((c) => !c.song);
@@ -401,6 +410,7 @@
       const l = ensureLayer();
       l.innerHTML = `<h3>🎵 ${esc(r.item.title)}</h3><div class="gds-sum">${esc(r.item.album)}・${esc(r.sharer.nickname || r.sharer.aid)} 分享</div>${msg ? `<p>${esc(msg)}</p>` : ''}<audio controls autoplay src="${esc(r.item.src)}"></audio><button type="button" class="gds-close">關閉</button>`;
       l.hidden = false;
+      interrupt($('audio', l));
       $('.gds-close', l).onclick = () => { $('audio', l)?.pause(); l.hidden = true; };
     } catch (e) { toast(e.message); }
   }
