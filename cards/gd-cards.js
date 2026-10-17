@@ -342,13 +342,14 @@ ${corner(52, 52, 0, p)}${corner(w - 52, 52, 90, p)}${corner(w - 52, hh - 52, 180
 <div class="gdc-stage" data-k="stage"><button type="button" class="gdc-nav prev" data-k="prev" aria-label="上一張" hidden>‹</button><button type="button" class="gdc-nav next" data-k="next" aria-label="下一張" hidden>›</button><div class="gdc-card" data-k="card"><div class="gdc-body"><div class="gdc-face front" data-k="front"><div class="gdc-shine"></div><div class="gdc-glare"></div></div><div class="gdc-face back" data-k="back">${backSVG()}<div class="gdc-shine"></div><div class="gdc-glare"></div></div></div></div></div>
 <div class="gdc-panel">
 <div class="gdc-prow"><div class="gdc-zoom"><button type="button" data-k="zm" aria-label="縮小">−</button><input data-k="zoom" type="range" min="50" max="150" value="100" aria-label="縮放"><button type="button" data-k="zp" aria-label="放大">＋</button><output data-k="zout">100%</output></div></div>
-<div class="gdc-prow"><button type="button" class="primary" data-k="flip">⟲ 翻面</button><button type="button" data-k="reset">歸位</button><span class="gdc-count" data-k="idx"></span></div>
+<div class="gdc-prow"><button type="button" class="primary" data-k="flip">⟲ 翻面</button><button type="button" data-k="reset">歸位</button><span class="gdc-count" data-k="idx"></span><button type="button" class="primary" data-k="done" hidden>看全部結果</button></div>
 <div class="gdc-hint">拖曳卡片翻轉・在卡片外左右滑動換下一張・雙指／滾輪縮放</div></div>`;
     const q = (k) => v.querySelector(`[data-k="${k}"]`);
     V = { el: v, q, card: q('card'), stage: q('stage'), front: q('front'), back: q('back'), zoom: q('zoom'), zout: q('zout') };
     document.body.append(v);
     const { stage, card } = V;
     q('close').onclick = closeViewer;
+    q('done').onclick = closeViewer;
     stage.addEventListener('pointerdown', (e) => {
       askGyro();
       if (e.target.closest('.gdc-nav')) return;
@@ -380,7 +381,7 @@ ${corner(52, 52, 0, p)}${corner(w - 52, 52, 90, p)}${corner(w - 52, hh - 52, 180
     q('zm').onclick = () => setZoom(Math.round(T.zoom * 10 - 1) / 10);
     q('zp').onclick = () => setZoom(Math.round(T.zoom * 10 + 1) / 10);
     q('flip').onclick = () => { vYaw = 0; T.yaw = Math.round(T.yaw / 180) * 180 + 180; };
-    q('reset').onclick = () => { vYaw = 0; T.yaw = Math.round(T.yaw / 360) * 360; T.pitch = 0; T.hy = T.hp = 0; };
+    q('reset').onclick = () => { vYaw = 0; T.yaw = Math.round(T.yaw / 360) * 360 + REST.yaw; T.pitch = REST.pitch; T.hy = T.hp = 0; };
     q('prev').onclick = () => step(-1);
     q('next').onclick = () => step(1);
     // 陀螺儀預設開啟；iOS 要使用者手勢授權，所以第一次碰觸觀看器時才詢問；沒有陀螺儀就不顯示任何按鈕
@@ -396,7 +397,7 @@ ${corner(52, 52, 0, p)}${corner(w - 52, 52, 90, p)}${corner(w - 52, hh - 52, 180
   function step(d) {
     if (list.length < 2) return;
     idx = (idx + d + list.length) % list.length;
-    openViewer(list[idx], list);
+    openViewer(list[idx], list, view);
   }
   function onOrient(e) { if (e.beta == null || !running) return; gyroOn = true; T.hy = clamp(-(e.gamma || 0) * .6, -20, 20); T.hp = clamp(((e.beta || 0) - 45) * .5, -20, 20); }
   function listenGyro(on) {
@@ -411,10 +412,18 @@ ${corner(52, 52, 0, p)}${corner(w - 52, 52, 90, p)}${corner(w - 52, hh - 52, 180
   }
   function setZoom(z) { T.zoom = clamp(z, .5, 1.5); V.zoom.value = Math.round(T.zoom * 100); V.zout.textContent = V.zoom.value + '%'; }
   let openSeq = 0;
-  let list = [], idx = 0, swipe = null;
-  async function openViewer(c, group = [c]) {
+  let list = [], idx = 0, swipe = null, view = {};
+  /** 卡片停住的角度：往左後轉、上方往後仰（Shirley 指定的開卡角度）。 */
+  const REST = { yaw: -10, pitch: 5 };
+  /**
+   * o.reveal：抽卡模式，每張卡先蓋著（看到卡背），停一下自動翻到正面，翻到一半呼叫 o.onReveal(card, 卡片元素)（音效、粒子）；
+   * 同一組卡翻過的不再翻。o.onClose：關閉觀看器時呼叫（抽卡用來顯示全部結果）。
+   */
+  async function openViewer(c, group = [c], o = {}) {
     if (!V) buildViewer();
+    if (o !== view) { view = o; view.seen = new Set(); }
     list = group.length ? group : [c]; idx = Math.max(0, list.indexOf(c));
+    V.q('done').hidden = !view.reveal;
     V.q('prev').hidden = V.q('next').hidden = list.length < 2;
     V.q('idx').textContent = list.length > 1 ? `${idx + 1} / ${list.length}` : '';
     const seq = ++openSeq, q = V.q, rb = q('rar');
@@ -426,7 +435,12 @@ ${corner(52, 52, 0, p)}${corner(w - 52, 52, 90, p)}${corner(w - 52, hh - 52, 180
     const [cw, ch] = dims(c), land = cw > ch, orient = `${cw}x${ch}`;
     V.card.classList.toggle('land', land); V.card.style.setProperty('--ar', cw / ch);
     if (V.orient !== orient) { V.back.querySelector('svg')?.remove(); V.back.insertAdjacentHTML('afterbegin', backSVG(cw, ch)); V.orient = orient; }
-    Object.assign(S, { yaw: -180, pitch: 10, zoom: .6, hy: 0, hp: 0 }); Object.assign(T, { yaw: 0, pitch: 0, hy: 0, hp: 0 }); vYaw = 0; setZoom(1); // 從背面翻入
+    const hidden = view.reveal && !view.seen.has(c);
+    Object.assign(S, { yaw: REST.yaw - 180, pitch: REST.pitch, zoom: .6, hy: 0, hp: 0 }); Object.assign(T, { yaw: hidden ? REST.yaw - 180 : REST.yaw, pitch: REST.pitch, hy: 0, hp: 0 }); vYaw = 0; setZoom(1); // 從背面翻入
+    if (hidden) {
+      view.seen.add(c);
+      setTimeout(() => { if (seq !== openSeq) return; T.yaw = REST.yaw; setTimeout(() => seq === openSeq && view.onReveal?.(c, V.card), 260); }, 650);
+    }
     V.el.classList.add('open'); V.el.setAttribute('aria-hidden', 'false');
     addEventListener('keydown', onKey); listenGyro(true);
     if (!running) { running = true; requestAnimationFrame(tick); }
@@ -435,8 +449,10 @@ ${corner(52, 52, 0, p)}${corner(w - 52, 52, 90, p)}${corner(w - 52, hh - 52, 180
   }
   function closeViewer() {
     if (!V) return;
+    const wasOpen = V.el.classList.contains('open');
     V.el.classList.remove('open'); V.el.setAttribute('aria-hidden', 'true'); running = false;
     removeEventListener('keydown', onKey); listenGyro(false);
+    if (wasOpen) { const done = view.onClose; view = {}; done?.(); }
   }
   function faceVars(el, ly, lp) {
     const mx = clamp(50 - ly * 3.5, 0, 100), my = clamp(50 + lp * 2.8, 0, 100), o = clamp(Math.hypot(ly, lp) / 14, 0, 1);
@@ -464,7 +480,7 @@ ${corner(52, 52, 0, p)}${corner(w - 52, 52, 90, p)}${corner(w - 52, hh - 52, 180
     },
     update(data) { META = data?.meta || META; cards = data?.cards || []; render(); },
     /** 後台預覽：不需要卡冊，直接用這張卡開觀看器。 */
-    preview(card, meta, group) { ensureStyle(); if (meta) META = meta; openViewer(card, group); },
+    preview(card, meta, group, o) { ensureStyle(); if (meta) META = meta; openViewer(card, group, o); },
     open(id) { const c = cards.find((x) => x.id === id && x.owned); if (c) openViewer(c, cards.filter((x) => x.owned)); },
     close: closeViewer,
     unmount() {

@@ -416,7 +416,7 @@
   (() => {
     const el = document.getElementById('gdCards'), layer = document.getElementById('profileLayer');
     if (!el || !layer || !window.GD_API) return;
-    const V = '20261017b', MOTTO = el.textContent;
+    const V = '20261017c', MOTTO = el.textContent;
     const load = (src) => new Promise((ok, fail) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = fail; document.head.append(s); });
     let mounted = false, busy = false;
     async function show() {
@@ -448,7 +448,7 @@
   }, true);
 </script>
 <script src="gd-live.js?v=20261017c"></script>
-<script src="shop/gd-shop.js?v=20261017c"></script>
+<script src="shop/gd-shop.js?v=20261017d"></script>
 <script src="gd-prefetch.js?v=20261014a" defer></script>
 </body>
 </html>
