@@ -218,9 +218,10 @@
     const p = pools.find((x) => x.id === poolId);
     if (diamonds < (n === 1 ? p.priceSingle : p.priceTen)) { toast('D鑽不足，請先購買D鑽'); return; }
     busy = true; $$('[data-draw]', gPage).forEach((b) => b.disabled = true);
+    holdMusic(); drawHeld = true; // 抽卡期間音樂暫停，關掉結果才接著播
     try {
       const intro = showIntro();
-      const r = await call(`/me/gacha/pools/${poolId}/draw`, { method: 'POST', body: { count: n }, idempotent: true }).catch((e) => { layer.hidden = true; throw e; });
+      const r = await call(`/me/gacha/pools/${poolId}/draw`, { method: 'POST', body: { count: n }, idempotent: true }).catch((e) => { layer.hidden = true; endDrawMusic(); throw e; });
       if (r.draws.some(isRare)) $('.gds-rays', layer)?.classList.add('gold');
       await intro;
       diamonds = r.diamonds;
@@ -230,7 +231,8 @@
       loadGacha();
     } catch (e) { toast(e.code === 'ERR_INSUFFICIENT_DIAMONDS' ? 'D鑽不足，請先購買D鑽' : e.code === 'ERR_POOL_CLOSED' ? '這個獎池目前沒有開放' : e.message); } finally { busy = false; $$('[data-draw]', gPage).forEach((b) => b.disabled = false); }
   }
-  let layer = null, audio = null, audioId = null;
+  let layer = null, audio = null, audioId = null, drawHeld = false;
+  const endDrawMusic = () => { if (drawHeld) { drawHeld = false; releaseMusic(); } };
   /** 抽卡音效：shop/fx/ 裡的 draw／flip／rare，換檔案（同檔名）就能換音效；音量跟「音源 → 音效音量」。 */
   const FX = {};
   function sfx(name) {
@@ -353,12 +355,15 @@
     layer = document.createElement('div'); layer.className = 'gds-layer'; layer.hidden = true; document.body.append(layer);
     return layer;
   }
+  /** 暫停原本的音樂（可重疊：抽卡整段＋其中的單曲插播），全部結束才接著播。 */
+  let holds = 0;
+  const holdMusic = () => { if (holds++ === 0) window.GDAudio?.hold(); };
+  const releaseMusic = () => { if (holds > 0 && --holds === 0) window.GDAudio?.release(); };
   /** 插播：單曲（抽卡、試聽、家族分享）播放時原本的音樂淡出暫停，停止或播完後從原本位置接著播。 */
   function interrupt(a) {
-    const M = window.GDAudio; let on = false;
-    if (!M) return a;
-    const back = () => { if (on) { on = false; M.release(); } };
-    a.addEventListener('play', () => { if (!on) { on = true; M.hold(); } });
+    let on = false;
+    const back = () => { if (on) { on = false; releaseMusic(); } };
+    a.addEventListener('play', () => { if (!on) { on = true; holdMusic(); } });
     a.addEventListener('pause', back); a.addEventListener('ended', back);
     return a;
   }
@@ -370,7 +375,7 @@
     const cell = (d, i) => `<div class="gds-cell gds-mini${isRare(d) ? ' rare' : ''}" style="animation-delay:${i * 0.06}s"><button type="button" class="gds-art" data-i="${i}" aria-label="${esc(list[i].name)}"><span class="gds-tags">${d.pity ? '<em class="pity">保底</em>' : ''}${d.duplicate ? '' : '<em>NEW</em>'}</span></button><b>${esc(list[i].name)}</b><small>+${num(d.coins)} G幣</small><button type="button" class="gds-sh" data-share="${i}">分享</button></div>`;
     l.innerHTML = `<h3>抽獎結果</h3><div class="gds-sum">獲得 ${IC('G')} ${num(r.coins)}・剩餘 ${IC('D')} ${num(r.diamonds)}</div><div class="gds-res">${r.draws.map(cell).join('')}</div><button type="button" class="gds-close">關閉</button>`;
     l.hidden = false;
-    $('.gds-close', l).onclick = () => { stopAudio(); l.hidden = true; };
+    $('.gds-close', l).onclick = () => { stopAudio(); l.hidden = true; endDrawMusic(); };
     $$('.gds-art', l).forEach((b) => {
       const c = list[Number(b.dataset.i)];
       if (window.GDCards) window.GDCards.art(c, meta).then((el) => b.prepend(el)).catch(() => {});
