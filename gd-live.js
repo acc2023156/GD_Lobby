@@ -7,7 +7,7 @@
   const $$ = (s, root = document) => [...root.querySelectorAll(s)];
   const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
   const num = (v) => Number(v || 0).toLocaleString();
-  /** 金幣金額：後端已捨去到小數兩位，有小數才顯示兩位。 */
+  /** G幣金額：後端已捨去到小數兩位，有小數才顯示兩位。 */
   const coins = (v) => { const n = Number(v || 0); return n.toLocaleString(undefined, Number.isInteger(n) ? {} : { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
   /** 版面窄的地方（Header 餘額）：百萬以上縮寫為 M／B，無條件捨去到小數兩位；完整金額在錢包頁顯示。 */
   const compact = (v) => {
@@ -25,7 +25,7 @@
     const left = m.invite_status === 'PENDING' ? countdown(m.invite_expires_at) : '';
     if (m.invite_status === 'PENDING' && left) return '';
     const status = m.invite_status === 'PENDING' ? 'EXPIRED' : m.invite_status;
-    const refund = m.invite_bonus && status !== 'ACCEPTED' ? '，金幣已退回族長' : m.invite_bonus && status === 'ACCEPTED' ? `，已領取 ${coins(m.invite_bonus)} 金幣` : '';
+    const refund = m.invite_bonus && status !== 'ACCEPTED' ? '，G幣已退回族長' : m.invite_bonus && status === 'ACCEPTED' ? `，已領取 ${coins(m.invite_bonus)} G幣` : '';
     return `<small>${INVITE_STATUS[status] || ''}${refund}</small>`;
   };
   const GIFT_STATUS = { PENDING: '等待接受', ACCEPTED: '已完成', REJECTED: '已拒收', CANCELLED: '已撤回', EXPIRED: '已逾期' };
@@ -84,7 +84,7 @@
         loginLayer.hidden = true;
         await refresh();
         loadNotices().catch(() => {});
-        // 登入後重讀歌單（已解鎖的單曲）、商城方案（首購）與鑽石商城
+        // 登入後重讀歌單（已解鎖的單曲）、商城方案（首購）與D鑽商城
         window.GDAudio?.reload?.();
         window.GDShop?.loadProducts();
       }
@@ -167,7 +167,7 @@
   }
 
   // ---------- 設定 → 音源：共用彈窗 music/gd-audio.js（遊戲內右上喇叭也是同一個） ----------
-  // 專輯與曲名由 GDBO 提供（後台「鑽石商城 → 單曲」）：未解鎖的歌顯示 🔒，到鑽石商城抽到才能聽
+  // 專輯與曲名由 GDBO 提供（後台「D鑽商城 → 單曲」）：未解鎖的歌顯示 🔒，到D鑽商城抽到才能聽
   const musicStyle = document.createElement('style');
   musicStyle.textContent = `
     .tool-music .music-open{all:unset;cursor:pointer;flex:1;display:grid;gap:2px;min-width:0}
@@ -288,6 +288,7 @@
     $('i', bar).style.width = pct + '%';
     $('#balance').textContent = compact(me.mainAvailable);
     $('#balance').title = coins(me.mainAvailable);
+    $('#diaBalance').textContent = compact(me.diamonds || 0);
     // 會員中心
     renderNickname(shownName);
     $('.vip-badge').textContent = 'VIP' + level;
@@ -306,10 +307,9 @@
     $('.profile-list li button').onclick = () => navigator.clipboard?.writeText(me.profile.aid);
     // 錢包與商城
     $('.wallet-summary b').textContent = coins(me.mainAvailable);
-    $('.shop-balance span').textContent = 'VIP ' + level;
-    $('.shop-balance b').textContent = 'G ' + coins(me.mainAvailable);
-    const dia = $('.shop-balance [data-dia]');
-    if (dia) dia.textContent = '💎 ' + num(me.diamonds || 0);
+    $('.shop-balance>span').textContent = 'VIP ' + level;
+    $('.shop-balance [data-g]').textContent = coins(me.mainAvailable);
+    $('.shop-balance [data-dia]').textContent = num(me.diamonds || 0);
     if (!$('#walletLayer').hidden) renderWallet();
     if (!giftPrimed || !giftLayerEl.hidden) { giftPrimed = true; loadGift(); }
     syncLobby(level);
@@ -320,7 +320,7 @@
     loadReferral().catch(() => {});
     handleShareLink();
   }
-  // 商城、鑽石商城（shop/gd-shop.js）購買或抽獎後更新餘額
+  // 商城、D鑽商城（shop/gd-shop.js）購買或抽獎後更新餘額
   window.GDRefresh = refresh;
 
   // ---------- 商城：方案、訂單、付款在 shop/gd-shop.js（方案由後台設定），這裡只放付款結果的樣式 ----------
@@ -344,7 +344,7 @@
     const m = (k, text) => { const el = $(`[data-m="${k}"]`, page); if (el) el.textContent = text; };
     m('cap', e.canSend ? coins(e.dailyRemaining) : 'VIP 2 開放');
     m('partners', e.canSend ? `${e.partnersUsed} / ${e.partnerCap} 人` : 'VIP 2 開放');
-    // 有效投注只計本金投注（優惠金幣投注不計）
+    // 有效投注只計本金投注（優惠G幣投注不計）
     m('today', e.todayValidWager === undefined ? '—' : coins(e.todayValidWager));
     m('total', e.validWager === undefined ? '—' : coins(e.validWager));
     // 送禮資格只看投注、不看儲值：近 60 日有效投注達 VIP 2 即可送禮
@@ -354,7 +354,7 @@
     if (!detail) { detail = document.createElement('em'); needEl.after(detail); }
     const v = me.vipProgress;
     detail.textContent = e.canSend ? `近 60 日有效投注 ${coins(v.rollingWager)}・VIP ${me.vip.level}` : `近 60 日有效投注 ${coins(v.rollingWager)}，達 VIP 2 即可送禮`;
-    $('.gift-safe', page).textContent = '送禮資格只看有效投注、不看儲值：近 60 日有效投注達 VIP 2 即可送禮。有效投注只計本金投注，優惠金幣投注不計。';
+    $('.gift-safe', page).textContent = '送禮資格只看有效投注、不看儲值：近 60 日有效投注達 VIP 2 即可送禮。有效投注只計本金投注，優惠G幣投注不計。';
     const phone = me.profile.phoneVerified;
     m('receive', phone ? '已開通' : '需綁定手機');
     const lock = $('.gift-lock', page);
@@ -388,7 +388,7 @@
     const { gifts } = await api.call('/gifts?direction=' + direction);
     giftCenterRows.innerHTML = gifts.map((g) => {
       const other = direction === 'send' ? g.receiver_nickname || g.receiver_aid : g.sender_nickname || g.sender_aid;
-      const actions = g.kind === 'INVITE_BONUS' ? `入會金幣<br>${g.status === 'PENDING' ? '等待入會' : esc(GIFT_STATUS[g.status])}`
+      const actions = g.kind === 'INVITE_BONUS' ? `入會G幣<br>${g.status === 'PENDING' ? '等待入會' : esc(GIFT_STATUS[g.status])}`
         : g.status !== 'PENDING' ? esc(GIFT_STATUS[g.status])
         : direction === 'receive' ? `<button class="gd-act" data-gift="${esc(g.id)}" data-act="accept">接受</button><button class="gd-act gray" data-gift="${esc(g.id)}" data-act="reject">拒收</button>`
         : `${GIFT_STATUS.PENDING}<br><button class="gd-act gray" data-gift="${esc(g.id)}" data-act="cancel">撤回</button>`;
@@ -416,15 +416,15 @@
     $('[data-sum="received"]', head).textContent = `${coins(h.received.amount)}（${h.received.count} 筆）`;
     $('tbody', page).innerHTML = h.gifts.map((g) => {
       const out = g.direction === 'send';
-      return `<tr><td>${esc(g.id.slice(0, 8).toUpperCase())}<br>${time(g.created_at)}</td><td>${esc(out ? g.receiver_nickname || g.receiver_aid : g.sender_nickname || g.sender_aid)}<br>${coins(out ? g.amount : g.receive_amount)} 點</td><td>${g.kind === 'INVITE_BONUS' ? '入會金幣・' : ''}${out ? '送出' : '收到'}・${esc(GIFT_STATUS[g.status])}</td></tr>`;
+      return `<tr><td>${esc(g.id.slice(0, 8).toUpperCase())}<br>${time(g.created_at)}</td><td>${esc(out ? g.receiver_nickname || g.receiver_aid : g.sender_nickname || g.sender_aid)}<br>${coins(out ? g.amount : g.receive_amount)} 點</td><td>${g.kind === 'INVITE_BONUS' ? '入會G幣・' : ''}${out ? '送出' : '收到'}・${esc(GIFT_STATUS[g.status])}</td></tr>`;
     }).join('') || '<tr><td colspan="3">這段期間沒有紀錄</td></tr>';
-    $('.gift-info', page).textContent = '含家族入會金幣；合計只計已完成（對方已接受）的紀錄，時間以台灣時間計算。';
+    $('.gift-info', page).textContent = '含家族入會G幣；合計只計已完成（對方已接受）的紀錄，時間以台灣時間計算。';
   }
 
   async function renderGiftWallet() {
     if (!me) return;
     const page = $('[data-gift-page="wallet"]');
-    $('.gift-status b', page).textContent = 'G ' + coins(me.mainAvailable);
+    $('.gift-status b', page).innerHTML = window.GDIcon('G') + ' ' + coins(me.mainAvailable);
     const [promos, received] = await Promise.all([myPromotions().catch(() => null), api.call('/gifts?direction=receive').catch(() => null)]);
     if (promos) $('[data-m="locked"]', page).textContent = coins(promos.reduce((n, p) => n + p.balance.total, 0));
     if (received) {
@@ -666,12 +666,12 @@
     const { inviteBonus: b } = await api.call('/families/crests');
     let bonus = b.min;
     const s = openSheet(`<h3>邀請成員</h3><small>輸入對方 UID，對方會在信箱收到邀請信，3 天內未接受即過期</small><input name="aid" inputmode="numeric" placeholder="對方 UID">
-      <label class="fam-check"><input type="checkbox" name="withBonus" checked> 附贈入會金幣</label>
+      <label class="fam-check"><input type="checkbox" name="withBonus" checked> 附贈入會G幣</label>
       <div class="fam-stepper"><button type="button" data-step="-1" aria-label="減少">▼</button><b data-bonus></b><button type="button" data-step="1" aria-label="增加">▲</button></div>
-      <small>附贈金幣 ${num(b.min)}–${num(b.max)}，先從你的主錢包暫扣；對方接受即入帳（入會後 ${b.lockDays} 天內不可退出），拒絕或過期全額退回</small><button class="fam-btn" data-send>寄出邀請</button>`);
+      <small>附贈G幣 ${num(b.min)}–${num(b.max)}，先從你的主錢包暫扣；對方接受即入帳（入會後 ${b.lockDays} 天內不可退出），拒絕或過期全額退回</small><button class="fam-btn" data-send>寄出邀請</button>`);
     const on = $('[name=withBonus]', s);
     const show = () => {
-      $('[data-bonus]', s).textContent = on.checked ? num(bonus) + ' 金幣' : '不附金幣';
+      $('[data-bonus]', s).textContent = on.checked ? num(bonus) + ' G幣' : '不附G幣';
       $$('[data-step]', s).forEach((x) => (x.disabled = !on.checked || (x.dataset.step < 0 ? bonus <= b.min : bonus >= b.max)));
     };
     $$('[data-step]', s).forEach((x) => (x.onclick = () => { bonus = Math.min(b.max, Math.max(b.min, bonus + Number(x.dataset.step) * INVITE_STEP)); show(); }));
@@ -679,7 +679,7 @@
     show();
     $('[data-send]', s).onclick = () => {
       const amount = on.checked ? bonus : 0;
-      familyAction('/families/me/invites', { method: 'POST', body: { aid: $('[name=aid]', s).value.trim(), bonus: amount } }, amount ? `已寄出邀請信，暫扣 ${num(amount)} 金幣` : '已寄出邀請信');
+      familyAction('/families/me/invites', { method: 'POST', body: { aid: $('[name=aid]', s).value.trim(), bonus: amount } }, amount ? `已寄出邀請信，暫扣 ${num(amount)} G幣` : '已寄出邀請信');
     };
   }
 
@@ -951,7 +951,7 @@
     @keyframes gdPulse{0%,100%{transform:scale(1);box-shadow:0 0 0 #ffc64100}50%{transform:scale(1.04);box-shadow:0 0 14px #ffc641cc}}
     .modal-offer label{display:flex;gap:6px;align-items:center;margin-top:8px;font-size:13px;font-weight:800}
     .modal-offer .gd-short{display:block;margin-top:8px;color:#ff6e8a;font-weight:900}
-    .gd-coin{position:fixed;z-index:100;width:24px;height:24px;margin:-12px 0 0 -12px;border-radius:50%;pointer-events:none;background:radial-gradient(circle at 35% 30%,#fff7b0,#ffd23f 45%,#d48a0b);border:2px solid #fff0a0;box-shadow:0 2px 6px #0006}`;
+    .gd-coin{position:fixed;z-index:100;width:24px;height:24px;margin:-12px 0 0 -12px;pointer-events:none;background:url(icons/G_COIN.svg) center/contain no-repeat}`;
   document.head.appendChild(promoStyle);
 
   const myPromotions = async () => (await api.call('/promotions/me')).promotions.filter((p) => OPEN_PROMO.includes(p.status));
@@ -994,7 +994,7 @@
       const pick = options.map(({ o, tiers }) => ({ o, tier: tiers.find((t) => t.principal <= me.mainAvailable) })).find((x) => x.tier);
       if (pick) {
         pendingOffer = { promotionId: pick.o.id, tierIdx: pick.tier.idx };
-        offerCard.innerHTML = `${offerHead(pick.o, pick.tier)}<label><input type="checkbox" checked> 使用此優惠（主錢包扣 ${coins(pick.tier.principal)}）</label><em>下注先扣優惠金幣；開始下注後不可退回，完成流水才能領回主錢包。</em>`;
+        offerCard.innerHTML = `${offerHead(pick.o, pick.tier)}<label><input type="checkbox" checked> 使用此優惠（主錢包扣 ${coins(pick.tier.principal)}）</label><em>下注先扣優惠G幣；開始下注後不可退回，完成流水才能領回主錢包。</em>`;
         offerCard.hidden = false;
         return;
       }
@@ -1018,7 +1018,7 @@
     let list;
     try { list = await myPromotions(); } catch (err) { console.warn('promotions', err); return; }
     $$('.unlock-row', walletLayer).forEach((row) => row.remove());
-    walletNote.textContent = list.length ? '優惠金幣只能在指定遊戲使用；下注先扣優惠金幣，完成流水後可領回主錢包。' : '目前沒有進行中的優惠。進入有優惠的遊戲時可以領取。';
+    walletNote.textContent = list.length ? '優惠G幣只能在指定遊戲使用；下注先扣優惠G幣，完成流水後可領回主錢包。' : '目前沒有進行中的優惠。進入有優惠的遊戲時可以領取。';
     walletNote.insertAdjacentHTML('beforebegin', list.map((p) => `<article class="unlock-row gd-promo" data-promo="${esc(p.id)}"><div><b>${esc(GAME_NAMES[p.gameId] || p.gameId)}</b><small>${esc(p.promotion)}・${PROMO_STATUS[p.status]}</small></div><strong>${coins(p.balance.total)}</strong><div class="progress"><span></span></div><em>${progressText(p)}</em><div class="wallet-config"><span>本金 ${coins(p.balance.cash)}</span><span>優惠 ${coins(p.balance.bonus)}</span><span>派彩 ${coins(p.balance.winnings)}</span></div>${
       p.status === 'CLAIMABLE' ? `<button class="gd-claim">領取 ${coins(p.balance.total)} G幣</button>` : p.activationDeadline ? `<small>${time(p.activationDeadline)} 前未下注，將退回本金並收回優惠</small>` : ''}</article>`).join(''));
     list.forEach((p) => {
@@ -1044,8 +1044,9 @@
     } catch (err) { toast(err.message); button.disabled = false; }
   }
 
-  /** 金幣從領取按鈕飛到右上角錢包，每顆落地有音效。 */
+  /** G幣從領取按鈕飛到右上角錢包，每顆落地有音效。 */
   function coinBurst(fromEl, toEl, count = 12) {
+    window.GDWallet.show('G');
     const a = fromEl.getBoundingClientRect(), b = toEl.getBoundingClientRect();
     const start = { x: a.left + a.width / 2, y: a.top + a.height / 2 }, end = { x: b.left + b.width / 2, y: b.top + b.height / 2 };
     const flights = Array.from({ length: count }, (_, i) => {
@@ -1229,7 +1230,7 @@
       try {
         const r = await api.call(`/families/invites/${b.dataset.invite}/${b.dataset.to}`, { method: 'POST' });
         await refresh();
-        toast(b.dataset.to === 'decline' ? '已拒絕邀請' : r.bonus ? `已加入家族並獲得 ${coins(r.bonus)} 金幣（${day(r.lockedUntil)} 前不可退出）` : '已加入家族');
+        toast(b.dataset.to === 'decline' ? '已拒絕邀請' : r.bonus ? `已加入家族並獲得 ${coins(r.bonus)} G幣（${day(r.lockedUntil)} 前不可退出）` : '已加入家族');
       } catch (err) { toast(err.message); loadMail().catch(() => {}); }
     }));
     $('.tool-back', page).onclick = () => showTool('');
@@ -1293,7 +1294,7 @@
     .gd-ms-card small{color:#8d97c7;font-size:11px}
     .gd-ms-reward{text-align:center;border-left:1px solid #2b3566;padding-left:8px}
     .gd-ms-reward strong{display:block;color:#ffd166;font-size:17px;margin:2px 0 6px}
-    .gd-ms-reward .coin{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff7b0,#ffd23f 45%,#d48a0b);color:#7a4300;font-weight:1000;font-style:normal}
+    .gd-ms-reward .gd-ic{font-size:26px}
     .gd-ms-btn{width:100%;border:0;border-radius:999px;padding:7px 0;font:inherit;font-weight:900;cursor:pointer;background:#2e3a78;color:#d6dcff}
     .gd-ms-btn.claim{background:linear-gradient(180deg,#ffd166,#f2a516);color:#3a1d05;animation:gdPulse 1.4s ease-in-out infinite}
     .gd-ms-btn:disabled{opacity:.5;cursor:default;animation:none}
@@ -1316,7 +1317,7 @@
     const unit = m.metric === 'WAGER' ? coins : num;
     const button = m.state === 'CLAIMABLE' ? `<button class="gd-ms-btn claim" data-ms-claim="${esc(m.id)}">領取</button>`
       : m.state === 'CLAIMED' ? '<button class="gd-ms-btn" disabled>已領取</button>' : `<button class="gd-ms-btn" data-ms-go="${esc(m.gameName || '')}">前往</button>`;
-    return `<article class="gd-ms-card">${missionIcon(m)}<div><b>${esc(m.title)}</b><div class="gd-ms-bar"><span style="width:${pct}%"></span><em>${unit(m.progress)}/${unit(m.target)}</em></div><small>${m.period === 'DAILY' ? '每日 24:00 重置' : '每週一 00:00 重置'}${m.endsAt ? `・活動至 ${day(new Date(Date.parse(m.endsAt) - 1).toISOString())}` : ''}</small></div><div class="gd-ms-reward"><i class="coin">G</i><strong>${coins(m.reward)}</strong>${button}</div></article>`;
+    return `<article class="gd-ms-card">${missionIcon(m)}<div><b>${esc(m.title)}</b><div class="gd-ms-bar"><span style="width:${pct}%"></span><em>${unit(m.progress)}/${unit(m.target)}</em></div><small>${m.period === 'DAILY' ? '每日 24:00 重置' : '每週一 00:00 重置'}${m.endsAt ? `・活動至 ${day(new Date(Date.parse(m.endsAt) - 1).toISOString())}` : ''}</small></div><div class="gd-ms-reward"><i class="gd-ic g"></i><strong>${coins(m.reward)}</strong>${button}</div></article>`;
   };
   const missionList = (list, tab) => `${list.length ? list.map(missionCard).join('') : '<div class="gd-ms-empty">目前沒有任務</div>'}<button class="gd-ms-all" data-ms-all="${tab}" ${list.some((m) => m.state === 'CLAIMABLE') ? '' : 'disabled'}>全領取</button>`;
 
@@ -1359,7 +1360,7 @@
     }, msToMidnight);
   }
 
-  /** 領取任務、全領取、簽到共用：入帳後金幣飛到錢包並重新整理。 */
+  /** 領取任務、全領取、簽到共用：入帳後G幣飛到錢包並重新整理。 */
   async function claimMissions(button, path, body) {
     button.disabled = true;
     try {
@@ -1587,7 +1588,7 @@
     if (!f) return $('#openClan').click();
     const lone = f.myRole === 'LEADER' && f.members.length === 1;
     const locked = f.lockedUntil && f.lockedUntil > new Date().toISOString();
-    const s = openSheet(`<h3>${esc(f.name)}</h3><small>我的身分：${ROLE[f.myRole]}${locked ? `・${day(f.lockedUntil)} 前不可退出（入會金幣）` : ''}</small>
+    const s = openSheet(`<h3>${esc(f.name)}</h3><small>我的身分：${ROLE[f.myRole]}${locked ? `・${day(f.lockedUntil)} 前不可退出（入會G幣）` : ''}</small>
       <button class="fam-btn" data-open>開啟家族</button><button class="fam-btn danger" data-leave>${lone ? '解散家族' : '退出家族'}</button>`);
     $('[data-open]', s).onclick = () => { s.hidden = true; $('#openClan').click(); };
     $('[data-leave]', s).onclick = () => { if (confirm(f.myRole === 'LEADER' && !lone ? '家族長需先移交職位才能退出。仍要繼續？' : lone ? '確定解散家族？' : '確定退出家族？')) familyAction('/families/me/leave', { method: 'POST' }, lone ? '已解散家族' : '已退出家族'); };

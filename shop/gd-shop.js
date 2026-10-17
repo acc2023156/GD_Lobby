@@ -1,7 +1,7 @@
-/* GD 商城與鑽石商城（大廳）：只負責顯示，方案、獎池、機率、單曲、分享規則都由後台（GDBO）提供。
- * - GD 商城：方案改讀 GET /shop/products（登入：/me/shop/products，含首購倍數）；分 G幣、鑽石兩頁。
+/* GD 商城與D鑽商城（大廳）：只負責顯示，方案、獎池、機率、單曲、分享規則都由後台（GDBO）提供。
+ * - GD 商城：方案改讀 GET /shop/products（登入：/me/shop/products，含首購倍數）；分 G幣、D鑽兩頁。
  *   點方案 → 選付款方式時建立訂單（POST /me/shop/orders）→ 付款。金流還沒接：DEV 用「確認付款（測試）」呼叫 /dev/shop/orders/:id/pay。
- * - 鑽石商城（GD 禮物 → 原「轉點」分頁）：獎池、公開機率、保底進度、單抽／十連、結果（卡片用卡冊閃卡觀看器、單曲可試聽）、分享到家族。
+ * - D鑽商城（GD 禮物 → 原「轉點」分頁）：獎池、公開機率、保底進度、單抽／十連、結果（卡片用卡冊閃卡觀看器、單曲可試聽）、分享到家族。
  * - 家族聊天室的分享訊息：點開 → POST /me/shares/:id/open（看卡面或聽歌，符合條件領 G幣紅利）。
  * 需要 gd-api.js（window.GD_API）；gd-live.js 提供 window.GDRefresh（更新餘額）。
  */
@@ -14,6 +14,7 @@
   const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const num = (n) => Number(n || 0).toLocaleString('en-US');
   const pct = (x) => (x * 100 >= 1 ? (x * 100).toFixed(2) : (x * 100).toFixed(3)) + '%';
+  const IC = window.GDIcon;
   const logged = () => !!(API && API.isLoggedIn());
   const call = (path, opts) => API.call(path, opts);
   const refreshWallet = () => { try { window.GDRefresh && window.GDRefresh(); } catch (e) { /* ignore */ } };
@@ -32,11 +33,16 @@
   async function showCard(card) { try { const meta = await cardViewer(); window.GDCards.preview(card, meta); } catch (e) { toast('卡片載入失敗'); } }
 
   const css = `
-.shop-balance>b:first-of-type{margin-left:auto}.shop-balance [data-dia]{color:#7ad8ff;margin-left:14px}
+.shop-balance>b:first-of-type{margin-left:auto}.shop-balance>b+b{color:#7ad8ff;margin-left:14px}
 .gds-tabs{display:flex;gap:6px;margin:0 0 10px}.gds-tabs button{flex:1;border:1px solid #4e578c;background:#111838;color:#aeb8e8;border-radius:999px;padding:8px;font:inherit;font-weight:900;cursor:pointer}
 .gds-tabs button.on{background:linear-gradient(100deg,#783dff,#ff3d9e);color:#fff;border-color:#ff6ec7}
 .credit-option .gds-badge{position:absolute;top:8px;right:8px;font-size:11px;font-weight:900;color:#4a2b00;background:linear-gradient(#ffe9a0,#ffb63c);border-radius:6px;padding:2px 6px}
-.credit-option{position:relative}.credit-option .gds-old{font-size:12px;color:#aeb8e8;text-decoration:line-through;margin-left:6px}
+.credit-option{position:relative}.gds-tabs .gd-ic{margin-right:4px}
+.credit-grid.tiers{grid-template-columns:repeat(3,1fr)}
+.credit-option.gds-tier{aspect-ratio:744/1039;padding:0;border:0;border-radius:12px;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;text-align:center;background:var(--back) center/cover no-repeat;box-shadow:0 4px 12px #0007}
+.gds-tier .gds-tier-info{display:grid;gap:1px;padding:16% 4px 8%;background:linear-gradient(#0000,#000a 30%,#000d)}
+.gds-tier .gds-tier-info b{font-size:clamp(14px,3.9vw,22px);white-space:nowrap;line-height:1.15}.gds-tier .gds-old{display:block;margin:0;font-size:11px}
+.gds-tier .gds-tier-info span{font-size:clamp(12px,3.3vw,16px);font-weight:900;color:#fff}.gds-tier small{color:#fffc;font-size:11px;letter-spacing:1px}.credit-option .gds-old{font-size:12px;color:#aeb8e8;text-decoration:line-through;margin-left:6px}
 .gds-toast{position:fixed;left:50%;bottom:90px;transform:translate(-50%,20px);background:#000d;color:#fff;border:1px solid #fff3;padding:9px 16px;border-radius:99px;font-size:14px;opacity:0;transition:.25s;pointer-events:none;z-index:2147482500;max-width:86vw;text-align:center}
 .gds-toast.show{opacity:1;transform:translate(-50%,0)}
 .gds-pool{border:1px solid #ff70c8;border-radius:16px;padding:14px;background:linear-gradient(135deg,#2a1450,#14183a);color:#f8faff;margin-bottom:12px}
@@ -51,7 +57,13 @@
 .gds-layer{position:fixed;inset:0;z-index:2147481000;background:#050817e6;display:flex;flex-direction:column;align-items:center;justify-content:safe center;padding:calc(16px + env(safe-area-inset-top,0px)) 16px calc(16px + env(safe-area-inset-bottom,0px));overflow:auto;color:#f8faff;font-family:inherit}
 .gds-layer[hidden]{display:none}.gds-layer h3{margin:0 0 4px}.gds-layer .gds-sum{color:#ffd166;font-weight:900;margin-bottom:10px}
 .gds-res{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;width:min(100%,720px)}
-.gds-item{border:1px solid #4e578c;border-radius:14px;background:#111838;padding:10px;display:flex;flex-direction:column;gap:6px;animation:gds-in .4s both}
+.gds-item{border:1px solid #4e578c;border-radius:14px;background:#111838;padding:10px;display:flex;flex-direction:column;gap:6px}
+.gds-flip{display:grid;perspective:900px;cursor:pointer;animation:gds-in .4s both}.gds-flip>*{grid-area:1/1;backface-visibility:hidden;-webkit-backface-visibility:hidden;transition:transform .5s ease}
+.gds-flip .gds-item{transform:rotateY(180deg)}.gds-flip.open{cursor:default}.gds-flip.open .gds-item{transform:none}.gds-flip.open .gds-back{transform:rotateY(-180deg);pointer-events:none}
+.gds-back{aspect-ratio:744/1039;border-radius:14px;background:url(shop/card-backs/card_back_vermilion.svg) center/100% 100% no-repeat;box-shadow:0 4px 12px #0007}
+.gds-back.rare{animation:gds-glow 1.1s ease-in-out infinite alternate}@keyframes gds-glow{from{box-shadow:0 0 6px #ffd16655}to{box-shadow:0 0 22px #ffd166}}
+.gds-hint{color:#c9cdee;font-size:13px;margin:0 0 10px;display:flex;gap:10px;align-items:center}.gds-hint button{border:0;border-radius:999px;padding:6px 14px;font:inherit;font-weight:900;cursor:pointer;color:#fff;background:linear-gradient(100deg,#783dff,#ff3d9e)}
+@media (prefers-reduced-motion:reduce){.gds-flip,.gds-flip>*{animation:none;transition:none}}
 .gds-item.rare{border-color:#ffd166;box-shadow:0 0 18px #ffd16655}
 @keyframes gds-in{from{opacity:0;transform:translateY(10px) scale(.96)}to{opacity:1;transform:none}}
 .gds-item .t{font-weight:900;font-size:14px;line-height:1.3}.gds-item small{color:#aeb8e8;font-size:12px}
@@ -64,22 +76,34 @@
   const style = document.createElement('style'); style.textContent = css; document.head.append(style);
 
   // ---------- GD 商城 ----------
-  let products = [], kind = 'GCOIN', selected = null, order = null;
+  let products = [], kind = 'DIAMOND', selected = null, order = null;
+  /** D鑽方案依價格由低到高套用 6 種卡背；超過 6 檔的都用最高一檔。 */
+  const TIERS = [['purple', '紫卡'], ['platinum', '鉑金卡'], ['gold', '金卡'], ['silver', '銀卡'], ['black', '黑卡'], ['vermilion', '朱紅卡']];
   const grid = $('#creditGrid');
   const plansPage = $('[data-shop-page="plans"]');
   const tabs = document.createElement('div'); tabs.className = 'gds-tabs';
-  tabs.innerHTML = '<button type="button" data-kind="GCOIN">G幣</button><button type="button" data-kind="DIAMOND">💎 鑽石</button>';
+  tabs.innerHTML = `<button type="button" data-kind="DIAMOND">${IC('D')}D鑽</button><button type="button" data-kind="GCOIN">${IC('G')}G幣</button>`;
   if (plansPage && grid) {
     plansPage.insertBefore(tabs, plansPage.firstChild);
     const title = $('.shop-section-title', plansPage); if (title) title.remove();
   }
   tabs.addEventListener('click', (e) => { const b = e.target.closest('[data-kind]'); if (b) { kind = b.dataset.kind; renderProducts(); } });
-  const unit = (k) => (k === 'DIAMOND' ? '鑽石' : 'G幣 (G Coin)');
+  const unit = (k) => (k === 'DIAMOND' ? 'D鑽' : 'G幣');
   function renderProducts() {
     $$('button', tabs).forEach((b) => b.classList.toggle('on', b.dataset.kind === kind));
     if (!grid) return;
     const list = products.filter((p) => p.kind === kind);
-    grid.innerHTML = list.length ? list.map((p) => `<button class="credit-option" data-product="${p.id}"${p.soldOut ? ' disabled' : ''}>${p.badge && p.firstAvailable !== false ? `<em class="gds-badge">${esc(p.badge)}</em>` : ''}<small>${esc(p.name)}</small><b>${num(p.credit)}${p.credit !== p.amount + p.bonus ? `<span class="gds-old">${num(p.amount + p.bonus)}</span>` : ''}</b><span>NT$ ${num(p.priceNtd)}${p.soldOut ? '・已達限購' : ''}</span></button>`).join('')
+    const tiered = kind === 'DIAMOND';
+    if (tiered) list.sort((a, b) => a.priceNtd - b.priceNtd);
+    grid.classList.toggle('tiers', tiered);
+    grid.innerHTML = list.length ? list.map((p, i) => {
+      const badge = p.badge && p.firstAvailable !== false ? `<em class="gds-badge">${esc(p.badge)}</em>` : '';
+      const amount = `${IC(tiered ? 'D' : 'G')}${num(p.credit)}${p.credit !== p.amount + p.bonus ? `<span class="gds-old">${num(p.amount + p.bonus)}</span>` : ''}`;
+      const price = `NT$ ${num(p.priceNtd)}${p.soldOut ? '・已達限購' : ''}`;
+      if (!tiered) return `<button class="credit-option" data-product="${p.id}"${p.soldOut ? ' disabled' : ''}>${badge}<small>${esc(p.name)}</small><b>${amount}</b><span>${price}</span></button>`;
+      const [back, tier] = TIERS[Math.min(i, TIERS.length - 1)];
+      return `<button class="credit-option gds-tier" data-product="${p.id}" style="--back:url(shop/card-backs/card_back_${back}.svg)"${p.soldOut ? ' disabled' : ''}>${badge}<span class="gds-tier-info"><small>${tier}</small><b>${amount}</b><span>${price}</span></span></button>`;
+    }).join('')
       : '<p class="shop-note">目前沒有上架的方案</p>';
     $$('[data-product]', grid).forEach((b) => b.onclick = () => {
       selected = products.find((p) => String(p.id) === b.dataset.product); order = null;
@@ -97,8 +121,7 @@
     } catch (e) { /* 留著原本畫面 */ }
   }
   const openShopBtn = $('#openShop');
-  if (openShopBtn) openShopBtn.addEventListener('click', () => { kind = 'GCOIN'; loadProducts(); });
-  const note = $('[data-shop-page="plans"] .shop-note');
+  if (openShopBtn) openShopBtn.addEventListener('click', () => { kind = 'DIAMOND'; loadProducts(); });
   const payButton = $('.payment-demo');
   if (payButton) payButton.textContent = '確認付款（測試）';
   const payNote = $('.pay-detail .shop-note');
@@ -131,7 +154,7 @@
       payButton.textContent = '已完成付款';
       refreshWallet();
       $('.pay-result')?.remove();
-      $('.pay-detail').insertAdjacentHTML('beforeend', `<div class="pay-result"><b>購買成功 +${num(r.credit)} ${r.kind === 'DIAMOND' ? '鑽石' : 'G幣'}</b><small>${r.firstPurchase ? '首購加倍已套用' : ''}</small><div><button type="button" data-pay-again>再買一筆</button>${r.kind === 'DIAMOND' ? '<button type="button" class="ghost" data-go-gacha>前往鑽石商城</button>' : ''}</div></div>`);
+      $('.pay-detail').insertAdjacentHTML('beforeend', `<div class="pay-result"><b>購買成功 +${num(r.credit)} ${r.kind === 'DIAMOND' ? 'D鑽' : 'G幣'}</b><small>${r.firstPurchase ? '首購加倍已套用' : ''}</small><div><button type="button" data-pay-again>再買一筆</button>${r.kind === 'DIAMOND' ? '<button type="button" class="ghost" data-go-gacha>前往D鑽商城</button>' : ''}</div></div>`);
       $('[data-pay-again]').onclick = () => { $('.pay-result')?.remove(); loadProducts(); window.showShop && window.showShop('plans'); };
       const go = $('[data-go-gacha]'); if (go) go.onclick = () => { $('#shopLayer').hidden = true; openGacha(); };
       order = null;
@@ -140,12 +163,11 @@
       payButton.disabled = false; payButton.textContent = '確認付款（測試）';
     }
   };
-  if (note) note.textContent = '方案由後台設定。測試期間：選方案 → 選付款方式 → 確認付款即完成（暫代金流，不會實際扣款）。';
 
-  // ---------- 鑽石商城 ----------
+  // ---------- D鑽商城 ----------
   const gTab = $('[data-gift-main="transfer"]');
   const gPage = $('[data-gift-page="transfer"]');
-  if (gTab) gTab.textContent = '鑽石商城';
+  if (gTab) gTab.textContent = 'D鑽商城';
   let pools = [], diamonds = 0, busy = false;
   async function loadGacha() {
     if (!gPage) return;
@@ -157,15 +179,15 @@
   }
   function renderGacha() {
     if (!gPage) return;
-    gPage.innerHTML = `<div class="gds-dia"><span>我的鑽石 <b>💎 ${num(diamonds)}</b></span><button type="button" data-buy-dia>購買鑽石</button></div>` +
+    gPage.innerHTML = `<div class="gds-dia"><span>我的D鑽 <b>${IC('D')} ${num(diamonds)}</b></span><button type="button" data-buy-dia>購買D鑽</button></div>` +
       (pools.length ? pools.map((p) => {
         const left = p.pityCount ? Math.max(0, p.pityCount - p.pitySince) : 0;
         return `<div class="gds-pool"><h3>${esc(p.name)}</h3>
           <p>每抽必得卡片或魔曲單曲，另送 ${num(p.priceSingle * p.coinPerDiamond)} G幣${p.dupSongCoins ? `；重複單曲改送 ${num(p.dupSongCoins)} G幣` : ''}</p>
           ${p.pityCount ? `<p>保底：${p.pityCount} 抽內必出 ${esc(p.pityRarity)} 以上卡片（還差 ${left} 抽）</p><div class="gds-pity"><i style="width:${Math.min(100, (p.pitySince / p.pityCount) * 100)}%"></i></div>` : ''}
-          <div class="gds-draw"><button type="button" data-draw="${p.id}" data-n="1">單抽<small>💎 ${num(p.priceSingle)}</small></button><button type="button" data-draw="${p.id}" data-n="10">十連<small>💎 ${num(p.priceTen)}</small></button></div>
+          <div class="gds-draw"><button type="button" data-draw="${p.id}" data-n="1">單抽<small>${IC('D')} ${num(p.priceSingle)}</small></button><button type="button" data-draw="${p.id}" data-n="10">十連<small>${IC('D')} ${num(p.priceTen)}</small></button></div>
           <button type="button" class="gds-link" data-odds="${p.id}">查看機率</button><div class="gds-odds-box" data-odds-box="${p.id}" hidden></div></div>`;
-      }).join('') : '<div class="gift-blank"><div><strong>鑽石商城</strong><p>獎池準備中，敬請期待。</p></div></div>') +
+      }).join('') : '<div class="gift-blank"><div><strong>D鑽商城</strong><p>獎池準備中，敬請期待。</p></div></div>') +
       '<button type="button" class="gds-link" data-history>我的抽獎紀錄</button><div data-history-box hidden></div>';
     $('[data-buy-dia]', gPage).onclick = () => { $('#giftLayer').hidden = true; $('#openShop')?.click(); kind = 'DIAMOND'; renderProducts(); };
     $$('[data-draw]', gPage).forEach((b) => b.onclick = () => doDraw(Number(b.dataset.draw), Number(b.dataset.n)));
@@ -178,7 +200,7 @@
       const box = $('[data-history-box]', gPage); box.hidden = !box.hidden;
       if (box.hidden || !logged()) return;
       const { draws } = await call('/me/gacha/history');
-      box.innerHTML = draws.length ? `<table class="gds-odds">${draws.map((d) => `<tr><td>${new Date(d.at).toLocaleString('zh-TW', { hour12: false })}<br>${esc(d.item)}${d.duplicate ? '（重複）' : ''}</td><td>+${num(d.coins)} G</td></tr>`).join('')}</table>` : '<p class="shop-note">還沒有抽獎紀錄</p>';
+      box.innerHTML = draws.length ? `<table class="gds-odds">${draws.map((d) => `<tr><td>${new Date(d.at).toLocaleString('zh-TW', { hour12: false })}<br>${esc(d.item)}${d.duplicate ? '（重複）' : ''}</td><td>+${IC('G')} ${num(d.coins)}</td></tr>`).join('')}</table>` : '<p class="shop-note">還沒有抽獎紀錄</p>';
     };
   }
   const RARE = ['UR', 'LR', 'GDR'];
@@ -186,7 +208,7 @@
     if (!logged()) return toast('請先登入');
     if (busy) return;
     const p = pools.find((x) => x.id === poolId);
-    if (diamonds < (n === 1 ? p.priceSingle : p.priceTen)) { toast('鑽石不足，請先購買鑽石'); return; }
+    if (diamonds < (n === 1 ? p.priceSingle : p.priceTen)) { toast('D鑽不足，請先購買D鑽'); return; }
     busy = true; $$('[data-draw]', gPage).forEach((b) => b.disabled = true);
     try {
       const r = await call(`/me/gacha/pools/${poolId}/draw`, { method: 'POST', body: { count: n }, idempotent: true });
@@ -195,7 +217,7 @@
       refreshWallet();
       try { window.GDAudio && window.GDAudio.reload && window.GDAudio.reload(); } catch (e) { /* ignore */ }
       loadGacha();
-    } catch (e) { toast(e.code === 'ERR_INSUFFICIENT_DIAMONDS' ? '鑽石不足，請先購買鑽石' : e.code === 'ERR_POOL_CLOSED' ? '這個獎池目前沒有開放' : e.message); } finally { busy = false; $$('[data-draw]', gPage).forEach((b) => b.disabled = false); }
+    } catch (e) { toast(e.code === 'ERR_INSUFFICIENT_DIAMONDS' ? 'D鑽不足，請先購買D鑽' : e.code === 'ERR_POOL_CLOSED' ? '這個獎池目前沒有開放' : e.message); } finally { busy = false; $$('[data-draw]', gPage).forEach((b) => b.disabled = false); }
   }
   let layer = null, audio = null, audioId = null;
   function ensureLayer() {
@@ -206,9 +228,16 @@
   function stopAudio() { if (audio) { audio.pause(); audio = null; } }
   function showResults(r) {
     const l = ensureLayer();
-    l.innerHTML = `<h3>抽獎結果</h3><div class="gds-sum">獲得 ${num(r.coins)} G幣・剩餘 💎 ${num(r.diamonds)}</div><div class="gds-res">${r.draws.map((d, i) => d.kind === 'CARD'
-      ? `<div class="gds-item${RARE.includes(d.card.rarity) ? ' rare' : ''}" style="animation-delay:${i * 0.08}s"><div>${d.pity ? '<span class="tag pity">保底</span>' : ''}${d.duplicate ? '' : '<span class="tag new">NEW</span>'}<span class="tag">${esc(d.card.rarity)}</span></div><div class="t">${esc(d.card.code)} ${esc(d.card.name)}</div><small>戰鬥力 ${num(d.card.power)}${d.duplicate ? '・重複' : ''}</small><small>+${num(d.coins)} G幣</small><div class="row"><button type="button" data-view="${i}">看卡面</button><button type="button" data-share="${i}">分享到家族</button></div></div>`
-      : `<div class="gds-item" style="animation-delay:${i * 0.08}s"><div>${d.duplicate ? '' : '<span class="tag new">NEW</span>'}<span class="tag">單曲</span></div><div class="t">🎵 ${esc(d.song.title)}</div><small>${esc(d.song.album)}${d.duplicate ? '・重複' : '・已解鎖'}</small><small>+${num(d.coins)} G幣</small><div class="row"><button type="button" data-play="${i}">試聽</button><button type="button" data-share="${i}">分享到家族</button></div></div>`).join('')}</div><button type="button" class="gds-close">關閉</button>`;
+    const item = (d, i) => d.kind === 'CARD'
+      ? `<div class="gds-item${RARE.includes(d.card.rarity) ? ' rare' : ''}"><div>${d.pity ? '<span class="tag pity">保底</span>' : ''}${d.duplicate ? '' : '<span class="tag new">NEW</span>'}<span class="tag">${esc(d.card.rarity)}</span></div><div class="t">${esc(d.card.code)} ${esc(d.card.name)}</div><small>戰鬥力 ${num(d.card.power)}${d.duplicate ? '・重複' : ''}</small><small>+${num(d.coins)} G幣</small><div class="row"><button type="button" data-view="${i}">看卡面</button><button type="button" data-share="${i}">分享到家族</button></div></div>`
+      : `<div class="gds-item"><div>${d.duplicate ? '' : '<span class="tag new">NEW</span>'}<span class="tag">單曲</span></div><div class="t">🎵 ${esc(d.song.title)}</div><small>${esc(d.song.album)}${d.duplicate ? '・重複' : '・已解鎖'}</small><small>+${num(d.coins)} G幣</small><div class="row"><button type="button" data-play="${i}">試聽</button><button type="button" data-share="${i}">分享到家族</button></div></div>`;
+    // 抽到的卡先蓋著（卡背），點一張翻一張，或「全部翻開」；稀有卡的卡背會發光
+    const rare = (d) => d.pity || (d.kind === 'CARD' && RARE.includes(d.card.rarity));
+    l.innerHTML = `<h3>抽獎結果</h3><div class="gds-sum">獲得 ${IC('G')} ${num(r.coins)}・剩餘 ${IC('D')} ${num(r.diamonds)}</div><p class="gds-hint"><span>點卡片翻開</span><button type="button" data-open-all>全部翻開</button></p><div class="gds-res">${r.draws.map((d, i) => `<div class="gds-flip" style="animation-delay:${i * 0.08}s">${item(d, i)}<div class="gds-back${rare(d) ? ' rare' : ''}"></div></div>`).join('')}</div><button type="button" class="gds-close">關閉</button>`;
+    const flips = $$('.gds-flip', l);
+    const opened = () => { if (flips.every((f) => f.classList.contains('open'))) $('.gds-hint', l).hidden = true; };
+    flips.forEach((f) => { $('.gds-back', f).onclick = () => { f.classList.add('open'); opened(); }; });
+    $('[data-open-all]', l).onclick = () => { flips.forEach((f, i) => setTimeout(() => { f.classList.add('open'); opened(); }, i * 90)); };
     l.hidden = false;
     $('.gds-close', l).onclick = () => { stopAudio(); l.hidden = true; };
     $$('[data-view]', l).forEach((b) => b.onclick = () => showCard(r.draws[Number(b.dataset.view)].card));
