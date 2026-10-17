@@ -3,7 +3,7 @@
    - 音效：遊戲內音效音量 靜音／25%／50%／75%／100%（遊戲的 sound.js 讀 GDAudio.sfx）
    - 設定存在 localStorage 的 gd-music（大廳與遊戲在同一個網址：gdclub.cc，或舊的 acc2023156.github.io，同一份設定）
    使用方式：頁面載入這支檔案；右上喇叭按鈕加 data-gd-audio（舊遊戲的 #soundBtn、#sound 也會自動接上）。
-   歌單與曲名：GDBO 的 /songs（登入 /me/songs），後台「D鑽商城 → 單曲」管理；未解鎖的歌沒有音檔網址，顯示 🔒。 */
+   歌單與曲名：GDBO 的 /songs（登入 /me/songs），後台「D鑽商城 → 單曲」管理；未解鎖的歌是試聽（只播前 30 秒就換下一首），沒有試聽網址的顯示 🔒。 */
 (function () {
   'use strict';
   if (window.GDAudio) return;
@@ -28,6 +28,8 @@
   let album = null;
   let tracks = [];
   let current = 0;
+  /** 試聽中的歌（未解鎖）曲名後加「（試聽）」 */
+  const titleOf = (t) => (t.preview ? `${t.title}（試聽）` : t.title);
   const findAlbum = (id) => albums.find((a) => a.id === id) || albums[0] || null;
   function useAlbum(id) {
     album = findAlbum(id);
@@ -71,6 +73,7 @@
     prefs.pos = from || 0;
     save();
     player.src = tracks[current].src;
+    if (tracks[current].preview && from >= tracks[current].preview) from = 0;
     if (from) player.addEventListener('loadedmetadata', () => { player.currentTime = Math.min(from, Math.max(0, player.duration - 1)); }, { once: true });
     upcoming = pickNext();
     preloaded = false;
@@ -86,6 +89,9 @@
   const nextTrack = () => playTrack(upcoming);
   player.addEventListener('ended', nextTrack);
   player.addEventListener('timeupdate', () => {
+    // 試聽：播滿秒數就換下一首
+    const t = tracks[current];
+    if (t && t.preview && player.src === t.src && player.currentTime >= t.preview) { nextTrack(); return; }
     if (!preloaded && tracks[upcoming] && player.duration - player.currentTime < 30) {
       preloaded = true;
       preloader.src = tracks[upcoming].src;
@@ -181,10 +187,10 @@
           id: String(a.id),
           title: a.title || '歌單',
           cover: a.cover ? new URL(a.cover, LOBBY).href : '',
-          all: (a.tracks || []).map((t) => ({ id: t.id, title: t.title, src: t.unlocked ? t.src : null, cover: t.cover ? new URL(t.cover, LOBBY).href : '' })),
+          all: (a.tracks || []).map((t) => ({ id: t.id, title: t.title, src: t.unlocked ? t.src : t.preview || null, preview: t.unlocked || !t.preview ? 0 : t.previewSec || 30, cover: t.cover ? new URL(t.cover, LOBBY).href : '' })),
         })).filter((a) => a.all.length);
         albums.forEach((a) => { a.tracks = a.all.filter((t) => t.src); });
-        locked = albums.reduce((n, a) => n + a.all.length - a.tracks.length, 0);
+        locked = albums.reduce((n, a) => n + a.all.filter((t) => !t.src || t.preview).length, 0);
         albums = albums.filter((a) => a.tracks.length || a.all.length);
         useAlbum(prefs.album);
         current = Math.min(Number(prefs.track) || 0, Math.max(0, tracks.length - 1));
@@ -237,6 +243,7 @@
     .gda-list button{display:flex;gap:10px;align-items:center;text-align:left;border:1px solid #35406d;border-radius:12px;padding:9px 12px;background:#121a40;color:#f8faff;font:inherit;font-size:14px;cursor:pointer}
     .gda-list button.on{border-color:#ffd166;box-shadow:0 0 8px #ffd16666}
     .gda-list button.locked{opacity:.5;cursor:default}
+    .gda-try{margin-left:auto;font-style:normal;font-size:11px;font-weight:900;color:#4a2b00;background:#ffd166;border-radius:6px;padding:1px 6px;flex:none}
     .gda-go{margin-left:6px;border:0;border-radius:99px;background:linear-gradient(100deg,#783dff,#ff3d9e);color:#fff;font:inherit;font-size:11px;font-weight:800;padding:3px 10px;cursor:pointer}
     .gda-list i{font-style:normal;color:#8993bd;width:22px;text-align:right;flex:none}
     .gda-empty{color:#8993bd;text-align:center;padding:16px 8px}
@@ -290,17 +297,17 @@
     const cd = cdOn;
     const cap = layer.querySelector('.gda-cap');
     cap.hidden = !(cd && t);
-    if (cd && t) cap.innerHTML = `<small>${playing ? '正在播放' : '目前選擇'}・${esc(album.title)}</small><b>${esc(t.title)}</b>`;
+    if (cd && t) cap.innerHTML = `<small>${playing ? '正在播放' : '目前選擇'}・${esc(album.title)}</small><b>${esc(titleOf(t))}</b>`;
     const showAlbums = albums.length > (cd ? 1 : 0);
     $body().innerHTML = `
       ${showAlbums ? `<div class="gda-sec"><b>專輯</b><div class="gda-albums">${albums.map((a) => `<button type="button" class="gda-album ${album && a.id === album.id ? 'on' : ''}" data-album="${esc(a.id)}">${a.cover && !cd ? `<img src="${esc(a.cover)}" alt="">` : ''}<span>${esc(a.title)}</span></button>`).join('')}</div></div>` : ''}
-      ${t ? `<div class="gda-now">${cd ? '' : `<div class="gda-now-head">${cover ? `<img src="${esc(cover)}" alt="">` : ''}<div><small>${playing ? '正在播放' : '目前選擇'}・${esc(album.title)}</small><b>${esc(t.title)}</b></div></div>`}
+      ${t ? `<div class="gda-now">${cd ? '' : `<div class="gda-now-head">${cover ? `<img src="${esc(cover)}" alt="">` : ''}<div><small>${playing ? '正在播放' : '目前選擇'}・${esc(album.title)}</small><b>${esc(titleOf(t))}</b></div></div>`}
         <div class="gda-ctrl"><button type="button" data-act="prev">⏮ 上一首</button><button type="button" data-act="next">⏭ 下一首</button><button type="button" data-act="play">${playing ? '⏸ 暫停' : '▶ 播放'}</button><button type="button" data-act="shuffle" class="${prefs.shuffle ? 'on' : ''}">🔀 隨機：${prefs.shuffle ? '開' : '關'}</button></div>
         <label class="gda-carry">進入遊戲後繼續播放<button type="button" class="gda-switch ${prefs.carry === false ? '' : 'on'}" data-act="carry" aria-label="進入遊戲後繼續播放"></button></label></div>` : (album && album.all.length ? '<div class="gda-empty">還沒有解鎖的歌曲，到D鑽商城抽單曲吧！</div>' : '<div class="gda-empty">歌曲即將上架，敬請期待。</div>')}
       <div class="gda-sec"><b>🎵 音樂音量</b>${seg('music', prefs.music)}</div>
       <div class="gda-sec"><b>🔊 音效音量（遊戲內）</b>${seg('sfx', prefs.sfx)}</div>
       ${isIOS ? '<p class="gda-note">iPhone／iPad 的音樂只能用靜音或手機音量鍵調整大小聲；音效音量可在這裡調整。</p>' : ''}
-      ${album && album.all.length ? `<div class="gda-sec"><b>歌單${locked ? `（已解鎖 ${tracks.length}／${album.all.length}）` : ''}</b><div class="gda-list">${album.all.map((x, n) => { const i = tracks.indexOf(x); return i < 0 ? `<button type="button" class="locked" data-locked="1"><i>🔒</i><span>${esc(x.title)}</span></button>` : `<button type="button" data-track="${i}" class="${i === current ? 'on' : ''}"><i>${i === current && playing ? '♪' : n + 1}</i><span>${esc(x.title)}</span></button>`; }).join('')}</div>${locked ? `<p class="gda-note">🔒 的歌曲可在「GD 禮物 → D鑽商城」抽到後解鎖收聽。${IN_LOBBY ? '<button type="button" class="gda-go" data-act="shop">前往D鑽商城</button>' : ''}</p>` : ''}</div>` : ''}`;
+      ${album && album.all.length ? `<div class="gda-sec"><b>歌單${locked ? `（已解鎖 ${album.all.filter((x) => x.src && !x.preview).length}／${album.all.length}）` : ''}</b><div class="gda-list">${album.all.map((x, n) => { const i = tracks.indexOf(x); return i < 0 ? `<button type="button" class="locked" data-locked="1"><i>🔒</i><span>${esc(x.title)}</span></button>` : `<button type="button" data-track="${i}" class="${i === current ? 'on' : ''}"><i>${i === current && playing ? '♪' : n + 1}</i><span>${esc(x.title)}</span>${x.preview ? '<em class="gda-try">試聽</em>' : ''}</button>`; }).join('')}</div>${locked ? `<p class="gda-note">「試聽」的歌曲只播 30 秒，在「GD 禮物 → D鑽商城」抽到後就能完整收聽。${IN_LOBBY ? '<button type="button" class="gda-go" data-act="shop">前往D鑽商城</button>' : ''}</p>` : ''}</div>` : ''}`;
   }
   const $body = () => layer.querySelector('.gda-body');
 
@@ -366,13 +373,13 @@
     status() {
       if (!tracks.length) return '歌曲即將上架';
       if (!prefs.music) return '音樂已靜音';
-      return `${player.paused ? '暫停' : '播放中'}：${tracks[current].title}`;
+      return `${player.paused ? '暫停' : '播放中'}：${titleOf(tracks[current])}`;
     },
     /** 登入、登出或抽到新歌後重新讀取歌單 */
     reload: loadSongs,
     state: () => ({ music: prefs.music, sfx: prefs.sfx, playing: !player.paused, album: album && album.id, track: current }),
     /** 大廳設定列顯示用：目前專輯封面、專輯名、曲名、是否播放中 */
-    now: () => ({ cover: (tracks[current] && tracks[current].cover) || (album && album.cover) || '', album: album ? album.title : '', title: tracks[current] ? tracks[current].title : '', playing: !player.paused, muted: !prefs.music }),
+    now: () => ({ cover: (tracks[current] && tracks[current].cover) || (album && album.cover) || '', album: album ? album.title : '', title: tracks[current] ? titleOf(tracks[current]) : '', playing: !player.paused, muted: !prefs.music }),
   };
   window.GDAudio = api;
   window.GDMusic = { fadeOut: api.fadeOut };
