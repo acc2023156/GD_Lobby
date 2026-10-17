@@ -8,9 +8,9 @@
   </defs>
   <g filter="url(#shadow)">
     <path d="M112 116 400 116 462 205 256 462 50 205z" fill="url(#face)" stroke="url(#rim)" stroke-width="17" stroke-linejoin="round"/>
-    <path d="M50 205h412M112 116l74 89 70-89 70 89 74-89M50 205l136 0 70 257 70-257h136M186 205l70 257M326 205l-70 257" fill="none" stroke="#eaffff" stroke-opacity=".62" stroke-width="7" stroke-linejoin="round"/>
+    <path d="M50 205h412M112 116l74 89 70-89 70 89 74-89M50 205l136 0 70 257 70-257h136M186 205l70 257M326 205l-70 257" fill="none" stroke="#eaffff" stroke-opacity=".4" stroke-width="7" stroke-linejoin="round"/>
     <path d="M112 116h288l-74 89H186z" fill="#ffffff" opacity=".2"/>
-    <path d="M168 164h91c78 0 122 39 122 100 0 65-47 105-124 105h-89zm64 50v105h27c34 0 55-18 55-54 0-34-21-51-56-51z" fill="url(#letter)" stroke="#112a85" stroke-width="8" paint-order="stroke"/>
+    <path d="M168 164h91c78 0 122 39 122 100 0 65-47 105-124 105h-89zm64 50v105h27c34 0 55-18 55-54 0-34-21-51-56-51z" fill="#0b2378" stroke="#ffffff" stroke-width="16" stroke-linejoin="round" paint-order="stroke"/>
   </g>
   <path d="M130 378c75 43 177 44 252 0" fill="none" stroke="#fff" stroke-opacity=".35" stroke-width="5" stroke-linecap="round"/>
 </svg>

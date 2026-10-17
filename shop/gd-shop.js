@@ -26,11 +26,11 @@
   const loadScript = (src) => new Promise((ok, no) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = no; document.head.append(s); });
   let cardMeta = null;
   async function cardViewer() {
-    if (!window.GDCards) await loadScript('cards/gd-cards.js?v=20261017a');
+    if (!window.GDCards) await loadScript('cards/gd-cards.js?v=20261017b');
     if (!cardMeta) cardMeta = (await call('/cards')).meta;
     return cardMeta;
   }
-  async function showCard(card) { try { const meta = await cardViewer(); window.GDCards.preview(card, meta); } catch (e) { toast('卡片載入失敗'); } }
+  async function showCard(card, group) { try { const meta = await cardViewer(); window.GDCards.preview(card, meta, group); } catch (e) { toast('卡片載入失敗'); } }
 
   const css = `
 .shop-balance>b:first-of-type{margin-left:auto}.shop-balance>b+b{color:#7ad8ff;margin-left:14px}
@@ -38,7 +38,7 @@
 .gds-tabs button.on{background:linear-gradient(100deg,#783dff,#ff3d9e);color:#fff;border-color:#ff6ec7}
 .credit-option .gds-badge{position:absolute;top:8px;right:8px;font-size:11px;font-weight:900;color:#4a2b00;background:linear-gradient(#ffe9a0,#ffb63c);border-radius:6px;padding:2px 6px}
 .credit-option{position:relative}.gds-tabs .gd-ic{margin-right:4px}
-.credit-grid.tiers{grid-template-columns:repeat(3,1fr)}
+#creditGrid{grid-template-columns:repeat(3,1fr)}
 .credit-option.gds-tier{aspect-ratio:744/1039;padding:0;border:0;border-radius:12px;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;text-align:center;background:var(--back) center/cover no-repeat;box-shadow:0 4px 12px #0007}
 .gds-tier .gds-tier-info{display:grid;gap:1px;padding:16% 4px 8%;background:linear-gradient(#0000,#000a 30%,#000d)}
 .gds-tier .gds-tier-info b{font-size:clamp(14px,3.9vw,22px);white-space:nowrap;line-height:1.15}.gds-tier .gds-old{display:block;margin:0;font-size:11px}
@@ -63,7 +63,16 @@
 .gds-back{aspect-ratio:744/1039;border-radius:14px;background:url(shop/card-backs/card_back_vermilion.svg) center/100% 100% no-repeat;box-shadow:0 4px 12px #0007}
 .gds-back.rare{animation:gds-glow 1.1s ease-in-out infinite alternate}@keyframes gds-glow{from{box-shadow:0 0 6px #ffd16655}to{box-shadow:0 0 22px #ffd166}}
 .gds-hint{color:#c9cdee;font-size:13px;margin:0 0 10px;display:flex;gap:10px;align-items:center}.gds-hint button{border:0;border-radius:999px;padding:6px 14px;font:inherit;font-weight:900;cursor:pointer;color:#fff;background:linear-gradient(100deg,#783dff,#ff3d9e)}
-@media (prefers-reduced-motion:reduce){.gds-flip,.gds-flip>*{animation:none;transition:none}}
+.gds-intro{position:relative;width:min(80vw,320px);aspect-ratio:1;display:grid;place-items:center;margin:auto}
+.gds-rays{position:absolute;inset:-30%;border-radius:50%;background:repeating-conic-gradient(#ff3d9e33 0 8deg,#0000 8deg 20deg);animation:gds-spin 3s linear infinite;mask:radial-gradient(#000 20%,#0000 70%);-webkit-mask:radial-gradient(#000 20%,#0000 70%);transition:background .3s}
+.gds-rays.gold{background:repeating-conic-gradient(#ffd166aa 0 8deg,#0000 8deg 20deg)}
+.gds-charge{width:42%;aspect-ratio:744/1039;background:url(shop/card-backs/card_back_vermilion.svg) center/100% 100% no-repeat;border-radius:10px;animation:gds-charge 1.1s ease-in both}
+@keyframes gds-spin{to{transform:rotate(1turn)}}
+@keyframes gds-charge{0%{transform:scale(.6);box-shadow:0 0 0 #ffd16600}60%{transform:scale(1) rotate(0)}70%{transform:scale(1.04) rotate(-3deg)}80%{transform:scale(1.06) rotate(3deg)}90%{transform:scale(1.08) rotate(-2deg)}100%{transform:scale(1.12);box-shadow:0 0 60px #fff}}
+.gds-flash{position:fixed;inset:0;background:#fff;pointer-events:none;z-index:2147481001;animation:gds-flash .5s ease-out both}@keyframes gds-flash{from{opacity:.9}to{opacity:0}}
+.gds-flip.shake{animation:gds-shake .4s}@keyframes gds-shake{25%{transform:translateX(-4px) rotate(-1deg)}75%{transform:translateX(4px) rotate(1deg)}}
+.gds-spark{position:fixed;width:8px;height:8px;margin:-4px 0 0 -4px;border-radius:50%;background:radial-gradient(#fff,#ffd166 45%,#ff9c32);pointer-events:none;z-index:2147481002}
+@media (prefers-reduced-motion:reduce){.gds-flip,.gds-flip>*,.gds-rays,.gds-charge{animation:none;transition:none}.gds-flash{display:none}}
 .gds-item.rare{border-color:#ffd166;box-shadow:0 0 18px #ffd16655}
 @keyframes gds-in{from{opacity:0;transform:translateY(10px) scale(.96)}to{opacity:1;transform:none}}
 .gds-item .t{font-weight:900;font-size:14px;line-height:1.3}.gds-item small{color:#aeb8e8;font-size:12px}
@@ -77,12 +86,14 @@
 
   // ---------- GD 商城 ----------
   let products = [], kind = 'DIAMOND', selected = null, order = null;
-  /** D鑽方案依價格由低到高套用 6 種卡背；超過 6 檔的都用最高一檔。 */
-  const TIERS = [['purple', '紫卡'], ['platinum', '鉑金卡'], ['gold', '金卡'], ['silver', '銀卡'], ['black', '黑卡'], ['vermilion', '朱紅卡']];
+  /** 方案卡背：D鑽依價格由高到低套用 6 種（最貴＝紫卡，超過 6 檔的便宜方案都用朱紅卡）；G幣依售價分 3 種。 */
+  const D_TIERS = [['purple', '紫卡'], ['platinum', '鉑金卡'], ['gold', '金卡'], ['silver', '銀卡'], ['black', '黑卡'], ['vermilion', '朱紅卡']];
+  const tierOf = (p, rankFromTop) => p.kind === 'DIAMOND' ? D_TIERS[Math.min(rankFromTop, D_TIERS.length - 1)]
+    : p.priceNtd <= 500 ? ['bronze', '青銅卡'] : p.priceNtd <= 2000 ? ['aqua', '水藍卡'] : ['navy', '墨藍卡'];
   const grid = $('#creditGrid');
   const plansPage = $('[data-shop-page="plans"]');
   const tabs = document.createElement('div'); tabs.className = 'gds-tabs';
-  tabs.innerHTML = `<button type="button" data-kind="DIAMOND">${IC('D')}D鑽</button><button type="button" data-kind="GCOIN">${IC('G')}G幣</button>`;
+  tabs.innerHTML = `<button type="button" data-kind="GCOIN">${IC('G')}G幣</button><button type="button" data-kind="DIAMOND">${IC('D')}D鑽</button>`;
   if (plansPage && grid) {
     plansPage.insertBefore(tabs, plansPage.firstChild);
     const title = $('.shop-section-title', plansPage); if (title) title.remove();
@@ -93,15 +104,12 @@
     $$('button', tabs).forEach((b) => b.classList.toggle('on', b.dataset.kind === kind));
     if (!grid) return;
     const list = products.filter((p) => p.kind === kind);
-    const tiered = kind === 'DIAMOND';
-    if (tiered) list.sort((a, b) => a.priceNtd - b.priceNtd);
-    grid.classList.toggle('tiers', tiered);
+    list.sort((a, b) => a.priceNtd - b.priceNtd);
     grid.innerHTML = list.length ? list.map((p, i) => {
       const badge = p.badge && p.firstAvailable !== false ? `<em class="gds-badge">${esc(p.badge)}</em>` : '';
-      const amount = `${IC(tiered ? 'D' : 'G')}${num(p.credit)}${p.credit !== p.amount + p.bonus ? `<span class="gds-old">${num(p.amount + p.bonus)}</span>` : ''}`;
+      const amount = `${IC(kind === 'DIAMOND' ? 'D' : 'G')}${num(p.credit)}${p.credit !== p.amount + p.bonus ? `<span class="gds-old">${num(p.amount + p.bonus)}</span>` : ''}`;
       const price = `NT$ ${num(p.priceNtd)}${p.soldOut ? '・已達限購' : ''}`;
-      if (!tiered) return `<button class="credit-option" data-product="${p.id}"${p.soldOut ? ' disabled' : ''}>${badge}<small>${esc(p.name)}</small><b>${amount}</b><span>${price}</span></button>`;
-      const [back, tier] = TIERS[Math.min(i, TIERS.length - 1)];
+      const [back, tier] = tierOf(p, list.length - 1 - i);
       return `<button class="credit-option gds-tier" data-product="${p.id}" style="--back:url(shop/card-backs/card_back_${back}.svg)"${p.soldOut ? ' disabled' : ''}>${badge}<span class="gds-tier-info"><small>${tier}</small><b>${amount}</b><span>${price}</span></span></button>`;
     }).join('')
       : '<p class="shop-note">目前沒有上架的方案</p>';
@@ -204,6 +212,7 @@
     };
   }
   const RARE = ['UR', 'LR', 'GDR'];
+  const isRare = (d) => d.pity || (d.kind === 'CARD' && RARE.includes(d.card.rarity));
   async function doDraw(poolId, n) {
     if (!logged()) return toast('請先登入');
     if (busy) return;
@@ -211,7 +220,10 @@
     if (diamonds < (n === 1 ? p.priceSingle : p.priceTen)) { toast('D鑽不足，請先購買D鑽'); return; }
     busy = true; $$('[data-draw]', gPage).forEach((b) => b.disabled = true);
     try {
-      const r = await call(`/me/gacha/pools/${poolId}/draw`, { method: 'POST', body: { count: n }, idempotent: true });
+      const intro = showIntro();
+      const r = await call(`/me/gacha/pools/${poolId}/draw`, { method: 'POST', body: { count: n }, idempotent: true }).catch((e) => { layer.hidden = true; throw e; });
+      if (r.draws.some(isRare)) $('.gds-rays', layer)?.classList.add('gold');
+      await intro;
       diamonds = r.diamonds;
       showResults(r);
       refreshWallet();
@@ -220,6 +232,32 @@
     } catch (e) { toast(e.code === 'ERR_INSUFFICIENT_DIAMONDS' ? 'D鑽不足，請先購買D鑽' : e.code === 'ERR_POOL_CLOSED' ? '這個獎池目前沒有開放' : e.message); } finally { busy = false; $$('[data-draw]', gPage).forEach((b) => b.disabled = false); }
   }
   let layer = null, audio = null, audioId = null;
+  /** 抽卡音效：shop/fx/ 裡的 draw／flip／rare，換檔案（同檔名）就能換音效；音量跟「音源 → 音效音量」。 */
+  const FX = {};
+  function sfx(name) {
+    const level = window.GDAudio ? window.GDAudio.sfx : 1;
+    if (!level) return;
+    try { const a = (FX[name] ||= new Audio(`shop/fx/${name}.wav`)).cloneNode(); a.volume = level; a.play().catch(() => {}); } catch (e) { /* ignore */ }
+  }
+  const calm = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+  /** 稀有卡翻開：金色粒子從卡片中心炸開。 */
+  function burst(el) {
+    if (calm()) return;
+    const r = el.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2;
+    for (let i = 0; i < 26; i++) {
+      const p = document.createElement('i'); p.className = 'gds-spark'; p.style.left = x + 'px'; p.style.top = y + 'px'; document.body.append(p);
+      const a = Math.random() * Math.PI * 2, d = 60 + Math.random() * 110;
+      p.animate([{ transform: 'translate(0,0) scale(1)', opacity: 1 }, { transform: `translate(${Math.cos(a) * d}px,${Math.sin(a) * d}px) scale(.3)`, opacity: 0 }], { duration: 700 + Math.random() * 400, easing: 'cubic-bezier(.2,.8,.3,1)' }).finished.then(() => p.remove());
+    }
+  }
+  /** 抽卡前的蓄力畫面（等後端結果時播放，至少 1.1 秒）。 */
+  function showIntro() {
+    const l = ensureLayer();
+    l.innerHTML = '<div class="gds-intro"><div class="gds-rays"></div><div class="gds-charge"></div></div>';
+    l.hidden = false;
+    sfx('draw');
+    return new Promise((ok) => setTimeout(ok, calm() ? 0 : 1100));
+  }
   function ensureLayer() {
     if (layer) return layer;
     layer = document.createElement('div'); layer.className = 'gds-layer'; layer.hidden = true; document.body.append(layer);
@@ -232,15 +270,20 @@
       ? `<div class="gds-item${RARE.includes(d.card.rarity) ? ' rare' : ''}"><div>${d.pity ? '<span class="tag pity">保底</span>' : ''}${d.duplicate ? '' : '<span class="tag new">NEW</span>'}<span class="tag">${esc(d.card.rarity)}</span></div><div class="t">${esc(d.card.code)} ${esc(d.card.name)}</div><small>戰鬥力 ${num(d.card.power)}${d.duplicate ? '・重複' : ''}</small><small>+${num(d.coins)} G幣</small><div class="row"><button type="button" data-view="${i}">看卡面</button><button type="button" data-share="${i}">分享到家族</button></div></div>`
       : `<div class="gds-item"><div>${d.duplicate ? '' : '<span class="tag new">NEW</span>'}<span class="tag">單曲</span></div><div class="t">🎵 ${esc(d.song.title)}</div><small>${esc(d.song.album)}${d.duplicate ? '・重複' : '・已解鎖'}</small><small>+${num(d.coins)} G幣</small><div class="row"><button type="button" data-play="${i}">試聽</button><button type="button" data-share="${i}">分享到家族</button></div></div>`;
     // 抽到的卡先蓋著（卡背），點一張翻一張，或「全部翻開」；稀有卡的卡背會發光
-    const rare = (d) => d.pity || (d.kind === 'CARD' && RARE.includes(d.card.rarity));
-    l.innerHTML = `<h3>抽獎結果</h3><div class="gds-sum">獲得 ${IC('G')} ${num(r.coins)}・剩餘 ${IC('D')} ${num(r.diamonds)}</div><p class="gds-hint"><span>點卡片翻開</span><button type="button" data-open-all>全部翻開</button></p><div class="gds-res">${r.draws.map((d, i) => `<div class="gds-flip" style="animation-delay:${i * 0.08}s">${item(d, i)}<div class="gds-back${rare(d) ? ' rare' : ''}"></div></div>`).join('')}</div><button type="button" class="gds-close">關閉</button>`;
+    l.innerHTML = `<h3>抽獎結果</h3><div class="gds-sum">獲得 ${IC('G')} ${num(r.coins)}・剩餘 ${IC('D')} ${num(r.diamonds)}</div><p class="gds-hint"><span>點卡片翻開</span><button type="button" data-open-all>全部翻開</button></p><div class="gds-res">${r.draws.map((d, i) => `<div class="gds-flip" style="animation-delay:${i * 0.08}s">${item(d, i)}<div class="gds-back${isRare(d) ? ' rare' : ''}"></div></div>`).join('')}</div><button type="button" class="gds-close">關閉</button>`;
     const flips = $$('.gds-flip', l);
     const opened = () => { if (flips.every((f) => f.classList.contains('open'))) $('.gds-hint', l).hidden = true; };
-    flips.forEach((f) => { $('.gds-back', f).onclick = () => { f.classList.add('open'); opened(); }; });
-    $('[data-open-all]', l).onclick = () => { flips.forEach((f, i) => setTimeout(() => { f.classList.add('open'); opened(); }, i * 90)); };
+    const flip = (f, i) => {
+      if (f.classList.contains('open')) return;
+      f.classList.add('open'); opened(); sfx('flip');
+      if (isRare(r.draws[i])) setTimeout(() => { sfx('rare'); burst(f); f.classList.add('shake'); }, 250);
+    };
+    flips.forEach((f, i) => { $('.gds-back', f).onclick = () => flip(f, i); });
+    $('[data-open-all]', l).onclick = () => { flips.forEach((f, i) => setTimeout(() => flip(f, i), i * 120)); };
+    if (!calm()) { const fl = document.createElement('div'); fl.className = 'gds-flash'; document.body.append(fl); setTimeout(() => fl.remove(), 600); }
     l.hidden = false;
     $('.gds-close', l).onclick = () => { stopAudio(); l.hidden = true; };
-    $$('[data-view]', l).forEach((b) => b.onclick = () => showCard(r.draws[Number(b.dataset.view)].card));
+    $$('[data-view]', l).forEach((b) => b.onclick = () => { const cards = r.draws.filter((d) => d.kind === 'CARD').map((d) => d.card); showCard(r.draws[Number(b.dataset.view)].card, cards); });
     $$('[data-play]', l).forEach((b) => b.onclick = () => {
       const d = r.draws[Number(b.dataset.play)];
       if (audio && audioId === d.song.id) { stopAudio(); b.textContent = '試聽'; return; }
