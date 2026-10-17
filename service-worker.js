@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gd-lobby-v35';
+const CACHE_NAME = 'gd-lobby-v36';
 const APP_SHELL = [
   './',
   './index.html',
@@ -16,7 +16,9 @@ const APP_SHELL = [
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/icon-maskable-512.png',
-  './icons/apple-touch-icon-180.png'
+  './icons/apple-touch-icon-180.png',
+  './icons/G_COIN.svg',
+  './icons/D_DIAMOND.svg'
 ];
 
 self.addEventListener('install', event => {
