@@ -29,7 +29,6 @@
   const isDragon = (r) => r.frame === 'dragon';
   const badgeBg = (spec) => spec === 'rainbow' ? 'linear-gradient(100deg,#ff8a8a,#ffe17a,#8affb0,#7ad8ff,#c69bff)'
     : spec === 'dragon' ? 'linear-gradient(#2a0505,#7a0d12)' : `linear-gradient(${(Array.isArray(spec) ? spec : FALLBACK_RARITY.badge).join(',')})`;
-  const escHtml = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const LOGO_GD = 'M82.1 18.6Q89.3 18.6 93.9 20.5Q98.5 22.5 102 25.2Q103.1 26.1 104 26.1Q106 26.1 106.6 20H108.9Q108.7 24.1 108.6 30Q108.5 35.9 108.5 45.6H106.2Q105.5 38.2 103.7 33.3Q101.9 28.3 96.8 24.8Q94.6 23.4 91.7 22.6Q88.9 21.7 86.2 21.7Q80.3 21.7 76.4 25Q72.5 28.2 70.2 33.4Q67.9 38.5 66.9 44.6Q65.9 50.7 65.9 56.5Q65.9 74.9 70.4 83.4Q75 91.9 82.4 91.9Q84.1 91.9 85.3 91.6Q86.5 91.3 87.4 90.7Q88.6 89.8 89.1 88.6Q89.6 87.4 89.6 85.5V75.3Q89.6 70.3 88.8 67.8Q88.1 65.4 85.8 64.4Q83.6 63.5 79.3 63.4V61.4Q81.6 61.5 85 61.5Q88.4 61.6 92.1 61.6Q95.7 61.7 98.8 61.7Q103.7 61.7 107.9 61.6Q112 61.5 114.6 61.4V63.4Q112.8 63.5 111.9 64.1Q111 64.7 110.7 66.6Q110.4 68.4 110.4 72.2V92.5H108.3Q108.2 90.8 107.5 88.7Q106.8 86.7 105.2 86.7Q104.3 86.7 102.9 87.1Q101.4 87.5 98.2 89Q94.2 91 89.8 92.4Q85.3 93.9 80.9 93.9Q68.1 93.9 59.5 89.5Q50.9 85.1 46.6 76.8Q42.4 68.5 42.4 56.9Q42.4 45.4 47.5 36.8Q52.5 28.2 61.5 23.4Q70.4 18.6 82.1 18.6ZM153.1 20Q174.6 20 185 29.2Q195.4 38.3 195.4 55.4Q195.4 66.6 190.3 74.9Q185.1 83.3 175.5 87.9Q165.8 92.5 152.2 92.5Q150.5 92.5 147.8 92.4Q145.1 92.3 142.1 92.2Q139.2 92.2 136.8 92.2Q131.7 92.2 126.8 92.2Q122 92.3 119 92.5V90.4Q122.2 90.2 123.7 89.6Q125.2 89 125.7 87.2Q126.3 85.3 126.3 81.6V30.9Q126.3 27.1 125.7 25.3Q125.2 23.5 123.6 22.8Q122.1 22.2 119 22V20Q122 20.1 126.8 20.3Q131.7 20.4 136.6 20.3Q140.4 20.2 145.1 20.1Q149.9 20 153.1 20ZM154.6 21.8Q149.9 21.8 148.5 23.6Q147 25.3 147 30.6V81.8Q147 87.2 148.5 88.9Q150 90.7 154.7 90.7Q161.7 90.7 165.9 86.6Q170.1 82.6 172 74.8Q173.9 67 173.9 55.8Q173.9 44.4 171.9 36.8Q169.9 29.3 165.6 25.6Q161.4 21.8 154.6 21.8Z';
   const LOGO_CLUB = 'M63.8 97.8Q66 97.8 67.5 98.5Q68.9 99.1 70.1 100Q70.8 100.5 71.1 100.2Q71.5 99.8 71.6 98.3H72.4Q72.3 99.7 72.3 101.6Q72.3 103.6 72.3 106.8H71.5Q71.3 105.2 71 103.9Q70.7 102.6 70.1 101.6Q69.5 100.7 68.3 99.9Q67.6 99.4 66.8 99.1Q66 98.9 65.2 98.9Q63.2 98.9 61.9 100Q60.7 101 60 102.8Q59.3 104.5 59 106.5Q58.7 108.5 58.7 110.4Q58.7 112.4 59 114.4Q59.3 116.4 60 118.1Q60.7 119.9 61.9 120.9Q63.2 122 65.2 122Q66 122 66.8 121.7Q67.6 121.4 68.3 121Q70 119.9 70.6 118.2Q71.2 116.4 71.5 113.6H72.3Q72.3 116.9 72.3 119Q72.3 121.1 72.4 122.5H71.6Q71.5 121 71.1 120.6Q70.8 120.2 70.1 120.7Q68.8 121.6 67.4 122.3Q66 122.9 63.8 122.9Q59.9 122.9 57 121.5Q54.1 120 52.5 117.2Q50.9 114.5 50.9 110.6Q50.9 106.8 52.5 103.9Q54.2 101 57.1 99.4Q60 97.8 63.8 97.8ZM102.5 95.8V119.3Q102.5 120.7 102.9 121.2Q103.4 121.7 104.4 121.7V122.5Q103.8 122.4 102.4 122.4Q101 122.3 99.6 122.3Q98.2 122.3 96.7 122.4Q95.2 122.4 94.5 122.5V121.7Q95.5 121.7 96 121.2Q96.4 120.7 96.4 119.3V99.9Q96.4 98.3 96 97.6Q95.6 96.9 94.5 96.9V96.1Q95.6 96.2 96.6 96.2Q98.3 96.2 99.8 96.1Q101.3 96 102.5 95.8ZM143.5 104.4V118.7Q143.5 120.3 143.9 121Q144.3 121.7 145.4 121.7V122.5Q144.3 122.4 143.3 122.4Q141.6 122.4 140.1 122.5Q138.6 122.6 137.3 122.8V120.4Q136.5 121.7 135.1 122.3Q133.7 122.9 131.9 122.9Q130.3 122.9 129.4 122.5Q128.5 122.2 128 121.6Q127.5 121 127.3 119.9Q127.1 118.9 127.1 117.2V108.5Q127.1 106.9 126.6 106.2Q126.2 105.5 125.1 105.5V104.7Q126.2 104.8 127.3 104.8Q129 104.8 130.4 104.7Q131.9 104.6 133.2 104.4V119Q133.2 119.7 133.4 120.2Q133.5 120.7 133.9 120.9Q134.3 121.2 134.9 121.2Q135.5 121.2 136.1 120.9Q136.6 120.6 137 120Q137.3 119.4 137.3 118.7V108.5Q137.3 106.9 136.9 106.2Q136.5 105.5 135.4 105.5V104.7Q136.5 104.8 137.5 104.8Q139.2 104.8 140.7 104.7Q142.2 104.6 143.5 104.4ZM179.2 104.3Q181.7 104.3 183.4 106.4Q185.1 108.5 185.1 112.8Q185.1 116.7 184 118.9Q182.9 121.1 181.1 122Q179.3 122.9 177.2 122.9Q176 122.9 175.1 122.8Q174.5 122.7 174 122.5Q172.9 122.1 171.7 122Q170.5 122 169.6 122.3Q168.6 122.5 168.1 123L167.6 122.7Q167.8 122.2 167.8 121.7Q167.9 121.3 167.9 120.8V99.9Q167.9 98.3 167.5 97.6Q167 96.9 166 96.9V96.1Q167 96.2 168.1 96.2Q169.8 96.2 171.3 96.1Q172.7 96 174 95.8V106.8Q174.8 105.5 176.1 104.9Q177.5 104.3 179.2 104.3ZM174 121.8Q174.3 122 174.6 122.1Q175.1 122.3 175.6 122.3Q177.2 122.3 178 120.1Q178.8 118 178.8 113.6Q178.8 110.6 178.4 108.9Q178.1 107.3 177.6 106.7Q177.1 106 176.5 106Q175.5 106 174.8 106.7Q174 107.4 174 108.5Z';
 
@@ -74,12 +73,10 @@
 .gdc-vpow small{font:700 11px/1 inherit;font-family:inherit;color:#a9b0d6;margin-right:4px}
 .gdc-x{flex:none;width:36px;height:36px;border-radius:50%;border:1px solid #fff3;background:#fff1;color:#fff;font-size:18px;cursor:pointer}
 .gdc-stage{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;perspective:1100px;touch-action:none;position:relative}
-.gdc-side{position:absolute;top:8px;left:50%;transform:translateX(-50%);font-size:12px;color:#a9b0d6;letter-spacing:.1em;background:#0006;padding:3px 10px;border-radius:99px}
+.gdc-nav{position:absolute;top:50%;transform:translateY(-50%);z-index:2;width:44px;height:44px;border-radius:50%;border:1px solid #fff3;background:#0007;color:#fff;font-size:22px;cursor:pointer;font-family:inherit}
+.gdc-nav.prev{left:12px}.gdc-nav.next{right:12px}.gdc-nav[hidden]{display:none}.gdc-count{color:#a9b0d6}
 .gdc-panel{flex:none;padding:10px 16px calc(14px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:10px;align-items:center}
-.gdc-fx{display:flex;gap:6px;overflow-x:auto;max-width:100%;padding-bottom:4px;scrollbar-width:none}
-.gdc-fx::-webkit-scrollbar{display:none}
-.gdc-fx button,.gdc-prow button{flex:none;background:#ffffff12;color:#f2f3ff;border:1px solid #ffffff24;border-radius:999px;padding:7px 12px;font-size:13px;cursor:pointer;white-space:nowrap;font-family:inherit}
-.gdc-fx button.on{background:#fff;color:#111;border-color:#fff}
+.gdc-prow button{flex:none;background:#ffffff12;color:#f2f3ff;border:1px solid #ffffff24;border-radius:999px;padding:7px 12px;font-size:13px;cursor:pointer;white-space:nowrap;font-family:inherit}
 .gdc-prow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center}
 .gdc-prow button.primary{background:#c79bff;color:#1a0b2e;border-color:#c79bff;font-weight:700}
 .gdc-zoom{display:flex;align-items:center;gap:8px;font-size:12px;color:#a9b0d6}
@@ -315,7 +312,7 @@ ${corner(52, 52, 0, p)}${corner(w - 52, 52, 90, p)}${corner(w - 52, hh - 52, 180
       art.append(rarBadge(c.rarity));
       b.append(art, h('div', 'gdc-name', c.owned ? c.name : c.code));
       b.onclick = () => {
-        if (c.owned) return openViewer(c);
+        if (c.owned) return openViewer(c, order.filter((x) => x.owned));
         b.classList.remove('shake'); void b.offsetWidth; b.classList.add('shake');
         toast('尚未收集這張卡'); opts.onLocked?.(c);
       };
@@ -342,17 +339,21 @@ ${corner(52, 52, 0, p)}${corner(w - 52, 52, 90, p)}${corner(w - 52, hh - 52, 180
     const v = h('div', 'gdc-viewer'); v.setAttribute('role', 'dialog'); v.setAttribute('aria-modal', 'true'); v.setAttribute('aria-hidden', 'true');
     v.style.setProperty('--gdc-sparkle', sparkle(false)); v.style.setProperty('--gdc-sparkle-gold', sparkle(true));
     v.innerHTML = `<div class="gdc-vhead"><span class="gdc-rar" data-k="rar"></span><span class="gdc-vt" data-k="name"></span><span class="gdc-vcat" data-k="cat"></span><span class="gdc-vpow"><small>戰鬥力</small><span data-k="pow"></span></span><button class="gdc-x" data-k="close" aria-label="關閉">✕</button></div>
-<div class="gdc-stage" data-k="stage"><div class="gdc-side" data-k="side">正面</div><div class="gdc-card" data-k="card"><div class="gdc-body"><div class="gdc-face front" data-k="front"><div class="gdc-shine"></div><div class="gdc-glare"></div></div><div class="gdc-face back" data-k="back">${backSVG()}<div class="gdc-shine"></div><div class="gdc-glare"></div></div></div></div></div>
-<div class="gdc-panel"><div class="gdc-fx" data-k="fx"></div>
+<div class="gdc-stage" data-k="stage"><button type="button" class="gdc-nav prev" data-k="prev" aria-label="上一張" hidden>‹</button><button type="button" class="gdc-nav next" data-k="next" aria-label="下一張" hidden>›</button><div class="gdc-card" data-k="card"><div class="gdc-body"><div class="gdc-face front" data-k="front"><div class="gdc-shine"></div><div class="gdc-glare"></div></div><div class="gdc-face back" data-k="back">${backSVG()}<div class="gdc-shine"></div><div class="gdc-glare"></div></div></div></div></div>
+<div class="gdc-panel">
 <div class="gdc-prow"><div class="gdc-zoom"><button type="button" data-k="zm" aria-label="縮小">−</button><input data-k="zoom" type="range" min="50" max="150" value="100" aria-label="縮放"><button type="button" data-k="zp" aria-label="放大">＋</button><output data-k="zout">100%</output></div></div>
-<div class="gdc-prow"><button type="button" class="primary" data-k="flip">⟲ 翻面</button><button type="button" data-k="reset">歸位</button><button type="button" data-k="gyro" hidden>啟用陀螺儀</button></div>
-<div class="gdc-hint">左右拖曳 360° 翻轉・上下拖曳 ±80°・雙指／滾輪縮放</div></div>`;
+<div class="gdc-prow"><button type="button" class="primary" data-k="flip">⟲ 翻面</button><button type="button" data-k="reset">歸位</button><span class="gdc-count" data-k="idx"></span></div>
+<div class="gdc-hint">拖曳卡片翻轉・在卡片外左右滑動換下一張・雙指／滾輪縮放</div></div>`;
     const q = (k) => v.querySelector(`[data-k="${k}"]`);
-    V = { el: v, q, card: q('card'), stage: q('stage'), front: q('front'), back: q('back'), side: q('side'), zoom: q('zoom'), zout: q('zout') };
+    V = { el: v, q, card: q('card'), stage: q('stage'), front: q('front'), back: q('back'), zoom: q('zoom'), zout: q('zout') };
     document.body.append(v);
     const { stage, card } = V;
     q('close').onclick = closeViewer;
     stage.addEventListener('pointerdown', (e) => {
+      askGyro();
+      if (e.target.closest('.gdc-nav')) return;
+      const r = card.getBoundingClientRect();
+      if (pointers.size === 0 && (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom)) { stage.setPointerCapture(e.pointerId); swipe = { id: e.pointerId, x: e.clientX, y: e.clientY }; return; }
       stage.setPointerCapture(e.pointerId); pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (pointers.size === 2) { const [a, b] = [...pointers.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), z: T.zoom }; dragging = false; return; }
       dragging = true; vYaw = 0; last = { x: e.clientX, y: e.clientY }; T.hy = T.hp = 0; card.classList.add('drag');
@@ -369,7 +370,9 @@ ${corner(52, 52, 0, p)}${corner(w - 52, 52, 90, p)}${corner(w - 52, hh - 52, 180
         T.hy = inside ? -(px - 50) / 3.5 : 0; T.hp = inside ? (py - 50) / 2.8 : 0;
       }
     });
-    const end = (e) => { pointers.delete(e.pointerId); if (pointers.size < 2) pinch = null; if (!pointers.size) { dragging = false; card.classList.remove('drag'); } };
+    const end = (e) => {
+      if (swipe?.id === e.pointerId) { const dx = e.clientX - swipe.x; swipe = null; if (e.type === 'pointerup' && Math.abs(dx) > 50) step(dx < 0 ? 1 : -1); return; }
+      pointers.delete(e.pointerId); if (pointers.size < 2) pinch = null; if (!pointers.size) { dragging = false; card.classList.remove('drag'); } };
     stage.addEventListener('pointerup', end); stage.addEventListener('pointercancel', end);
     stage.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse' && !dragging) T.hy = T.hp = 0; });
     stage.addEventListener('wheel', (e) => { e.preventDefault(); setZoom(T.zoom - e.deltaY * .0012); }, { passive: false });
@@ -378,36 +381,47 @@ ${corner(52, 52, 0, p)}${corner(w - 52, 52, 90, p)}${corner(w - 52, hh - 52, 180
     q('zp').onclick = () => setZoom(Math.round(T.zoom * 10 + 1) / 10);
     q('flip').onclick = () => { vYaw = 0; T.yaw = Math.round(T.yaw / 180) * 180 + 180; };
     q('reset').onclick = () => { vYaw = 0; T.yaw = Math.round(T.yaw / 360) * 360; T.pitch = 0; T.hy = T.hp = 0; };
-    q('fx').addEventListener('click', (e) => { const f = e.target.closest('[data-fx]'); if (f) setFx(f.dataset.fx); });
-    const gb = q('gyro');
-    if (window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === 'function') {
-      gb.hidden = false;
-      gb.onclick = () => DeviceOrientationEvent.requestPermission().then((p) => { if (p === 'granted') { gb.hidden = true; V.gyroGranted = true; listenGyro(true); } }).catch(() => {});
-    } else if (window.DeviceOrientationEvent) V.gyroGranted = true;
+    q('prev').onclick = () => step(-1);
+    q('next').onclick = () => step(1);
+    // 陀螺儀預設開啟；iOS 要使用者手勢授權，所以第一次碰觸觀看器時才詢問；沒有陀螺儀就不顯示任何按鈕
+    V.gyroAsk = !!(window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === 'function');
+    if (window.DeviceOrientationEvent && !V.gyroAsk) V.gyroGranted = true;
+  }
+  function askGyro() {
+    if (!V.gyroAsk) return;
+    V.gyroAsk = false;
+    DeviceOrientationEvent.requestPermission().then((p) => { if (p === 'granted') { V.gyroGranted = true; listenGyro(true); } }).catch(() => {});
+  }
+  /** 觀看器裡左右切換同一組卡（卡冊＝已收集的卡；抽卡結果＝這次抽到的卡）。 */
+  function step(d) {
+    if (list.length < 2) return;
+    idx = (idx + d + list.length) % list.length;
+    openViewer(list[idx], list);
   }
   function onOrient(e) { if (e.beta == null || !running) return; gyroOn = true; T.hy = clamp(-(e.gamma || 0) * .6, -20, 20); T.hp = clamp(((e.beta || 0) - 45) * .5, -20, 20); }
   function listenGyro(on) {
     if (on && V?.gyroGranted && !gyroListening) { addEventListener('deviceorientation', onOrient); gyroListening = true; }
     if (!on && gyroListening) { removeEventListener('deviceorientation', onOrient); gyroListening = false; gyroOn = false; }
   }
-  const onKey = (e) => { if (e.key === 'Escape') closeViewer(); };
-  /** 效果組合（後台）：基本動畫＋強度。 */
+  const onKey = (e) => { if (e.key === 'Escape') closeViewer(); else if (e.key === 'ArrowLeft') step(-1); else if (e.key === 'ArrowRight') step(1); };
+  /** 效果組合（後台設定每張卡用哪一種）：基本動畫＋強度。 */
   function setFx(key) {
     const e = effectOf(key);
     V.card.dataset.fx = e.base; V.card.style.setProperty('--fx-k', e.intensity ?? 1); V.card.style.setProperty('--fx-g', e.glare ?? 1);
-    V.q('fx').querySelectorAll('button').forEach((b) => { const on = b.dataset.fx === key; b.classList.toggle('on', on); if (on) b.scrollIntoView({ inline: 'center', block: 'nearest' }); });
   }
   function setZoom(z) { T.zoom = clamp(z, .5, 1.5); V.zoom.value = Math.round(T.zoom * 100); V.zout.textContent = V.zoom.value + '%'; }
   let openSeq = 0;
-  async function openViewer(c) {
+  let list = [], idx = 0, swipe = null;
+  async function openViewer(c, group = [c]) {
     if (!V) buildViewer();
+    list = group.length ? group : [c]; idx = Math.max(0, list.indexOf(c));
+    V.q('prev').hidden = V.q('next').hidden = list.length < 2;
+    V.q('idx').textContent = list.length > 1 ? `${idx + 1} / ${list.length}` : '';
     const seq = ++openSeq, q = V.q, rb = q('rar');
     const R = rarity(c.rarity);
     rb.textContent = c.rarity; rb.title = R.name || ''; rb.style.background = badgeBg(R.badge); rb.style.color = R.ink; rb.style.boxShadow = isDragon(R) ? 'inset 0 0 0 1px #ffd36e' : '';
     q('name').textContent = c.name; q('cat').textContent = seriesName(c.series); q('cat').hidden = !q('cat').textContent; q('pow').textContent = fmt(c.power);
-    const fxList = META.effects.filter((e) => e.status !== 'HIDDEN' || e.key === c.effect);
-    q('fx').innerHTML = fxList.map((e) => `<button type="button" data-fx="${escHtml(e.key)}">${escHtml(e.name)}</button>`).join('');
-    setFx(c.effect || fxList[0]?.key);
+    setFx(c.effect || META.effects.find((e) => e.status !== 'HIDDEN')?.key);
     V.front.querySelector('canvas,img')?.remove();
     const [cw, ch] = dims(c), land = cw > ch, orient = `${cw}x${ch}`;
     V.card.classList.toggle('land', land); V.card.style.setProperty('--ar', cw / ch);
@@ -438,7 +452,6 @@ ${corner(52, 52, 0, p)}${corner(w - 52, 52, 90, p)}${corner(w - 52, hh - 52, 180
     const yaw = S.yaw + S.hy, pitch = clamp(S.pitch + S.hp, -85, 85), c = V.card;
     c.style.setProperty('--yaw', yaw + 'deg'); c.style.setProperty('--pitch', pitch + 'deg'); c.style.setProperty('--zoom', S.zoom);
     const ly = wrap(yaw); faceVars(V.front, ly, pitch); faceVars(V.back, wrap(yaw - 180), pitch);
-    V.side.textContent = Math.abs(ly) < 90 ? '正面' : '背面';
     requestAnimationFrame(tick);
   }
 
@@ -451,8 +464,8 @@ ${corner(52, 52, 0, p)}${corner(w - 52, 52, 90, p)}${corner(w - 52, hh - 52, 180
     },
     update(data) { META = data?.meta || META; cards = data?.cards || []; render(); },
     /** 後台預覽：不需要卡冊，直接用這張卡開觀看器。 */
-    preview(card, meta) { ensureStyle(); if (meta) META = meta; openViewer(card); },
-    open(id) { const c = cards.find((x) => x.id === id && x.owned); if (c) openViewer(c); },
+    preview(card, meta, group) { ensureStyle(); if (meta) META = meta; openViewer(card, group); },
+    open(id) { const c = cards.find((x) => x.id === id && x.owned); if (c) openViewer(c, cards.filter((x) => x.owned)); },
     close: closeViewer,
     unmount() {
       closeViewer(); root?.remove(); root = null;

@@ -306,7 +306,8 @@
     renderAvatars();
     $('.profile-list li button').onclick = () => navigator.clipboard?.writeText(me.profile.aid);
     // 錢包與商城
-    $('.wallet-summary b').textContent = coins(me.mainAvailable);
+    $('.wallet-summary [data-g]').textContent = coins(me.mainAvailable);
+    $('.wallet-summary [data-dia]').textContent = num(me.diamonds || 0);
     $('.shop-balance>span').textContent = 'VIP ' + level;
     $('.shop-balance [data-g]').textContent = coins(me.mainAvailable);
     $('.shop-balance [data-dia]').textContent = num(me.diamonds || 0);
