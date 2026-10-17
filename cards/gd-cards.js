@@ -337,8 +337,8 @@ ${corner(52, 52, 0, p)}${corner(w - 52, 52, 90, p)}${corner(w - 52, hh - 52, 180
       const art = h('div', 'gdc-art'), [cw, ch] = dims(c);
       art.style.aspectRatio = `${cw}/${ch}`; if (cw > ch) b.classList.add('land');
       if (c.owned) faceArt(c, { scale: .26, thumb: true }).then((el) => art.prepend(el));
-      if (c.inUse) art.append(h('div', 'gdc-inuse', '免費投注中'));
       else { art.innerHTML = backSVG(cw, ch); art.append(h('div', 'gdc-lock', '🔒')); }
+      if (c.inUse) art.append(h('div', 'gdc-inuse', '免費投注中'));
       art.append(rarBadge(c.rarity));
       b.append(art, h('div', 'gdc-name', c.owned ? c.name : c.code));
       b.onclick = () => {

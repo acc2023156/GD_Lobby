@@ -952,12 +952,12 @@
     @keyframes gdPulse{0%,100%{transform:scale(1);box-shadow:0 0 0 #ffc64100}50%{transform:scale(1.04);box-shadow:0 0 14px #ffc641cc}}
     .modal-offer label{display:flex;gap:6px;align-items:center;margin-top:8px;font-size:13px;font-weight:800}
     .modal-offer .gd-short{display:block;margin-top:8px;color:#ff6e8a;font-weight:900}
-    .gd-fb{display:flex;align-items:center;gap:8px;width:100%;margin-top:9px;padding:9px 11px;border:1px solid #ffd36e;border-radius:12px;background:linear-gradient(100deg,#ffd36e22,#ff3d9e18);color:inherit;font:inherit;text-align:left;cursor:pointer}
+    .modal-art.gd-fb-art{width:auto;height:220px;cursor:pointer}
+    .modal-art.gd-fb-art canvas,.modal-art.gd-fb-art img{width:auto;height:220px;max-width:100%;object-fit:contain;border-radius:8px;filter:drop-shadow(0 8px 14px #0008)}
+    .gd-fb-power{display:block;margin-top:9px;font-size:22px;font-weight:900;color:#ffb21e}
+    .gd-fb-power small{display:inline!important;margin:0 4px 0 0!important;font-size:12px;color:inherit;opacity:.8}
+    .gd-fb{display:block;width:100%;margin-top:10px;padding:10px;border:1px solid #ffd36e;border-radius:10px;background:#ffd36e1f;color:inherit;font:inherit;font-weight:900;cursor:pointer}
     .gd-fb:disabled{opacity:.6;cursor:wait}
-    .gd-fb i{flex:none;font:900 11px/1 Cinzel,Georgia,serif;font-style:normal;padding:4px 6px;border-radius:4px;color:#3a2300;background:linear-gradient(#fff3c4,#e2a83a)}
-    .gd-fb span{flex:1;min-width:0;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .gd-fb strong{margin:0!important;font-size:18px!important;color:#ffb21e!important;white-space:nowrap}
-    .gd-fb strong small{display:inline!important;margin:0 3px 0 0!important;font-size:11px}
     .gd-coin{position:fixed;z-index:100;width:24px;height:24px;margin:-12px 0 0 -12px;pointer-events:none;background:url(icons/G_COIN.svg) center/contain no-repeat}`;
   document.head.appendChild(promoStyle);
 
@@ -982,27 +982,43 @@
   let pendingOffer = null;
 
   // ---------- 卡片免費投注：使用後鎖定在卡片的遊戲，投注先扣戰鬥力；遊戲卡片顯示使用中的卡，點卡片解除 ----------
-  const GAME_BY_KEY = Object.fromEntries([...Object.entries(HASH_GAMES), ...Object.entries(SLOT_GAMES)].map(([name, id]) => [String(id), name]));
-  const selectedKey = () => { const id = HASH_GAMES[selectedGame] ?? SLOT_GAMES[selectedGame]; return id == null ? null : String(id); };
+  // 卡片的遊戲代號＝GDBO 錢包的遊戲代號；戰神賽特在大廳以 seth 啟動，錢包是 SLOTS 90008
+  const CARD_KEY = { seth: '90008' };
+  const keyOf = (name) => { const id = HASH_GAMES[name] ?? SLOT_GAMES[name]; return id == null ? null : CARD_KEY[id] ?? String(id); };
+  const GAME_BY_KEY = Object.fromEntries([...Object.keys(HASH_GAMES), ...Object.keys(SLOT_GAMES)].map((name) => [keyOf(name), name]));
+  const selectedKey = () => keyOf(selectedGame);
   const releaseCard = (c) => api.call(`/me/cards/${c.id}/release`, { method: 'POST' });
-  /** 使用卡片後跳往該遊戲：關掉會員中心，打開遊戲卡片（會顯示使用中的卡）。 */
+  /** 使用卡片後直接進該遊戲：關掉會員中心，走「進入遊戲」同一套啟動流程。 */
   async function useCard(c) {
     await api.call(`/me/cards/${c.id}/use`, { method: 'POST' });
     const g = catalog.find((x) => x[0] === GAME_BY_KEY[c.gameKey]);
     window.GDCards?.close();
     $('#profileLayer').hidden = true;
-    if (g) openGame(g);
+    if (g) { openGame(g); playButton.click(); }
   }
   window.GDFreeBet = { use: useCard, release: releaseCard };
-  function showFreeBet(card, meta) {
-    const r = meta?.rarities?.find((x) => x.code === card.rarity), bg = Array.isArray(r?.badge) ? `background:linear-gradient(${r.badge.join(',')});color:${r.ink}` : '';
-    offerCard.innerHTML = `<b>免費投注卡</b><small>投注先扣戰鬥力，不夠一注才扣主錢包；贏分直接進主錢包</small><button type="button" class="gd-fb" aria-label="解除免費投注"><i style="${bg}">${esc(card.rarity)}</i><span>${esc(card.name)}</span><strong><small>戰鬥力</small>${coins(card.powerLeft)}</strong></button><em>點卡片可解除免費投注</em>`;
+  /** 遊戲卡片：圖示換成卡面，下方顯示剩餘／原本戰鬥力與解除；點卡面或解除鈕都會解除。 */
+  async function showFreeBet(card, meta) {
+    const game = selectedGame, icon = modalArt.innerHTML;
+    offerCard.innerHTML = `<b>免費投注卡・使用中</b><small>${esc(card.rarity)} ${esc(card.name)}・投注先扣戰鬥力，不夠一注才扣主錢包；贏分直接進主錢包</small><span class="gd-fb-power"><small>戰鬥力</small>${coins(card.powerLeft)} / ${coins(card.power)}</span><button type="button" class="gd-fb">解除免費投注</button>`;
     offerCard.hidden = false;
     const b = $('.gd-fb', offerCard);
-    b.onclick = async () => {
+    const release = async () => {
+      if (b.disabled) return;
       b.disabled = true;
-      try { await releaseCard(card); prepareOffer(); } catch (err) { toast(err.message); b.disabled = false; }
+      try {
+        await releaseCard(card);
+        modalArt.innerHTML = icon;
+        prepareOffer();
+      } catch (err) { toast(err.message); b.disabled = false; }
     };
+    b.onclick = release;
+    try {
+      await window.GDCardsLoad?.();
+      const art = await window.GDCards.art({ ...card, owned: true }, meta);
+      if (selectedGame !== game || !dialog.open || b.disabled) return;
+      modalArt.replaceChildren(art); modalArt.classList.add('gd-fb-art'); modalArt.title = '點卡片解除免費投注'; modalArt.onclick = release;
+    } catch (err) { console.warn('card art', err); }
   }
 
   async function prepareOffer() {
@@ -1010,6 +1026,7 @@
     const gameId = HASH_GAMES[selectedGame], key = selectedKey();
     demoOffer.hidden = true;
     offerCard.hidden = true;
+    modalArt.classList.remove('gd-fb-art'); modalArt.onclick = null; modalArt.title = ''; // 上一款遊戲的卡面
     if (!key || !me) return;
     try {
       // 每款遊戲只能用一個優惠：鎖了卡片就只顯示卡片
