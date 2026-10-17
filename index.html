@@ -227,7 +227,7 @@
     <button class="wallet-close" aria-label="關閉錢包">×</button>
   </div>
 </section>
-<script src="gd-api.js?v=20261013a"></script>
+<script src="gd-api.js?v=20261018a"></script>
 <script>
   const catalog=[
     ['急速百家','🎴','#a72831','#4b1018','poker','','','speed_baccarat_TCH.webp'],['21點','♠️','#5a2c75','#241038','poker','','','blackjack_TCH.webp'],['三路百家','🃏','#b0392e','#521513','poker','','','3_road_baccarat_TCH.webp'],['急速龍虎','🐯','#513285','#1f153f','poker','','','speed_dragon_tiger_TCH.webp'],['射龍門','🎯','#d94d26','#7d170e','poker','','','inbetween_TCH.webp'],['經典龍虎','🐉','#7b2d75','#351236','poker','','','classic_dragon_tiger_TCH.webp'],
@@ -416,7 +416,7 @@
   (() => {
     const el = document.getElementById('gdCards'), layer = document.getElementById('profileLayer');
     if (!el || !layer || !window.GD_API) return;
-    const V = '20261017e', MOTTO = el.textContent;
+    const V = '20261018a', MOTTO = el.textContent;
     const load = (src) => new Promise((ok, fail) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = fail; document.head.append(s); });
     let mounted = false, busy = false;
     async function show() {
@@ -425,7 +425,12 @@
       try {
         const [data] = await Promise.all([GD_API.call(GD_API.isLoggedIn() ? '/me/cards' : '/cards'), window.GDCards ? null : load('cards/gd-cards.js?v=' + V)]);
         if (!data || !data.cards || !data.cards.length || layer.hidden) return;
-        el.classList.remove('motto'); GDCards.mount(el, data); mounted = true;
+        // 免費投注：使用／解除交給 gd-live.js（GDFreeBet），解除後重讀卡冊
+        const freeBet = window.GDFreeBet && GD_API.isLoggedIn() ? {
+          onUse: (c) => window.GDFreeBet.use(c),
+          onRelease: async (c) => { await window.GDFreeBet.release(c); },
+        } : {};
+        el.classList.remove('motto'); GDCards.mount(el, data, freeBet); mounted = true;
       } catch {} finally { busy = false; }
     }
     function hide() {
@@ -447,7 +452,7 @@
     status.hidden = false;
   }, true);
 </script>
-<script src="gd-live.js?v=20261017c"></script>
+<script src="gd-live.js?v=20261018a"></script>
 <script src="shop/gd-shop.js?v=20261018a"></script>
 <script src="gd-glint.js?v=20261018a" defer></script>
 <script src="gd-prefetch.js?v=20261014a" defer></script>

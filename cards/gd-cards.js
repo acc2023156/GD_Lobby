@@ -6,13 +6,14 @@
  * - 卡背：所有卡共用；中間是正式 LOGO（gd-loading.js 同一份 Playfair Display Black 向量路徑：GD＋Club）。
  * 類名一律 gdc- 開頭、SVG 漸層 id 每份卡背各自加流水號，不會和大廳既有樣式衝突。
  * 用法：
- *   GDCards.mount(容器, data, { onLocked })    // data＝GDBO GET /me/cards（登入）或 GET /cards（未登入）的回應：{ meta, cards }
+ *   GDCards.mount(容器, data, { onLocked, onUse, onRelease })  // data＝GDBO GET /me/cards（登入）或 GET /cards（未登入）的回應：{ meta, cards }
+ *                                               // onUse／onRelease(card)：免費投注的使用／解除（回傳 Promise），有給才顯示按鈕
  *   GDCards.update(data)                        // 收到新卡後重畫
  *   GDCards.preview(card, meta)                 // 後台預覽：直接開觀看器（不需卡冊）
  *   GDCards.open(cardId)                        // 直接開某張已收集的卡（例：剛抽到卡）
  *   GDCards.unmount()                           // 離開個人頁：拆掉 DOM 與所有事件
  * 前端只負責顯示：卡片、系列、稀有度配色、效果強度都在後台「卡冊」設定，這支程式不寫死任何卡片資料。
- * CARD：{ id, code, series, name, rarity, effect, face, power, owned, img?, thumb?, w, h, icon?, colors?:[c1,c2] }
+ * CARD：{ id, code, series, name, rarity, effect, face, power, powerLeft?, inUse?, gameKey?, owned, img?, thumb?, w, h, icon?, colors?:[c1,c2] }
  *   w／h：卡圖原始尺寸（預設 773×1024 直式）；w > h 為橫式卡，觀看器、縮圖、卡背都跟著改成橫式。thumb：卡冊縮圖（小圖）。
  *   未收集的卡後端只回 id／code／series／rarity／w／h（不回 name、圖、power）。
  */
@@ -56,6 +57,12 @@
 .gdc-mini.locked .gdc-art{filter:grayscale(.6) brightness(.45)}
 .gdc-mini.locked .gdc-art::after{display:none}
 .gdc-lock{position:absolute;inset:0;display:grid;place-items:center;font-size:20px;z-index:2}
+.gdc-inuse{position:absolute;left:0;right:0;bottom:0;z-index:3;font-size:9px;font-weight:900;line-height:15px;color:#1a0b2e;background:linear-gradient(90deg,#ffd36e,#ffe9a8)}
+.gdc-prow .gdc-use{flex:none;border:0;border-radius:999px;padding:9px 18px;font:inherit;font-size:14px;font-weight:900;cursor:pointer;color:#3a2300;background:linear-gradient(#fff3c4,#e2a83a);box-shadow:0 0 14px #ffd36e66}
+.gdc-prow .gdc-use.off{color:#fff;background:#ffffff1a;border:1px solid #ffd36e;box-shadow:none}
+.gdc-use:disabled{opacity:.6}
+.gdc-left{font-size:12px;color:#ffd36e;font-weight:800}
+.gdc-prow[hidden]{display:none}
 .gdc-mini.shake .gdc-art{animation:gdc-shake .35s}
 @keyframes gdc-shake{25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
 .gdc-rar{display:inline-block;font:900 8px/1 Cinzel,Georgia,serif;padding:2px 4px;border-radius:3px;color:#3a2300;background:linear-gradient(#fff3c4,#e2a83a);letter-spacing:.02em}
@@ -330,11 +337,12 @@ ${corner(52, 52, 0, p)}${corner(w - 52, 52, 90, p)}${corner(w - 52, hh - 52, 180
       const art = h('div', 'gdc-art'), [cw, ch] = dims(c);
       art.style.aspectRatio = `${cw}/${ch}`; if (cw > ch) b.classList.add('land');
       if (c.owned) faceArt(c, { scale: .26, thumb: true }).then((el) => art.prepend(el));
+      if (c.inUse) art.append(h('div', 'gdc-inuse', '免費投注中'));
       else { art.innerHTML = backSVG(cw, ch); art.append(h('div', 'gdc-lock', '🔒')); }
       art.append(rarBadge(c.rarity));
       b.append(art, h('div', 'gdc-name', c.owned ? c.name : c.code));
       b.onclick = () => {
-        if (c.owned) return openViewer(c, order.filter((x) => x.owned));
+        if (c.owned) return openViewer(c, order.filter((x) => x.owned), { freeBet: true });
         b.classList.remove('shake'); void b.offsetWidth; b.classList.add('shake');
         toast('尚未收集這張卡'); opts.onLocked?.(c);
       };
@@ -363,6 +371,7 @@ ${corner(52, 52, 0, p)}${corner(w - 52, 52, 90, p)}${corner(w - 52, hh - 52, 180
     v.innerHTML = `<div class="gdc-vhead"><span class="gdc-rar" data-k="rar"></span><span class="gdc-vt" data-k="name"></span><span class="gdc-vcat" data-k="cat"></span><span class="gdc-vpow" data-k="vpow"><small>戰鬥力</small><span data-k="pow"></span></span><button type="button" class="gdc-skip" data-k="skip" hidden>跳過</button><button class="gdc-x" data-k="close" aria-label="關閉">✕</button></div>
 <div class="gdc-stage" data-k="stage"><button type="button" class="gdc-nav prev" data-k="prev" aria-label="上一張" hidden>‹</button><button type="button" class="gdc-nav next" data-k="next" aria-label="下一張" hidden>›</button><div class="gdc-card" data-k="card"><div class="gdc-body"><div class="gdc-face front" data-k="front"><div class="gdc-shine"></div><div class="gdc-glare"></div></div><div class="gdc-face back" data-k="back">${backSVG()}<div class="gdc-shine"></div><div class="gdc-glare"></div></div></div></div></div>
 <div class="gdc-panel">
+<div class="gdc-prow" data-k="userow" hidden><button type="button" class="gdc-use" data-k="use"></button><span class="gdc-left" data-k="left"></span></div>
 <div class="gdc-prow"><div class="gdc-zoom"><button type="button" data-k="zm" aria-label="縮小">−</button><input data-k="zoom" type="range" min="50" max="150" value="100" aria-label="縮放"><button type="button" data-k="zp" aria-label="放大">＋</button><output data-k="zout">100%</output></div></div>
 <div class="gdc-prow"><button type="button" class="primary" data-k="flip">⟲ 翻面</button><button type="button" data-k="reset">歸位</button><span class="gdc-count" data-k="idx"></span></div>
 <div class="gdc-hint">拖曳卡片翻轉・在卡片外左右滑動換下一張・雙指／滾輪縮放</div></div>`;
@@ -409,6 +418,7 @@ ${corner(52, 52, 0, p)}${corner(w - 52, 52, 90, p)}${corner(w - 52, hh - 52, 180
     q('reset').onclick = () => { vYaw = 0; T.yaw = Math.round(T.yaw / 360) * 360 + REST.yaw; T.pitch = REST.pitch; T.hy = T.hp = 0; };
     q('prev').onclick = () => step(-1);
     q('next').onclick = () => step(1);
+    q('use').onclick = useCard;
     // 陀螺儀預設開啟；iOS 要使用者手勢授權，所以第一次碰觸觀看器時才詢問；沒有陀螺儀就不顯示任何按鈕
     V.gyroAsk = !!(window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === 'function');
     if (window.DeviceOrientationEvent && !V.gyroAsk) V.gyroGranted = true;
@@ -455,13 +465,14 @@ ${corner(52, 52, 0, p)}${corner(w - 52, 52, 90, p)}${corner(w - 52, hh - 52, 180
     const seq = ++openSeq, q = V.q, rb = q('rar');
     const R = rarity(c.rarity);
     rb.textContent = c.rarity; rb.title = R.name || ''; rb.style.background = badgeBg(R.badge); rb.style.color = R.ink; rb.style.boxShadow = isDragon(R) ? 'inset 0 0 0 1px #ffd36e' : '';
-    q('name').textContent = c.name; q('cat').textContent = c.song ? c.album || '' : seriesName(c.series); q('cat').hidden = !q('cat').textContent; q('pow').textContent = fmt(c.power); q('vpow').hidden = !!c.song;
+    q('name').textContent = c.name; q('cat').textContent = c.song ? c.album || '' : seriesName(c.series); q('cat').hidden = !q('cat').textContent; q('pow').textContent = c.powerLeft != null && c.powerLeft < c.power ? `${fmt(c.powerLeft)} / ${fmt(c.power)}` : fmt(c.power); q('vpow').hidden = !!c.song;
+    showUse(c);
     setFx(c.effect || META.effects.find((e) => e.status !== 'HIDDEN')?.key);
     V.front.querySelector('canvas,img,.gdc-songbox')?.remove();
     const [cw, ch] = dims(c), land = cw > ch, orient = `${cw}x${ch}`;
     V.card.classList.toggle('land', land); V.card.style.setProperty('--ar', cw / ch);
     if (V.orient !== orient) { V.back.querySelector('svg')?.remove(); V.back.insertAdjacentHTML('afterbegin', backSVG(cw, ch)); V.orient = orient; }
-    const hidden = view.reveal && !view.seen.has(c);
+    const hidden = !!view.reveal && !view.seen.has(c);
     Object.assign(S, { yaw: REST.yaw - 180, pitch: REST.pitch, zoom: .6, hy: 0, hp: 0 }); Object.assign(T, { yaw: hidden ? REST.yaw - 180 : REST.yaw, pitch: REST.pitch, hy: 0, hp: 0 }); vYaw = 0; setZoom(1); // 從背面翻入
     view.pending = 0; V.el.classList.toggle('pending', hidden); // 蓋牌時先不顯示卡名
     if (hidden) { view.seen.add(c); view.pending = seq; view.flipT = setTimeout(() => flipIn(seq, c), 650); }
@@ -479,6 +490,27 @@ ${corner(52, 52, 0, p)}${corner(w - 52, 52, 90, p)}${corner(w - 52, hh - 52, 180
       view.onReveal?.(c, V.card);
       if (view.auto) view.autoT = setTimeout(() => seq === openSeq && !view.paused && advance(), view.hold?.(c) ?? 1000);
     }, 260);
+  }
+  /**
+   * 免費投注（卡冊打開的觀看器才有）：「使用」鎖定到卡片的遊戲、投注先扣戰鬥力；使用中改顯示「解除」。
+   * 實際動作交給大廳（mount 的 o.onUse／o.onRelease，回傳 Promise；失敗時 reject 並帶訊息）。
+   */
+  function showUse(c) {
+    const on = !!(view.freeBet && c.owned && !c.song && c.gameKey && opts.onUse), row = V.q('userow'), b = V.q('use');
+    row.hidden = !on; if (!on) return;
+    b.disabled = false; b.classList.toggle('off', !!c.inUse);
+    b.textContent = c.inUse ? '解除免費投注' : '使用（免費投注）';
+    V.q('left').textContent = c.inUse ? `使用中・剩 ${fmt(c.powerLeft)}` : `可投注 ${fmt(c.powerLeft ?? c.power)} G幣`;
+  }
+  async function useCard() {
+    const c = list[idx], b = V.q('use');
+    if (!c || b.disabled) return;
+    b.disabled = true;
+    try {
+      await (c.inUse ? opts.onRelease : opts.onUse)(c);
+      c.inUse = !c.inUse; render();
+    } catch (e) { toast(e?.message || '操作失敗'); }
+    if (V && list[idx] === c) showUse(c);
   }
   /** 自動開卡：下一張；最後一張就關閉（顯示全部結果）。 */
   function advance() { if (idx >= list.length - 1) closeViewer(); else step(1); }
@@ -520,7 +552,7 @@ ${corner(52, 52, 0, p)}${corner(w - 52, 52, 90, p)}${corner(w - 52, hh - 52, 180
     preview(card, meta, group, o) { ensureStyle(); if (meta) META = meta; openViewer(card, group, o); },
     /** 卡面小圖（抽卡結果總覽用）：卡片＝含卡名與稀有度的卡面，單曲＝CD。 */
     art(card, meta) { ensureStyle(); if (meta) META = meta; return faceArt(card, { scale: .4, thumb: !!card.song }); },
-    open(id) { const c = cards.find((x) => x.id === id && x.owned); if (c) openViewer(c, cards.filter((x) => x.owned)); },
+    open(id) { const c = cards.find((x) => x.id === id && x.owned); if (c) openViewer(c, cards.filter((x) => x.owned), { freeBet: true }); },
     close: closeViewer,
     unmount() {
       closeViewer(); root?.remove(); root = null;
