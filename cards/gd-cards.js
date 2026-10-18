@@ -151,6 +151,8 @@
   const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
   const wrap = (a) => ((a + 180) % 360 + 360) % 360 - 180;
   const fmt = (n) => Number(n || 0).toLocaleString('en-US');
+  /** 卡面戰鬥力：剩餘少於原本時為「剩餘 / 原本」。 */
+  const powerText = (c) => (c.powerLeft != null && c.powerLeft < c.power ? `${fmt(Math.floor(c.powerLeft))} / ${fmt(c.power)}` : fmt(c.power));
   const h = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
   const SANS = '"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif';
   const SERIF = 'Cinzel,"Cinzel Decorative",Georgia,"Times New Roman",serif';
@@ -283,8 +285,11 @@ ${corner(52, 52, 0, p)}${corner(w - 52, 52, 90, p)}${corner(w - 52, hh - 52, 180
       g.fillStyle = 'rgba(255,255,255,.18)'; g.fillRect(92, 860, 589, 2);
       const cat = seriesName(card.series); g.font = `700 28px ${SANS}`; const cw = g.measureText(cat).width + 36;
       rr(g, 92, 888, cw, 50, 25); g.fillStyle = 'rgba(255,255,255,.12)'; g.fill(); g.fillStyle = '#e6e8ff'; g.textAlign = 'left'; g.fillText(cat, 110, 914);
-      g.textAlign = 'right'; g.font = `900 58px ${SERIF}`; g.fillStyle = grad(g, ['#fff6cf', '#ffd36e', '#c98a12'], 0, 885, 0, 945); g.fillText(fmt(card.power), 681, 916);
-      const pw = g.measureText(fmt(card.power)).width; g.font = `700 26px ${SANS}`; g.fillStyle = '#c9cdee'; g.fillText('戰鬥力', 681 - pw - 14, 918);
+      // 戰鬥力：用掉一部分時顯示「剩餘 / 原本」（免費投注），字放不下就縮小
+      const pText = powerText(card); let ps = 58; g.textAlign = 'right';
+      do { g.font = `900 ${ps}px ${SERIF}`; } while (g.measureText(pText).width > 470 - cw && (ps -= 2) > 30);
+      g.fillStyle = grad(g, ['#fff6cf', '#ffd36e', '#c98a12'], 0, 885, 0, 945); g.fillText(pText, 681, 916);
+      const pw = g.measureText(pText).width; g.font = `700 26px ${SANS}`; g.fillStyle = '#c9cdee'; g.fillText('戰鬥力', 681 - pw - 14, 918);
     }
     g.restore();
     // 外框
@@ -465,7 +470,7 @@ ${corner(52, 52, 0, p)}${corner(w - 52, 52, 90, p)}${corner(w - 52, hh - 52, 180
     const seq = ++openSeq, q = V.q, rb = q('rar');
     const R = rarity(c.rarity);
     rb.textContent = c.rarity; rb.title = R.name || ''; rb.style.background = badgeBg(R.badge); rb.style.color = R.ink; rb.style.boxShadow = isDragon(R) ? 'inset 0 0 0 1px #ffd36e' : '';
-    q('name').textContent = c.name; q('cat').textContent = c.song ? c.album || '' : seriesName(c.series); q('cat').hidden = !q('cat').textContent; q('pow').textContent = c.powerLeft != null && c.powerLeft < c.power ? `${fmt(c.powerLeft)} / ${fmt(c.power)}` : fmt(c.power); q('vpow').hidden = !!c.song;
+    q('name').textContent = c.name; q('cat').textContent = c.song ? c.album || '' : seriesName(c.series); q('cat').hidden = !q('cat').textContent; q('pow').textContent = powerText(c); q('vpow').hidden = !!c.song;
     showUse(c);
     setFx(c.effect || META.effects.find((e) => e.status !== 'HIDDEN')?.key);
     V.front.querySelector('canvas,img,.gdc-songbox')?.remove();

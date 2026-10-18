@@ -416,7 +416,7 @@
   (() => {
     const el = document.getElementById('gdCards'), layer = document.getElementById('profileLayer');
     if (!el || !layer || !window.GD_API) return;
-    const V = '20261018b', MOTTO = el.textContent;
+    const V = '20261018c', MOTTO = el.textContent;
     const load = (src) => new Promise((ok, fail) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = fail; document.head.append(s); });
     let mounted = false, busy = false;
     // 遊戲卡片顯示使用中的卡面也要用到（gd-live.js）
@@ -454,7 +454,7 @@
     status.hidden = false;
   }, true);
 </script>
-<script src="gd-live.js?v=20261018b"></script>
+<script src="gd-live.js?v=20261018c"></script>
 <script src="shop/gd-shop.js?v=20261018a"></script>
 <script src="gd-glint.js?v=20261018a" defer></script>
 <script src="gd-prefetch.js?v=20261014a" defer></script>
