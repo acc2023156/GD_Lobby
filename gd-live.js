@@ -954,10 +954,14 @@
     .modal-offer .gd-short{display:block;margin-top:8px;color:#ff6e8a;font-weight:900}
     .modal-art.gd-fb-art{width:auto;height:220px;cursor:pointer}
     .modal-art.gd-fb-art canvas,.modal-art.gd-fb-art img{width:auto;height:220px;max-width:100%;object-fit:contain;border-radius:8px;filter:drop-shadow(0 8px 14px #0008)}
-    .gd-fb-power{display:block;margin-top:9px;font-size:22px;font-weight:900;color:#ffb21e}
-    .gd-fb-power small{display:inline!important;margin:0 4px 0 0!important;font-size:12px;color:inherit;opacity:.8}
-    .gd-fb{display:block;width:100%;margin-top:10px;padding:10px;border:1px solid #ffd36e;border-radius:10px;background:#ffd36e1f;color:inherit;font:inherit;font-weight:900;cursor:pointer}
-    .gd-fb:disabled{opacity:.6;cursor:wait}
+    .gd-fb{display:block;width:100%;margin-top:4px;padding:10px;border:1px solid #ffd36e;border-radius:10px;background:#ffd36e1f;color:inherit;font:inherit;font-weight:900;cursor:pointer}
+    .gd-fb:disabled,.gd-fb-mini:disabled{opacity:.6;cursor:wait}
+    .gd-fb[hidden],.gd-fb-mini[hidden]{display:none}
+    .modal-body{position:relative}
+    .gd-fb-mini{position:absolute;top:12px;right:12px;width:64px;padding:0;border:0;background:none;cursor:pointer;animation:gdFbBob 2.2s ease-in-out infinite}
+    .gd-fb-mini canvas,.gd-fb-mini img{display:block;width:100%;height:auto;border-radius:5px;box-shadow:0 0 0 1.5px #ffd36e,0 0 14px #ffd36e99}
+    @keyframes gdFbBob{0%,100%{transform:translateY(0) rotate(4deg)}50%{transform:translateY(-4px) rotate(4deg)}}
+    .gd-card-wallet .progress span{background:linear-gradient(90deg,#ffd36e,#ff3d9e)}
     .gd-coin{position:fixed;z-index:100;width:24px;height:24px;margin:-12px 0 0 -12px;pointer-events:none;background:url(icons/G_COIN.svg) center/contain no-repeat}`;
   document.head.appendChild(promoStyle);
 
@@ -997,27 +1001,46 @@
     if (g) { openGame(g); playButton.click(); }
   }
   window.GDFreeBet = { use: useCard, release: releaseCard };
-  /** 遊戲卡片：圖示換成卡面，下方顯示剩餘／原本戰鬥力與解除；點卡面或解除鈕都會解除。 */
+  // 遊戲卡片的標題、解除鈕、可用的小卡（每次打開遊戲卡片由 prepareOffer 重設）
+  const modalHead = $('.modal-head', dialog), HEAD = modalHead.textContent;
+  const fbButton = Object.assign(document.createElement('button'), { type: 'button', className: 'gd-fb', textContent: '解除免費投注', hidden: true });
+  const fbMini = Object.assign(document.createElement('button'), { type: 'button', className: 'gd-fb-mini', hidden: true });
+  modalArt.after(fbButton); modalArt.parentElement.append(fbMini);
+  /** 卡面（剩餘／原本戰鬥力畫在卡面上）。 */
+  const cardArt = async (card, meta) => { await window.GDCardsLoad?.(); return window.GDCards.art({ ...card, owned: true }, meta); };
+  /** 使用中的卡：標題改「免費投注卡・使用中」，圖示換成卡面，下面只有解除鈕；點卡面也會解除。 */
   async function showFreeBet(card, meta) {
     const game = selectedGame, icon = modalArt.innerHTML;
-    offerCard.innerHTML = `<b>免費投注卡・使用中</b><small>${esc(card.rarity)} ${esc(card.name)}・投注先扣戰鬥力，不夠一注才扣主錢包；贏分直接進主錢包</small><span class="gd-fb-power"><small>戰鬥力</small>${coins(card.powerLeft)} / ${coins(card.power)}</span><button type="button" class="gd-fb">解除免費投注</button>`;
-    offerCard.hidden = false;
-    const b = $('.gd-fb', offerCard);
+    modalHead.textContent = '免費投注卡・使用中';
+    fbButton.hidden = false; fbButton.disabled = false;
     const release = async () => {
-      if (b.disabled) return;
-      b.disabled = true;
+      if (fbButton.disabled) return;
+      fbButton.disabled = true;
       try {
         await releaseCard(card);
         modalArt.innerHTML = icon;
         prepareOffer();
-      } catch (err) { toast(err.message); b.disabled = false; }
+      } catch (err) { toast(err.message); fbButton.disabled = false; }
     };
-    b.onclick = release;
+    fbButton.onclick = release;
     try {
-      await window.GDCardsLoad?.();
-      const art = await window.GDCards.art({ ...card, owned: true }, meta);
-      if (selectedGame !== game || !dialog.open || b.disabled) return;
+      const art = await cardArt(card, meta);
+      if (selectedGame !== game || !dialog.open || fbButton.disabled) return;
       modalArt.replaceChildren(art); modalArt.classList.add('gd-fb-art'); modalArt.title = '點卡片解除免費投注'; modalArt.onclick = release;
+    } catch (err) { console.warn('card art', err); }
+  }
+  /** 這款遊戲有可用的卡：右上角一張小卡，點了就使用卡片進遊戲。 */
+  async function showCardOffer(card, meta) {
+    const game = selectedGame;
+    try {
+      const art = await cardArt(card, meta);
+      if (selectedGame !== game || !dialog.open) return;
+      fbMini.replaceChildren(art); fbMini.hidden = false; fbMini.disabled = false;
+      fbMini.setAttribute('aria-label', `使用「${card.name}」免費投注`);
+      fbMini.onclick = async () => {
+        fbMini.disabled = true;
+        try { await useCard(card); } catch (err) { toast(err.message); fbMini.disabled = false; }
+      };
     } catch (err) { console.warn('card art', err); }
   }
 
@@ -1026,15 +1049,20 @@
     const gameId = HASH_GAMES[selectedGame], key = selectedKey();
     demoOffer.hidden = true;
     offerCard.hidden = true;
-    modalArt.classList.remove('gd-fb-art'); modalArt.onclick = null; modalArt.title = ''; // 上一款遊戲的卡面
+    // 上一款遊戲的卡面、標題、解除鈕、小卡
+    modalArt.classList.remove('gd-fb-art'); modalArt.onclick = null; modalArt.title = '';
+    modalHead.textContent = HEAD; fbButton.hidden = true; fbMini.hidden = true;
     if (!key || !me) return;
     try {
-      // 每款遊戲只能用一個優惠：鎖了卡片就只顯示卡片
+      // 每款遊戲只能用一個優惠：鎖了卡片就只顯示卡片；鎖了優惠就不提示卡片
       const [deck, promos] = await Promise.all([api.call('/me/cards'), gameId ? myPromotions() : []]);
-      const card = deck.cards.find((c) => c.inUse && c.gameKey === key);
+      const mine = deck.cards.filter((c) => c.owned && c.gameKey === key);
+      const card = mine.find((c) => c.inUse);
       if (card) return showFreeBet(card, deck.meta);
+      const locked = gameId && promos.find((p) => p.provider === HASH_PROVIDER && p.gameId === gameId);
+      const usable = !locked && mine.filter((c) => c.powerLeft > 0).sort((a, b) => b.powerLeft - a.powerLeft)[0];
+      if (usable) showCardOffer(usable, deck.meta);
       if (!gameId) return;
-      const locked = promos.find((p) => p.provider === HASH_PROVIDER && p.gameId === gameId);
       if (locked) {
         offerCard.innerHTML = `<b>${esc(locked.promotion)}</b><small>鎖定錢包・${PROMO_STATUS[locked.status]}</small><strong>${coins(locked.balance.total)}</strong><div class="modal-progress"><span></span></div><em>${progressText(locked)}</em>`;
         offerCard.hidden = false;
@@ -1082,6 +1110,17 @@
       const claim = $('.gd-claim', row);
       if (claim) claim.onclick = () => claimPromotion(p, claim);
     });
+    renderCardWallets().catch((err) => console.warn('card wallets', err));
+  }
+  /** 免費投注卡也列在錢包：每款遊戲一列，額度（原本戰鬥力）、剩餘、使用中與否；遊戲未開放的標示未開通。 */
+  async function renderCardWallets() {
+    const { cards } = await api.call('/me/cards');
+    const rows = cards.filter((c) => c.owned && c.gameKey).sort((a, b) => b.inUse - a.inUse || b.powerLeft - a.powerLeft);
+    $$('.gd-card-wallet', walletLayer).forEach((row) => row.remove());
+    walletNote.insertAdjacentHTML('beforebegin', rows.map((c) => {
+      const name = GAME_BY_KEY[c.gameKey], state = !name ? '未開通' : c.inUse ? '使用中' : c.powerLeft > 0 ? '未使用' : '回復中';
+      return `<article class="unlock-row gd-card-wallet"><div><b>${esc(name || c.name)}</b><small>免費投注卡 ${esc(c.rarity)}・${state}</small></div><strong>${coins(c.powerLeft)}</strong><div class="progress"><span style="width:${c.power ? Math.min(100, c.powerLeft / c.power * 100) : 0}%"></span></div><em>剩餘 ${coins(c.powerLeft)} / 額度 ${coins(c.power)}</em></article>`;
+    }).join(''));
   }
 
   async function claimPromotion(p, button) {
