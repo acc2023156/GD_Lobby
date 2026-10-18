@@ -416,14 +416,16 @@
   (() => {
     const el = document.getElementById('gdCards'), layer = document.getElementById('profileLayer');
     if (!el || !layer || !window.GD_API) return;
-    const V = '20261018a', MOTTO = el.textContent;
+    const V = '20261018b', MOTTO = el.textContent;
     const load = (src) => new Promise((ok, fail) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = fail; document.head.append(s); });
     let mounted = false, busy = false;
+    // 遊戲卡片顯示使用中的卡面也要用到（gd-live.js）
+    window.GDCardsLoad = () => (window.GDCards ? Promise.resolve() : load('cards/gd-cards.js?v=' + V));
     async function show() {
       if (mounted || busy) return;
       busy = true;
       try {
-        const [data] = await Promise.all([GD_API.call(GD_API.isLoggedIn() ? '/me/cards' : '/cards'), window.GDCards ? null : load('cards/gd-cards.js?v=' + V)]);
+        const [data] = await Promise.all([GD_API.call(GD_API.isLoggedIn() ? '/me/cards' : '/cards'), window.GDCardsLoad()]);
         if (!data || !data.cards || !data.cards.length || layer.hidden) return;
         // 免費投注：使用／解除交給 gd-live.js（GDFreeBet），解除後重讀卡冊
         const freeBet = window.GDFreeBet && GD_API.isLoggedIn() ? {
@@ -452,7 +454,7 @@
     status.hidden = false;
   }, true);
 </script>
-<script src="gd-live.js?v=20261018a"></script>
+<script src="gd-live.js?v=20261018b"></script>
 <script src="shop/gd-shop.js?v=20261018a"></script>
 <script src="gd-glint.js?v=20261018a" defer></script>
 <script src="gd-prefetch.js?v=20261014a" defer></script>
