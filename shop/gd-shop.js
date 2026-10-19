@@ -26,7 +26,7 @@
   const loadScript = (src) => new Promise((ok, no) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = no; document.head.append(s); });
   let cardMeta = null;
   async function cardViewer() {
-    if (!window.GDCards) await loadScript('cards/gd-cards.js?v=20261017e');
+    if (!window.GDCards) await loadScript('cards/gd-cards.js?v=20261018e');
     if (!cardMeta) cardMeta = (await call('/cards')).meta;
     return cardMeta;
   }
@@ -201,13 +201,13 @@
     $$('[data-odds]', gPage).forEach((b) => b.onclick = () => {
       const p = pools.find((x) => String(x.id) === b.dataset.odds), box = $(`[data-odds-box="${b.dataset.odds}"]`, gPage);
       box.hidden = !box.hidden;
-      if (!box.hidden) box.innerHTML = `<table class="gds-odds">${p.odds.rarities.map((r) => `<tr><td>卡片 ${esc(r.rarity)} ${esc(r.name)}（${r.cards} 張，每張 ${pct(r.perCard)}）</td><td>${pct(r.rate)}</td></tr>`).join('')}<tr><td>魔曲單曲（${p.odds.songs} 首，每首 ${pct(p.odds.perSong)}）</td><td>${pct(p.odds.songRate)}</td></tr></table>`;
+      if (!box.hidden) box.innerHTML = `<table class="gds-odds">${p.odds.rarities.map((r) => `<tr><td>卡片 ${esc(r.rarity)} ${esc(r.name)}（${r.cards} 張，每張 ${pct(r.perCard)}）</td><td>${pct(r.rate)}</td></tr>`).join('')}${(p.odds.symbols || []).map((x) => `<tr><td>符號 ${esc(x.name)}（充能 ${num(x.charge)}）</td><td>${pct(x.rate)}</td></tr>`).join('')}<tr><td>魔曲單曲（${p.odds.songs} 首，每首 ${pct(p.odds.perSong)}；附充能券）</td><td>${pct(p.odds.songRate)}</td></tr></table>`;
     });
     $('[data-history]', gPage).onclick = async () => {
       const box = $('[data-history-box]', gPage); box.hidden = !box.hidden;
       if (box.hidden || !logged()) return;
       const { draws } = await call('/me/gacha/history');
-      box.innerHTML = draws.length ? `<table class="gds-odds">${draws.map((d) => `<tr><td>${new Date(d.at).toLocaleString('zh-TW', { hour12: false })}<br>${esc(d.item)}${d.duplicate ? '（重複）' : ''}</td><td>+${IC('G')} ${num(d.coins)}</td></tr>`).join('')}</table>` : '<p class="shop-note">還沒有抽獎紀錄</p>';
+      box.innerHTML = draws.length ? `<table class="gds-odds">${draws.map((d) => `<tr><td>${new Date(d.at).toLocaleString('zh-TW', { hour12: false })}<br>${esc(d.item)}${d.duplicate ? '（重複）' : ''}</td><td>${d.charge ? `充能 +${num(d.charge)}` : d.coins ? `+${IC('G')} ${num(d.coins)}` : ''}</td></tr>`).join('')}</table>` : '<p class="shop-note">還沒有抽獎紀錄</p>';
     };
   }
   const RARE = ['UR', 'LR', 'GDR'];
@@ -311,7 +311,10 @@
   }
   /** 觀看器用的單曲卡（顯示 CD）。 */
   const songCard = (s) => ({ id: 'song-' + s.id, song: true, name: s.title, album: s.album, src: s.src, cover: s.cover, rarity: '單曲' });
-  const asView = (d) => (d.kind === 'CARD' ? d.card : songCard(d.song));
+  /** 觀看器用的符號卡（抽到直接進充能池）。 */
+  const GLYPH = { BONUS: 'B', WILD: 'W', M1: 'M1', M2: 'M', AKQJ: 'A', T9: '10' };
+  const symbolCard = (d) => ({ id: 'sym-' + d.id, symbol: true, name: d.symbol.name, glyph: GLYPH[d.symbol.code] || d.symbol.code.slice(0, 2), charge: d.symbol.charge, rarity: '符號' });
+  const asView = (d) => (d.kind === 'CARD' ? d.card : d.kind === 'SYMBOL' ? symbolCard(d) : songCard(d.song));
   const SONG_FX = { rank: .35, gold: false, colors: ['#c79bff', '#7ad8ff', '#ffffff'], rare: false };
   /** 稀有卡：金色粒子之外再加白光一閃、畫面震一下、手機震動（iPhone 瀏覽器不支援震動）與稀有音效。 */
   function rareHit(el) {
@@ -329,12 +332,12 @@
       window.GDCards.preview(list[0], meta, list, {
         reveal: true,
         auto: true,
-        hold: (c) => (c.song ? 3000 : isRare(drawOf(c)) ? 2400 : 1000),
+        hold: (c) => (c.song ? 3000 : c.symbol ? 700 : isRare(drawOf(c)) ? 2400 : 1000),
         onReveal: (c, el) => {
           const d = drawOf(c);
           stopAudio(); sfx('flip');
           if (c.song) play(d.song);
-          const fx = c.song ? SONG_FX : rarityFx(c.rarity, meta, d.pity);
+          const fx = c.song || c.symbol ? SONG_FX : rarityFx(c.rarity, meta, d.pity);
           setTimeout(() => { if (fx.rare) rareHit(el); burst(el, fx); }, 120);
         },
         onClose: () => { stopAudio(); showResults(r, meta); },
@@ -371,16 +374,17 @@
   function play(song) { stopAudio(); if (!song.src) return; audio = interrupt(new Audio(song.src)); audioId = song.id; audio.play().catch(() => {}); }
   /** 全部結果：卡牌牆（卡面＋稀有度光框，單曲是 CD）；點卡片進 3D 觀看器，點 CD 試聽。 */
   function showResults(r, meta) {
-    const l = ensureLayer(), list = r.draws.map(asView), cards = list.filter((c) => !c.song);
-    const cell = (d, i) => `<div class="gds-cell gds-mini${isRare(d) ? ' rare' : ''}" style="animation-delay:${i * 0.06}s"><button type="button" class="gds-art" data-i="${i}" aria-label="${esc(list[i].name)}"><span class="gds-tags">${d.pity ? '<em class="pity">保底</em>' : ''}${d.duplicate ? '' : '<em>NEW</em>'}</span></button><b>${esc(list[i].name)}</b><small>+${num(d.coins)} G幣</small><button type="button" class="gds-sh" data-share="${i}">分享</button></div>`;
-    l.innerHTML = `<h3>抽獎結果</h3><div class="gds-sum">獲得 ${IC('G')} ${num(r.coins)}・剩餘 ${IC('D')} ${num(r.diamonds)}</div><div class="gds-res">${r.draws.map(cell).join('')}</div><button type="button" class="gds-close">關閉</button>`;
+    const l = ensureLayer(), list = r.draws.map(asView), cards = list.filter((c) => !c.song && !c.symbol);
+    const cell = (d, i) => `<div class="gds-cell gds-mini${isRare(d) ? ' rare' : ''}" style="animation-delay:${i * 0.06}s"><button type="button" class="gds-art" data-i="${i}" aria-label="${esc(list[i].name)}"><span class="gds-tags">${d.pity ? '<em class="pity">保底</em>' : ''}${d.duplicate || d.kind === 'SYMBOL' ? '' : '<em>NEW</em>'}</span></button><b>${esc(list[i].name)}</b><small>${d.kind === 'SYMBOL' ? `充能 +${num(d.charge)}` : d.kind === 'SONG' ? `充能券 ${num(d.charge)}` : d.coins ? `+${num(d.coins)} G幣` : ''}</small>${d.kind === 'SYMBOL' ? '' : `<button type="button" class="gds-sh" data-share="${i}">分享</button>`}</div>`;
+    l.innerHTML = `<h3>抽獎結果</h3><div class="gds-sum">${r.charge ? `充能池 +${num(r.charge)}・` : ''}${r.coins ? `獲得 ${IC('G')} ${num(r.coins)}・` : ''}剩餘 ${IC('D')} ${num(r.diamonds)}</div><div class="gds-res">${r.draws.map(cell).join('')}</div><button type="button" class="gds-close">關閉</button>`;
     l.hidden = false;
     $('.gds-close', l).onclick = () => { stopAudio(); l.hidden = true; endDrawMusic(); };
     $$('.gds-art', l).forEach((b) => {
       const c = list[Number(b.dataset.i)];
       if (window.GDCards) window.GDCards.art(c, meta).then((el) => b.prepend(el)).catch(() => {});
-      else b.prepend(Object.assign(document.createElement('span'), { textContent: c.song ? '🎵' : c.rarity }));
+      else b.prepend(Object.assign(document.createElement('span'), { textContent: c.song ? '🎵' : c.symbol ? c.glyph : c.rarity }));
       b.onclick = () => {
+        if (c.symbol) return;
         if (!c.song) return showCard(c, cards);
         const song = r.draws[Number(b.dataset.i)].song, on = audioId === song.id;
         stopAudio(); $$('.gds-mini.playing', l).forEach((x) => x.classList.remove('playing'));

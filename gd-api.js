@@ -76,6 +76,11 @@ window.GD_API = (() => {
     ERR_NOT_FOUND: '找不到這位玩家或資料',
     ERR_VIP_REQUIRED: 'VIP 等級不足，無法進入這款遊戲',
     ERR_FAVORITES_FULL: '每個分類最多 3 個最愛，請先取消一個',
+    ERR_NO_CHARGE: '充能池沒有可用的戰鬥力',
+    ERR_CARD_FULL: '這張卡已經充滿了',
+    ERR_TICKET_NOT_FOUND: '沒有可用的充能券',
+    ERR_TICKET_EXPIRED: '充能券已過期',
+    ERR_TICKET_NOT_DONE: '歌曲還沒播完',
   };
 
   async function call(path, { method = 'GET', body, idempotent } = {}) {

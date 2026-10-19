@@ -187,7 +187,7 @@
           id: String(a.id),
           title: a.title || '歌單',
           cover: a.cover ? new URL(a.cover, LOBBY).href : '',
-          all: (a.tracks || []).map((t) => ({ id: t.id, title: t.title, src: t.unlocked ? t.src : t.preview || null, preview: t.unlocked || !t.preview ? 0 : t.previewSec || 30, cover: t.cover ? new URL(t.cover, LOBBY).href : '' })),
+          all: (a.tracks || []).map((t) => ({ id: t.id, title: t.title, src: t.unlocked ? t.src : t.preview || null, preview: t.unlocked || !t.preview ? 0 : t.previewSec || 30, cover: t.cover ? new URL(t.cover, LOBBY).href : '', tickets: t.tickets || 0, ticketCharge: t.ticketCharge || 0, durationSec: t.durationSec || 180 })),
         })).filter((a) => a.all.length);
         albums.forEach((a) => { a.tracks = a.all.filter((t) => t.src); });
         locked = albums.reduce((n, a) => n + a.all.filter((t) => !t.src || t.preview).length, 0);
@@ -205,6 +205,43 @@
       .catch(() => changed());
   }
   loadSongs();
+
+  // ---------- 單曲充能券：玩家手動點歌播放時開始計時，滿歌曲長度後（後端計時，靜音、跳過都一樣）充進充能池 ----------
+  const memberToken = () => { try { return localStorage.getItem('gd-member-token'); } catch (e) { return null; } };
+  const post = (path, body) => fetch(API + path, { method: 'POST', headers: { Authorization: 'Bearer ' + memberToken(), 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) })
+    .then((r) => r.json().then((d) => (r.ok ? d : Promise.reject(d))));
+  let ticketTimer = 0;
+  function note(text) {
+    let el = document.querySelector('.gda-toast');
+    if (!el) { el = document.createElement('div'); el.className = 'gda-toast'; document.body.appendChild(el); }
+    el.textContent = text; el.classList.add('show'); clearTimeout(note.t); note.t = setTimeout(() => el.classList.remove('show'), 2600);
+  }
+  function scheduleFinish(ticket) {
+    clearTimeout(ticketTimer);
+    const wait = Math.max(0, Date.parse(ticket.readyAt) - Date.now()) + 800;
+    ticketTimer = setTimeout(() => {
+      post(`/me/song-tickets/${ticket.id}/finish`).then((r) => {
+        if (r.charged > 0) note(`🎵 單曲充能 +${Math.round(r.charged).toLocaleString()}（充能池 ${Math.round(r.chargeBalance).toLocaleString()}）`);
+        loadSongs();
+        window.dispatchEvent(new CustomEvent('gd-charge-change', { detail: r }));
+      }).catch(() => {});
+    }, wait);
+  }
+  function startTicketFor(t) {
+    if (!t || !t.tickets || !memberToken()) return;
+    post('/me/song-tickets/start', { songId: t.id }).then((ticket) => {
+      if (ticket.songId !== t.id) note('另一首歌的充能券還在計時，播完後再開始這一首');
+      else note(`充能券計時中：${Math.round(ticket.durationSec / 60 * 10) / 10} 分鐘後 +${Math.round(ticket.charge).toLocaleString()}`);
+      scheduleFinish(ticket);
+    }).catch(() => {});
+  }
+  // 重新整理或換頁回來時，接著等播放中的充能券
+  if (memberToken()) {
+    fetch(API + '/me/charge', { headers: { Authorization: 'Bearer ' + memberToken() }, cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { const p = d && d.tickets.find((x) => x.status === 'PLAYING'); if (p) scheduleFinish(p); })
+      .catch(() => {});
+  }
 
   // ---------- 彈窗 ----------
   const style = document.createElement('style');
@@ -243,6 +280,9 @@
     .gda-list button{display:flex;gap:10px;align-items:center;text-align:left;border:1px solid #35406d;border-radius:12px;padding:9px 12px;background:#121a40;color:#f8faff;font:inherit;font-size:14px;cursor:pointer}
     .gda-list button.on{border-color:#ffd166;box-shadow:0 0 8px #ffd16666}
     .gda-list button.locked{opacity:.5;cursor:default}
+    .gda-toast{position:fixed;left:50%;bottom:calc(90px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);background:#000d;color:#fff;border:1px solid #fff3;padding:9px 16px;border-radius:99px;font-size:14px;opacity:0;transition:.25s;pointer-events:none;z-index:10001;max-width:86vw;text-align:center}
+    .gda-toast.show{opacity:1;transform:translate(-50%,0)}
+    .gda-tix{margin-left:auto;font-style:normal;font-size:11px;font-weight:900;color:#032a3a;background:#7ad8ff;border-radius:6px;padding:1px 6px;flex:none}
     .gda-try{margin-left:auto;font-style:normal;font-size:11px;font-weight:900;color:#4a2b00;background:#ffd166;border-radius:6px;padding:1px 6px;flex:none}
     .gda-go{margin-left:6px;border:0;border-radius:99px;background:linear-gradient(100deg,#783dff,#ff3d9e);color:#fff;font:inherit;font-size:11px;font-weight:800;padding:3px 10px;cursor:pointer}
     .gda-list i{font-style:normal;color:#8993bd;width:22px;text-align:right;flex:none}
@@ -307,7 +347,7 @@
       <div class="gda-sec"><b>🎵 音樂音量</b>${seg('music', prefs.music)}</div>
       <div class="gda-sec"><b>🔊 音效音量（遊戲內）</b>${seg('sfx', prefs.sfx)}</div>
       ${isIOS ? '<p class="gda-note">iPhone／iPad 的音樂只能用靜音或手機音量鍵調整大小聲；音效音量可在這裡調整。</p>' : ''}
-      ${album && album.all.length ? `<div class="gda-sec"><b>歌單${locked ? `（已解鎖 ${album.all.filter((x) => x.src && !x.preview).length}／${album.all.length}）` : ''}</b><div class="gda-list">${album.all.map((x, n) => { const i = tracks.indexOf(x); return i < 0 ? `<button type="button" class="locked" data-locked="1"><i>🔒</i><span>${esc(x.title)}</span></button>` : `<button type="button" data-track="${i}" class="${i === current ? 'on' : ''}"><i>${i === current && playing ? '♪' : n + 1}</i><span>${esc(x.title)}</span>${x.preview ? '<em class="gda-try">試聽</em>' : ''}</button>`; }).join('')}</div>${locked ? `<p class="gda-note">「試聽」的歌曲只播 30 秒，在「GD 禮物 → D鑽商城」抽到後就能完整收聽。${IN_LOBBY ? '<button type="button" class="gda-go" data-act="shop">前往D鑽商城</button>' : ''}</p>` : ''}</div>` : ''}`;
+      ${album && album.all.length ? `<div class="gda-sec"><b>歌單${locked ? `（已解鎖 ${album.all.filter((x) => x.src && !x.preview).length}／${album.all.length}）` : ''}</b><div class="gda-list">${album.all.map((x, n) => { const i = tracks.indexOf(x); return i < 0 ? `<button type="button" class="locked" data-locked="1"><i>🔒</i><span>${esc(x.title)}</span></button>` : `<button type="button" data-track="${i}" class="${i === current ? 'on' : ''}"><i>${i === current && playing ? '♪' : n + 1}</i><span>${esc(x.title)}</span>${x.preview ? '<em class="gda-try">試聽</em>' : ''}${x.tickets ? `<em class="gda-tix">充能券 ×${x.tickets}</em>` : ''}</button>`; }).join('')}</div>${locked ? `<p class="gda-note">「試聽」的歌曲只播 30 秒，在「GD 禮物 → D鑽商城」抽到後就能完整收聽。${IN_LOBBY ? '<button type="button" class="gda-go" data-act="shop">前往D鑽商城</button>' : ''}</p>` : ''}</div>` : ''}`;
   }
   const $body = () => layer.querySelector('.gda-body');
 
@@ -323,7 +363,7 @@
         const b = e.target.closest('button');
         if (!b) return;
         if (b.dataset.act) action(b.dataset.act);
-        else if (b.dataset.track) playTrack(Number(b.dataset.track));
+        else if (b.dataset.track) { playTrack(Number(b.dataset.track)); startTicketFor(tracks[Number(b.dataset.track)]); }
         else if (b.dataset.album) setAlbum(b.dataset.album);
         else if (b.dataset.music !== undefined) setMusic(Number(b.dataset.music));
         else if (b.dataset.sfx !== undefined) setSfx(Number(b.dataset.sfx));
