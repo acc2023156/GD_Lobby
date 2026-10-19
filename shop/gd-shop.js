@@ -26,7 +26,7 @@
   const loadScript = (src) => new Promise((ok, no) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = no; document.head.append(s); });
   let cardMeta = null;
   async function cardViewer() {
-    if (!window.GDCards) await loadScript('cards/gd-cards.js?v=20261018e');
+    if (!window.GDCards) await loadScript('cards/gd-cards.js?v=20261019a');
     if (!cardMeta) cardMeta = (await call('/cards')).meta;
     return cardMeta;
   }
@@ -48,7 +48,8 @@
 .gds-pool{border:1px solid #ff70c8;border-radius:16px;padding:14px;background:linear-gradient(135deg,#2a1450,#14183a);color:#f8faff;margin-bottom:12px}
 .gds-pool h3{margin:0 0 4px;font-size:18px}.gds-pool p{margin:2px 0;color:#c9cdee;font-size:13px}
 .gds-dia{display:flex;align-items:center;justify-content:space-between;margin:0 0 10px;padding:10px 14px;border-radius:12px;background:#0d1430;border:1px solid #3f4879;color:#f8faff;font-weight:900}
-.gds-dia b{color:#7ad8ff;font-size:18px}.gds-dia button{border:0;border-radius:999px;padding:6px 12px;font:inherit;font-weight:900;background:linear-gradient(180deg,#ffd166,#f4a51c);color:#4a2b00;cursor:pointer}
+.gds-dia b{color:#7ad8ff;font-size:18px}.gds-dia span:last-child{display:flex;gap:6px}.gds-ex{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:-4px 0 10px;padding:10px 14px;border-radius:12px;background:#0d1430;border:1px solid #3f4879;color:#f8faff;font-weight:700}.gds-ex input{width:110px;padding:6px 8px;border-radius:8px;border:1px solid #3f4879;background:#060b20;color:#fff;font:inherit}.gds-ex button{border:0;border-radius:999px;padding:6px 12px;font:inherit;font-weight:900;background:linear-gradient(180deg,#7ad8ff,#3d8bff);color:#04112b;cursor:pointer}.gds-ex small{flex-basis:100%;color:#aab3d8;font-weight:500}.gds-ex[hidden]{display:none}
+.gds-odds td img{width:22px;height:22px;object-fit:contain;vertical-align:middle;margin-right:4px}.gds-dia button{border:0;border-radius:999px;padding:6px 12px;font:inherit;font-weight:900;background:linear-gradient(180deg,#ffd166,#f4a51c);color:#4a2b00;cursor:pointer}
 .gds-draw{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.gds-draw button{border:0;border-radius:12px;padding:12px 6px;font:inherit;font-weight:900;font-size:16px;cursor:pointer;color:#fff;background:linear-gradient(100deg,#783dff,#ff3d9e)}
 .gds-draw button small{display:block;font-size:12px;opacity:.9}.gds-draw button:disabled{opacity:.5}
 .gds-pity{height:6px;border-radius:6px;background:#0005;overflow:hidden;margin:8px 0 2px}.gds-pity i{display:block;height:100%;background:linear-gradient(90deg,#fff6c8,#ffd36e)}
@@ -175,33 +176,54 @@
   const gTab = $('[data-gift-main="transfer"]');
   const gPage = $('[data-gift-page="transfer"]');
   if (gTab) gTab.textContent = 'D鑽商城';
-  let pools = [], diamonds = 0, busy = false;
+  let pools = [], diamonds = 0, busy = false, currency = null;
   async function loadGacha() {
     if (!gPage) return;
     try {
       const r = await call(logged() ? '/me/gacha/pools' : '/gacha/pools');
       pools = r.pools || []; diamonds = r.diamonds || 0;
     } catch (e) { pools = []; }
+    if (!currency) currency = await call('/currency').catch(() => null);
     renderGacha();
   }
   function renderGacha() {
     if (!gPage) return;
-    gPage.innerHTML = `<div class="gds-dia"><span>我的D鑽 <b>${IC('D')} ${num(diamonds)}</b></span><button type="button" data-buy-dia>購買D鑽</button></div>` +
+    const cur = currency;
+    gPage.innerHTML = `<div class="gds-dia"><span>我的D鑽 <b>${IC('D')} ${num(diamonds)}</b></span><span>${cur && logged() ? '<button type="button" data-ex-dia>換G幣</button>' : ''}<button type="button" data-buy-dia>購買D鑽</button></span></div>` +
+      (cur && logged() ? `<div class="gds-ex" data-ex-box hidden>${IC('D')}<input type="number" inputmode="numeric" min="${cur.exchangeMin}" step="1" placeholder="至少 ${num(cur.exchangeMin)}" data-ex-n><span>= ${IC('G')} <b data-ex-g>0</b></span><button type="button" data-ex-go>確認兌換</button><small>1 D鑽 = ${num(cur.coinsPerDiamond)} G幣，換成 G幣後不能再換回 D鑽。</small></div>` : '') +
       (pools.length ? pools.map((p) => {
         const left = p.pityCount ? Math.max(0, p.pityCount - p.pitySince) : 0;
         return `<div class="gds-pool"><h3>${esc(p.name)}</h3>
-          <p>每抽必得卡片或魔曲單曲，另送 ${num(p.priceSingle * p.coinPerDiamond)} G幣${p.dupSongCoins ? `；重複單曲改送 ${num(p.dupSongCoins)} G幣` : ''}</p>
+          <p>每抽必得卡片、符號卡（直接充能）或魔曲單曲（附充能券）${p.coinPerDiamond ? `，另送 ${num(p.priceSingle * p.coinPerDiamond)} G幣` : ''}${p.dupSongCoins ? `；重複單曲改送 ${num(p.dupSongCoins)} G幣` : ''}</p>
           ${p.pityCount ? `<p>保底：${p.pityCount} 抽內必出 ${esc(p.pityRarity)} 以上卡片（還差 ${left} 抽）</p><div class="gds-pity"><i style="width:${Math.min(100, (p.pitySince / p.pityCount) * 100)}%"></i></div>` : ''}
           <div class="gds-draw"><button type="button" data-draw="${p.id}" data-n="1">單抽<small>${IC('D')} ${num(p.priceSingle)}</small></button><button type="button" data-draw="${p.id}" data-n="10">十連<small>${IC('D')} ${num(p.priceTen)}</small></button></div>
           <button type="button" class="gds-link" data-odds="${p.id}">查看機率</button><div class="gds-odds-box" data-odds-box="${p.id}" hidden></div></div>`;
       }).join('') : '<div class="gift-blank"><div><strong>D鑽商城</strong><p>獎池準備中，敬請期待。</p></div></div>') +
       '<button type="button" class="gds-link" data-history>我的抽獎紀錄</button><div data-history-box hidden></div>';
+    const exBtn = $('[data-ex-dia]', gPage);
+    if (exBtn) {
+      const box = $('[data-ex-box]', gPage), n = $('[data-ex-n]', gPage), g = $('[data-ex-g]', gPage);
+      exBtn.onclick = () => { box.hidden = !box.hidden; if (!box.hidden) n.focus(); };
+      n.oninput = () => { g.textContent = num(Math.max(0, Math.floor(Number(n.value) || 0)) * cur.coinsPerDiamond); };
+      const go = $('[data-ex-go]', gPage);
+      go.onclick = async () => {
+        const d = Math.floor(Number(n.value) || 0);
+        if (d < cur.exchangeMin) return toast(`每次至少 ${num(cur.exchangeMin)} D鑽`);
+        if (d > diamonds) return toast('D鑽不足');
+        go.disabled = true;
+        try {
+          const r = await call('/me/diamonds/exchange', { method: 'POST', body: { diamonds: d }, idempotent: true });
+          diamonds = r.diamonds; renderGacha(); refreshWallet();
+          toast(`已兌換 ${num(r.coins)} G幣`);
+        } catch (err) { toast(err.message); go.disabled = false; }
+      };
+    }
     $('[data-buy-dia]', gPage).onclick = () => { $('#giftLayer').hidden = true; $('#openShop')?.click(); kind = 'DIAMOND'; renderProducts(); };
     $$('[data-draw]', gPage).forEach((b) => b.onclick = () => doDraw(Number(b.dataset.draw), Number(b.dataset.n)));
     $$('[data-odds]', gPage).forEach((b) => b.onclick = () => {
       const p = pools.find((x) => String(x.id) === b.dataset.odds), box = $(`[data-odds-box="${b.dataset.odds}"]`, gPage);
       box.hidden = !box.hidden;
-      if (!box.hidden) box.innerHTML = `<table class="gds-odds">${p.odds.rarities.map((r) => `<tr><td>卡片 ${esc(r.rarity)} ${esc(r.name)}（${r.cards} 張，每張 ${pct(r.perCard)}）</td><td>${pct(r.rate)}</td></tr>`).join('')}${(p.odds.symbols || []).map((x) => `<tr><td>符號 ${esc(x.name)}（充能 ${num(x.charge)}）</td><td>${pct(x.rate)}</td></tr>`).join('')}<tr><td>魔曲單曲（${p.odds.songs} 首，每首 ${pct(p.odds.perSong)}；附充能券）</td><td>${pct(p.odds.songRate)}</td></tr></table>`;
+      if (!box.hidden) box.innerHTML = `<table class="gds-odds">${p.odds.rarities.map((r) => `<tr><td>卡片 ${esc(r.rarity)} ${esc(r.name)}（${r.cards} 張，每張 ${pct(r.perCard)}）</td><td>${pct(r.rate)}</td></tr>`).join('')}${(p.odds.symbols || []).map((x) => `<tr><td>${x.img ? `<img src="${esc(x.img)}" alt="">` : ''}符號 ${esc(x.name)}（充能 ${num(x.charge)}）</td><td>${pct(x.rate)}</td></tr>`).join('')}<tr><td>魔曲單曲（${p.odds.songs} 首，每首 ${pct(p.odds.perSong)}；附充能券）</td><td>${pct(p.odds.songRate)}</td></tr></table>`;
     });
     $('[data-history]', gPage).onclick = async () => {
       const box = $('[data-history-box]', gPage); box.hidden = !box.hidden;
@@ -313,7 +335,7 @@
   const songCard = (s) => ({ id: 'song-' + s.id, song: true, name: s.title, album: s.album, src: s.src, cover: s.cover, rarity: '單曲' });
   /** 觀看器用的符號卡（抽到直接進充能池）。 */
   const GLYPH = { BONUS: 'B', WILD: 'W', M1: 'M1', M2: 'M', AKQJ: 'A', T9: '10' };
-  const symbolCard = (d) => ({ id: 'sym-' + d.id, symbol: true, name: d.symbol.name, glyph: GLYPH[d.symbol.code] || d.symbol.code.slice(0, 2), charge: d.symbol.charge, rarity: '符號' });
+  const symbolCard = (d) => ({ id: 'sym-' + d.id, symbol: true, name: d.symbol.name, img: d.symbol.img || null, glyph: GLYPH[d.symbol.code] || d.symbol.code.replace(/^[A-Z]+_/, '').slice(0, 2), charge: d.symbol.charge, rarity: '符號' });
   const asView = (d) => (d.kind === 'CARD' ? d.card : d.kind === 'SYMBOL' ? symbolCard(d) : songCard(d.song));
   const SONG_FX = { rank: .35, gold: false, colors: ['#c79bff', '#7ad8ff', '#ffffff'], rare: false };
   /** 稀有卡：金色粒子之外再加白光一閃、畫面震一下、手機震動（iPhone 瀏覽器不支援震動）與稀有音效。 */

@@ -663,7 +663,6 @@
     if (preset) enterAmount(preset); else pickTarget();
   }
 
-  const INVITE_STEP = 1000;
   async function inviteSheet() {
     const { inviteBonus: b } = await api.call('/families/crests');
     let bonus = b.min;
@@ -676,7 +675,7 @@
       $('[data-bonus]', s).textContent = on.checked ? num(bonus) + ' G幣' : '不附G幣';
       $$('[data-step]', s).forEach((x) => (x.disabled = !on.checked || (x.dataset.step < 0 ? bonus <= b.min : bonus >= b.max)));
     };
-    $$('[data-step]', s).forEach((x) => (x.onclick = () => { bonus = Math.min(b.max, Math.max(b.min, bonus + Number(x.dataset.step) * INVITE_STEP)); show(); }));
+    $$('[data-step]', s).forEach((x) => (x.onclick = () => { bonus = Math.min(b.max, Math.max(b.min, bonus + Number(x.dataset.step) * (b.step || Math.max(1, Math.round((b.max - b.min) / 4))))); show(); }));
     on.onchange = show;
     show();
     $('[data-send]', s).onclick = () => {
