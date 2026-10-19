@@ -146,6 +146,7 @@
 .gdc-sym{border-color:#7ad8ff;background:radial-gradient(circle at 50% 38%,#1f6fb8,#061a38 72%)}
 .gdc-sym .gdc-glyph{flex:none;width:62%;aspect-ratio:1;border-radius:22%;display:grid;place-items:center;font:900 24cqw/1 Cinzel,Georgia,serif;color:#fff;background:linear-gradient(145deg,#ffd166,#ff6ec7 55%,#7ad8ff);box-shadow:0 3cqw 8cqw #000b,inset 0 0 0 1.4cqw #fff6;text-shadow:0 1cqw 2cqw #0008}
 .gdc-sym small{color:#bfe8ff}
+.gdc-sym .gdc-glyph.img{background:none;box-shadow:none;border-radius:0}.gdc-sym .gdc-glyph.img img{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 2cqw 4cqw #000a)}
 @media (prefers-reduced-motion:reduce){.gdc-club::before,.gdc-art::after,.gdc-disc{animation:none}}
 `;
 
@@ -312,7 +313,8 @@ ${corner(52, 52, 0, p)}${corner(w - 52, 52, 90, p)}${corner(w - 52, hh - 52, 180
   /** 符號卡面（鑽石商城抽到的充能符號）：大字符號＋名稱＋充能量。 */
   function symbolArt(c, { thumb = false } = {}) {
     const box = h('div', 'gdc-songbox'), el = h('div', 'gdc-song gdc-sym');
-    el.append(h('div', 'gdc-glyph', c.glyph || '★'));
+    if (c.img) { const g = h('div', 'gdc-glyph img'), im = new Image(); im.alt = ''; im.decoding = 'async'; im.src = c.img; g.append(im); el.append(g); }
+    else el.append(h('div', 'gdc-glyph', c.glyph || '★'));
     if (!thumb) el.append(h('b', '', c.name), h('small', '', `充能 +${fmt(c.charge || 0)}`));
     box.append(el); return box;
   }

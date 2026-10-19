@@ -81,6 +81,7 @@ window.GD_API = (() => {
     ERR_TICKET_NOT_FOUND: '沒有可用的充能券',
     ERR_TICKET_EXPIRED: '充能券已過期',
     ERR_TICKET_NOT_DONE: '歌曲還沒播完',
+    ERR_INSUFFICIENT_DIAMONDS: 'D鑽不足',
   };
 
   async function call(path, { method = 'GET', body, idempotent } = {}) {
