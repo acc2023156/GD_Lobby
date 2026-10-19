@@ -427,7 +427,8 @@
     const page = $('[data-gift-page="wallet"]');
     $('.gift-status b', page).innerHTML = window.GDIcon('G') + ' ' + coins(me.mainAvailable);
     const [promos, received] = await Promise.all([myPromotions().catch(() => null), api.call('/gifts?direction=receive').catch(() => null)]);
-    if (promos) $('[data-m="locked"]', page).textContent = coins(promos.reduce((n, p) => n + p.balance.total, 0));
+    // 限制點數：優惠鎖定錢包＋卡片免費投注贏分（真錢投注依流水倍數解鎖）
+    if (promos) $('[data-m="locked"]', page).textContent = coins(promos.reduce((n, p) => n + p.balance.total, 0) + (me.cardLocked || 0));
     if (received) {
       const pending = received.gifts.filter((g) => g.status === 'PENDING');
       $('[data-m="pending"]', page).textContent = pending.length ? `${coins(pending.reduce((n, g) => n + g.receive_amount, 0))}（${pending.length} 筆）` : '0';
@@ -1114,13 +1115,31 @@
   }
   /** 免費投注卡也列在錢包：每款遊戲一列，額度（原本戰鬥力）、剩餘、使用中與否；遊戲未開放的標示未開通。 */
   async function renderCardWallets() {
-    const { cards } = await api.call('/me/cards');
+    const { cards, chargeBalance = 0 } = await api.call('/me/cards');
     const rows = cards.filter((c) => c.owned && c.gameKey).sort((a, b) => b.inUse - a.inUse || b.powerLeft - a.powerLeft);
     $$('.gd-card-wallet', walletLayer).forEach((row) => row.remove());
-    walletNote.insertAdjacentHTML('beforebegin', rows.map((c) => {
+    // 免費投注贏分先進限制點數，之後真錢投注依流水倍數解鎖到主錢包
+    const lockedRow = me && me.cardLocked > 0
+      ? `<article class="unlock-row gd-card-wallet"><div><b>免費投注贏分</b><small>限制點數・投注解鎖</small></div><strong>${coins(me.cardLocked)}</strong><em>再投注 ${coins(me.cardUnlockWager)} G幣全部解鎖到主錢包</em></article>`
+      : '';
+    // 充能池：抽到的符號、播完的單曲、真錢 Spin 累積在這裡，按卡片的「充能」補到卡上（不超過額度）
+    const bankRow = rows.length || chargeBalance > 0
+      ? `<article class="unlock-row gd-card-wallet"><div><b>充能池</b><small>符號・單曲・Spin 累積</small></div><strong>${coins(chargeBalance)}</strong><em>按卡片的「充能」補到卡上，不會超過卡片額度</em></article>`
+      : '';
+    walletNote.insertAdjacentHTML('beforebegin', lockedRow + bankRow + rows.map((c) => {
       const name = GAME_BY_KEY[c.gameKey], state = !name ? '未開通' : c.inUse ? '使用中' : c.powerLeft > 0 ? '未使用' : '回復中';
-      return `<article class="unlock-row gd-card-wallet"><div><b>${esc(name || c.name)}</b><small>免費投注卡 ${esc(c.rarity)}・${state}</small></div><strong>${coins(c.powerLeft)}</strong><div class="progress"><span style="width:${c.power ? Math.min(100, c.powerLeft / c.power * 100) : 0}%"></span></div><em>剩餘 ${coins(c.powerLeft)} / 額度 ${coins(c.power)}</em></article>`;
+      const room = c.power - c.powerLeft, canCharge = chargeBalance > 0 && room > 0;
+      return `<article class="unlock-row gd-card-wallet"><div><b>${esc(name || c.name)}</b><small>免費投注卡 ${esc(c.rarity)}・${state}</small></div><strong>${coins(c.powerLeft)}</strong><div class="progress"><span style="width:${c.power ? Math.min(100, c.powerLeft / c.power * 100) : 0}%"></span></div><em>剩餘 ${coins(c.powerLeft)} / 額度 ${coins(c.power)}</em>${canCharge ? `<button type="button" class="gd-claim gd-charge" data-charge="${c.id}">充能 +${coins(Math.min(room, chargeBalance))}</button>` : ''}</article>`;
     }).join(''));
+    $$('[data-charge]', walletLayer).forEach((b) => b.onclick = async () => {
+      b.disabled = true;
+      try {
+        const r = await api.call(`/me/cards/${b.dataset.charge}/charge`, { method: 'POST', body: {} });
+        toast(`已充能 +${coins(r.charged)}`);
+        if (me) me.chargeBalance = r.chargeBalance;
+        renderCardWallets().catch(() => {});
+      } catch (err) { toast(err.message); b.disabled = false; }
+    });
   }
 
   async function claimPromotion(p, button) {

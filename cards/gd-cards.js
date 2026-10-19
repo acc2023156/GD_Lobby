@@ -143,6 +143,9 @@
 .gdc-disc i{position:absolute;inset:46.5%;border-radius:50%;background:#14032a;box-shadow:0 0 0 .7cqw #fffb;z-index:1}
 .gdc-song b{font-size:8.5cqw;font-weight:900;line-height:1.2;text-shadow:0 1cqw 3cqw #000a}.gdc-song small{font-size:5.4cqw;color:#d9ccff}
 @keyframes gdc-spin{to{transform:rotate(1turn)}}
+.gdc-sym{border-color:#7ad8ff;background:radial-gradient(circle at 50% 38%,#1f6fb8,#061a38 72%)}
+.gdc-sym .gdc-glyph{flex:none;width:62%;aspect-ratio:1;border-radius:22%;display:grid;place-items:center;font:900 24cqw/1 Cinzel,Georgia,serif;color:#fff;background:linear-gradient(145deg,#ffd166,#ff6ec7 55%,#7ad8ff);box-shadow:0 3cqw 8cqw #000b,inset 0 0 0 1.4cqw #fff6;text-shadow:0 1cqw 2cqw #0008}
+.gdc-sym small{color:#bfe8ff}
 @media (prefers-reduced-motion:reduce){.gdc-club::before,.gdc-art::after,.gdc-disc{animation:none}}
 `;
 
@@ -306,8 +309,16 @@ ${corner(52, 52, 0, p)}${corner(w - 52, 52, 90, p)}${corner(w - 52, hh - 52, 180
     if (!thumb) el.append(h('b', '', c.name), h('small', '', c.album || ''));
     box.append(el); return box;
   }
+  /** 符號卡面（鑽石商城抽到的充能符號）：大字符號＋名稱＋充能量。 */
+  function symbolArt(c, { thumb = false } = {}) {
+    const box = h('div', 'gdc-songbox'), el = h('div', 'gdc-song gdc-sym');
+    el.append(h('div', 'gdc-glyph', c.glyph || '★'));
+    if (!thumb) el.append(h('b', '', c.name), h('small', '', `充能 +${fmt(c.charge || 0)}`));
+    box.append(el); return box;
+  }
   async function faceArt(card, opts = {}) {
     if (card.song) return songArt(card, opts);
+    if (card.symbol) return symbolArt(card, opts);
     const src = opts.thumb ? card.thumb || card.img : card.img;
     if (src) { const im = new Image(); im.alt = ''; im.decoding = 'async'; im.src = src; return im; }
     return renderFront(card, opts);
@@ -470,7 +481,7 @@ ${corner(52, 52, 0, p)}${corner(w - 52, 52, 90, p)}${corner(w - 52, hh - 52, 180
     const seq = ++openSeq, q = V.q, rb = q('rar');
     const R = rarity(c.rarity);
     rb.textContent = c.rarity; rb.title = R.name || ''; rb.style.background = badgeBg(R.badge); rb.style.color = R.ink; rb.style.boxShadow = isDragon(R) ? 'inset 0 0 0 1px #ffd36e' : '';
-    q('name').textContent = c.name; q('cat').textContent = c.song ? c.album || '' : seriesName(c.series); q('cat').hidden = !q('cat').textContent; q('pow').textContent = powerText(c); q('vpow').hidden = !!c.song;
+    q('name').textContent = c.name; q('cat').textContent = c.song ? c.album || '' : c.symbol ? '充能符號' : seriesName(c.series); q('cat').hidden = !q('cat').textContent; q('pow').textContent = powerText(c); q('vpow').hidden = !!(c.song || c.symbol);
     showUse(c);
     setFx(c.effect || META.effects.find((e) => e.status !== 'HIDDEN')?.key);
     V.front.querySelector('canvas,img,.gdc-songbox')?.remove();
@@ -556,7 +567,7 @@ ${corner(52, 52, 0, p)}${corner(w - 52, 52, 90, p)}${corner(w - 52, hh - 52, 180
     /** 後台預覽：不需要卡冊，直接用這張卡開觀看器。 */
     preview(card, meta, group, o) { ensureStyle(); if (meta) META = meta; openViewer(card, group, o); },
     /** 卡面小圖（抽卡結果總覽用）：卡片＝含卡名與稀有度的卡面，單曲＝CD。 */
-    art(card, meta) { ensureStyle(); if (meta) META = meta; return faceArt(card, { scale: .4, thumb: !!card.song }); },
+    art(card, meta) { ensureStyle(); if (meta) META = meta; return faceArt(card, { scale: .4, thumb: !!(card.song || card.symbol) }); },
     open(id) { const c = cards.find((x) => x.id === id && x.owned); if (c) openViewer(c, cards.filter((x) => x.owned), { freeBet: true }); },
     close: closeViewer,
     unmount() {
