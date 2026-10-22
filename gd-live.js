@@ -210,18 +210,22 @@
   renderNowPlaying();
 
   // ---------- 會員資料 ----------
-  // ---------- 大廳遊戲表（VIP 限定、EXP 倍數）與會員最愛 ----------
+  // ---------- 大廳遊戲表（分類與遊戲開關、VIP 限定、EXP 倍數）與會員最愛 ----------
   // index.html 的 lobby 狀態由這裡填入；開大廳時讀遊戲表，登入後讀最愛（綁會員，換裝置登入也在）
   lobby.needLogin = showLogin;
   lobby.notify = toast;
   // 遊戲表與最愛都會存到客戶端（index.html 的 lobbyCache），下次開大廳先用暫存排好，API 回來內容有變才重畫
   const sameJson = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  // categories：後台開著的分類；games 只含開著的遊戲（後台關掉的分類與遊戲不會回傳，大廳就不顯示）
   api.call('/lobby/games')
-    .then(({ games }) => {
+    .then(({ games, categories }) => {
       const next = Object.fromEntries(games.map((g) => [g.name, g]));
+      const cats = Array.isArray(categories) && categories.length ? categories : null;
       lobbyCache.set('games', next);
-      if (sameJson(next, lobby.games)) return;
+      lobbyCache.set('categories', cats);
+      if (sameJson(next, lobby.games) && sameJson(cats, lobby.categories)) return;
       lobby.games = next;
+      lobby.categories = cats;
       render();
     })
     .catch((err) => console.warn('lobby games', err));
