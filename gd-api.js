@@ -75,6 +75,7 @@ window.GD_API = (() => {
     ERR_CHAT_RATE_LIMITED: '訊息太頻繁，請稍後再試',
     ERR_NOT_FOUND: '找不到這位玩家或資料',
     ERR_VIP_REQUIRED: 'VIP 等級不足，無法進入這款遊戲',
+    ERR_GAME_CLOSED: '這款遊戲目前未開放',
     ERR_FAVORITES_FULL: '每個分類最多 3 個最愛，請先取消一個',
     ERR_NO_CHARGE: '充能池沒有可用的戰鬥力',
     ERR_CARD_FULL: '這張卡已經充滿了',
