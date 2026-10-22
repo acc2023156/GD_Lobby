@@ -8,18 +8,23 @@
   <link rel="icon" href="favicon.svg">
   <style>
     :root{color-scheme:dark;--navy:#0b1026;--panel:#151d42;--violet:#783dff;--pink:#ff3d9e;--orange:#ff8a3d;--gold:#ffd166;--soft:#f8faff;--muted:#9aa6d6}
-    *{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:"Noto Sans TC","Microsoft JhengHei",sans-serif;background:#050817;color:var(--soft)}button{font:inherit}
+    *{box-sizing:border-box}[hidden]{display:none!important}html,body{margin:0;min-height:100%;font-family:"Noto Sans TC","Microsoft JhengHei",sans-serif;background:#050817;color:var(--soft)}button{font:inherit}
     body{background:radial-gradient(circle at 50% -10%,#40175d 0,transparent 40%),linear-gradient(165deg,#101838,#050817 65%);padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
     .app{width:min(100%,560px);min-height:100dvh;margin:auto;padding:12px 12px 24px}
     header{display:grid;grid-template-columns:44px 1fr auto;align-items:center;gap:10px;margin-bottom:12px}.back,.icon-btn{width:44px;height:44px;border:1px solid #59639a;border-radius:13px;background:#172047;color:#fff;font-size:23px;cursor:pointer}.brand{text-align:center}.brand strong{display:block;font-size:23px;letter-spacing:2px;background:linear-gradient(90deg,#fff,#ffd166,#ff7ac9);background-clip:text;color:transparent}.brand small{color:#ff8bcd;font-weight:900;letter-spacing:3px}.header-actions{display:flex;align-items:center;gap:5px}.header-actions .icon-btn{width:34px;height:34px;font-size:17px;border-radius:10px}.header-actions .icon-btn.muted{opacity:.48;text-decoration:line-through}.dev{border:1px solid var(--gold);border-radius:8px;padding:4px 7px;color:var(--gold);font-size:11px;font-weight:900}
     .hud{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:10px}.metric{min-width:0;border:1px solid #465083;border-radius:12px;background:#121a3b;padding:8px;text-align:center;box-shadow:inset 0 1px #fff1}.metric small{display:block;color:var(--muted);font-size:11px}.metric b{display:block;margin-top:2px;color:var(--gold);font-size:20px;overflow:hidden;text-overflow:ellipsis}
+    .modes{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:0 0 10px}.mode{min-width:0;border:1px solid #4b5589;border-radius:11px;background:#111936;color:#aeb8e8;padding:8px 3px;font-size:11px;font-weight:1000;cursor:pointer}.mode span{display:block;font-size:18px;margin-bottom:2px}.mode.active{border-color:#ff7ac9;background:linear-gradient(135deg,#672cba,#e8329c 68%,#ff8a3d);color:#fff;box-shadow:0 0 13px #ff3d9e66}.mode[data-mode="crown"].active{border-color:#ffe68c;background:linear-gradient(135deg,#8c5510,#eaa520 55%,#ff6278);box-shadow:0 0 14px #ffd16677}
     .machine{border:2px solid #814cf4;border-radius:22px;padding:9px;background:linear-gradient(145deg,#202a59,#0c1230);box-shadow:0 0 22px #783dff66,inset 0 0 30px #0008}.display{display:flex;justify-content:space-between;align-items:center;margin:0 4px 8px;border:1px solid #6d376c;border-radius:9px;background:#160c20;padding:7px 10px;color:#ff657c;box-shadow:inset 0 0 10px #000}.display>span{font-size:11px;color:#ffb0c5;font-weight:1000;text-align:center}.led-display{display:flex;justify-content:center;gap:2px;margin-top:2px;padding:3px 5px;border:1px solid #651e28;border-radius:4px;background:#250509;box-shadow:inset 0 0 8px #000}.seven{position:relative;display:inline-block;width:13px;height:23px}.seven i{position:absolute;background:#351014;opacity:.45;box-shadow:none}.seven .a,.seven .d,.seven .g{left:3px;width:8px;height:3px;clip-path:polygon(18% 0,82% 0,100% 50%,82% 100%,18% 100%,0 50%)}.seven .a{top:0}.seven .g{top:10px}.seven .d{bottom:0}.seven .b,.seven .c,.seven .e,.seven .f{width:3px;height:9px;clip-path:polygon(50% 0,100% 18%,100% 82%,50% 100%,0 82%,0 18%)}.seven .b{right:0;top:2px}.seven .c{right:0;bottom:2px}.seven .e{left:0;bottom:2px}.seven .f{left:0;top:2px}.seven[data-on~="a"] .a,.seven[data-on~="b"] .b,.seven[data-on~="c"] .c,.seven[data-on~="d"] .d,.seven[data-on~="e"] .e,.seven[data-on~="f"] .f,.seven[data-on~="g"] .g{background:#ff273b;opacity:1;box-shadow:0 0 4px #ff1835,0 0 8px #c9001e}
-    .board{position:relative;display:grid;grid-template-columns:repeat(7,1fr);grid-template-rows:repeat(7,1fr);gap:4px;aspect-ratio:1;border:4px solid #ffd166;border-radius:14px;padding:5px;background:#34220f;box-shadow:inset 0 0 0 3px #6f4612,0 0 12px #ffd16644}.track{position:relative;min-width:0;border:2px solid #e0b85b;border-radius:7px;background:linear-gradient(145deg,#fff7d6,#ffd478);color:#301a05;display:grid;place-items:center;padding:1px 1px 7px;cursor:pointer;transition:.08s transform,.08s filter,.08s box-shadow}.track .emoji{font-size:clamp(19px,6.2vw,32px);line-height:1}.track .symbol-img{width:94%;height:94%;object-fit:contain}.track.once .emoji{font-size:clamp(8px,2.25vw,12px);font-weight:1000;line-height:.9;text-align:center}.lamp{position:absolute;left:50%;bottom:1px;width:10px;height:6px;transform:translateX(-50%);border:1px solid #7a1118;border-radius:1px;background:linear-gradient(#67131a,#260407);box-shadow:inset 0 1px #b74b53,0 1px 1px #000}.track.active{z-index:2;transform:scale(1.1);filter:saturate(1.35);border-color:#fff;box-shadow:0 0 16px 5px #ff3d9e,0 0 6px 2px #fff}.track.active .lamp,.track.win .lamp{background:#ff263b;border-color:#ff8290;box-shadow:0 0 5px 2px #ff1b32,0 0 12px 4px #d90026,inset 0 1px #fff}.track.win{animation:winPulse .55s ease-in-out 4 alternate}.center{grid-column:2/7;grid-row:2/7;position:relative;overflow:hidden;border:2px solid #ff63c5;border-radius:13px;background:radial-gradient(circle at 50% 24%,#2f4e92,#14244d 45%,#0c1538);display:grid;place-items:center;text-align:center;padding:6px}.center:before{content:"";position:absolute;inset:-40%;background:conic-gradient(from 0deg,transparent,#783dff44,transparent,#ff3d9e44,transparent);animation:rotate 9s linear infinite}.mascot,.status{position:relative;z-index:1}.mascot{display:block;width:clamp(92px,29vw,150px);height:clamp(135px,43vw,220px);margin:0 auto -6px;object-fit:contain;filter:drop-shadow(0 8px 5px #0008)}.jp{position:relative;z-index:1;font-size:clamp(25px,8vw,44px);font-weight:1000;line-height:.8;background:linear-gradient(#fff,#ffd166,#ff8a3d);background-clip:text;color:transparent;filter:drop-shadow(0 3px #8b2553)}.jp-lamp{position:relative;z-index:1;display:block;width:22px;height:12px;margin:7px auto 1px;border:2px solid #79131c;border-radius:2px;background:#ff2439;box-shadow:0 0 7px 2px #ff1b32,0 0 17px 5px #b90022,inset 0 2px #ff98a2;animation:lampPulse 1.15s ease-in-out infinite alternate}.status{margin-top:5px;color:#dce3ff;font-size:12px;font-weight:900;min-height:2.8em;display:grid;place-items:center}.status .symbol-img{width:38px;height:38px;object-fit:contain;vertical-align:middle}.status strong{color:var(--gold)}
-    .bet-head{display:flex;justify-content:space-between;align-items:center;margin:12px 2px 7px}.bet-head b{font-size:15px}.chips{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}.chip{min-width:38px;border:1px solid #5b6598;border-radius:99px;background:#172047;color:#dce3ff;padding:5px 8px;font-weight:900;cursor:pointer}.chip.active{border-color:#ff84cc;background:linear-gradient(135deg,#783dff,#ff3d9e);color:#fff;box-shadow:0 0 9px #ff3d9e66}
+    .board{position:relative;display:grid;grid-template-columns:repeat(7,1fr);grid-template-rows:repeat(7,1fr);gap:4px;aspect-ratio:1;border:4px solid #ffd166;border-radius:14px;padding:5px;background:#34220f;box-shadow:inset 0 0 0 3px #6f4612,0 0 12px #ffd16644}.board.train-board{border-color:#79efff;background:radial-gradient(circle,#6c218d,#24134f 62%,#071a3a);box-shadow:inset 0 0 0 3px #d599ff,0 0 20px #55deff99}.track{position:relative;min-width:0;border:2px solid #e0b85b;border-radius:7px;background:linear-gradient(145deg,#fff7d6,#ffd478);color:#301a05;display:grid;place-items:center;padding:1px 1px 7px;cursor:pointer;transition:.08s transform,.08s filter,.08s box-shadow}.train-board .track{border-color:#e8b7ff;background:linear-gradient(145deg,#f6e8ff,#8ddfff 52%,#9e4bd0);box-shadow:inset 0 0 5px #fff}.track .emoji{font-size:clamp(19px,6.2vw,32px);line-height:1}.track .symbol-img{width:94%;height:94%;object-fit:contain}.track.special .emoji,.track.once .emoji{font-size:clamp(8px,2.25vw,12px);font-weight:1000;line-height:.9;text-align:center}.track.train{background:radial-gradient(circle,#fff8c9,#7f41d3 58%,#261347);border-color:#ffe47a}.track.crown{background:linear-gradient(145deg,#fffbd4,#ffb52e);border-color:#fff19a}.lamp{position:absolute;left:50%;bottom:1px;width:10px;height:6px;transform:translateX(-50%);border:1px solid #7a1118;border-radius:1px;background:linear-gradient(#67131a,#260407);box-shadow:inset 0 1px #b74b53,0 1px 1px #000}.track.active{z-index:2;transform:scale(1.1);filter:saturate(1.35);border-color:#fff;box-shadow:0 0 16px 5px #ff3d9e,0 0 6px 2px #fff}.track.active .lamp,.track.win .lamp,.track.train-win .lamp,.track.crown-win .lamp{background:#ff263b;border-color:#ff8290;box-shadow:0 0 5px 2px #ff1b32,0 0 12px 4px #d90026,inset 0 1px #fff}.track.train-win{z-index:2;transform:scale(1.06);border-color:#fff;box-shadow:0 0 16px 5px #30d9ff,0 0 6px 2px #fff}.track.crown-win{z-index:2;transform:scale(1.06);border-color:#fff9bf;box-shadow:0 0 18px 6px #ffd238,0 0 7px 2px #fff}.track.win{animation:winPulse .55s ease-in-out 4 alternate}.center{grid-column:2/7;grid-row:2/7;position:relative;overflow:hidden;border:2px solid #ff63c5;border-radius:13px;background:radial-gradient(circle at 50% 24%,#2f4e92,#14244d 45%,#0c1538);display:grid;place-items:center;text-align:center;padding:6px}.center:before{content:"";position:absolute;inset:-40%;background:conic-gradient(from 0deg,transparent,#783dff44,transparent,#ff3d9e44,transparent);animation:rotate 9s linear infinite}.center.train-mode{border-color:#ffe47a;background:radial-gradient(circle at 50% 30%,#6b248c,#24205f 50%,#09163b);box-shadow:inset 0 0 24px #26dfff55}.center.crown-mode{border-color:#ffd166;background:radial-gradient(circle at 50% 24%,#704713,#33204e 48%,#120d29)}.mascot,.status{position:relative;z-index:1}.mascot{display:block;width:clamp(92px,29vw,150px);height:clamp(135px,43vw,220px);margin:0 auto -6px;object-fit:contain;filter:drop-shadow(0 8px 5px #0008)}.center.train-mode .mascot{width:96%;height:auto;max-height:172px;margin:-8px auto -10px;filter:drop-shadow(0 7px 7px #000b) drop-shadow(0 0 8px #55e5ff)}.jp{position:relative;z-index:1;font-size:clamp(25px,8vw,44px);font-weight:1000;line-height:.8;background:linear-gradient(#fff,#ffd166,#ff8a3d);background-clip:text;color:transparent;filter:drop-shadow(0 3px #8b2553)}.mode-logo{position:relative;z-index:1;display:block;width:96%;max-height:78px;margin:0 auto -5px;object-fit:contain;filter:drop-shadow(0 4px 4px #000a) drop-shadow(0 0 7px #7f55ff)}.jp-lamp{position:relative;z-index:1;display:block;width:22px;height:12px;margin:7px auto 1px;border:2px solid #79131c;border-radius:2px;background:#ff2439;box-shadow:0 0 7px 2px #ff1b32,0 0 17px 5px #b90022,inset 0 2px #ff98a2;animation:lampPulse 1.15s ease-in-out infinite alternate}.status{margin-top:5px;color:#dce3ff;font-size:12px;font-weight:900;min-height:2.8em;display:grid;place-items:center}.status .symbol-img{width:38px;height:38px;object-fit:contain;vertical-align:middle}.status strong{color:var(--gold)}
+    .bet-head{display:flex;justify-content:space-between;align-items:center;margin:12px 2px 7px}.bet-head b{font-size:15px}.chips{display:flex;gap:5px}.chip{min-width:38px;border:1px solid #5b6598;border-radius:99px;background:#172047;color:#dce3ff;padding:5px 8px;font-weight:900;cursor:pointer}.chip.active{border-color:#ff84cc;background:linear-gradient(135deg,#783dff,#ff3d9e);color:#fff;box-shadow:0 0 9px #ff3d9e66}
     .bets{display:grid;grid-template-columns:repeat(9,1fr);gap:3px}.bet{position:relative;min-width:0;min-height:88px;border:1px solid #4b5589;border-radius:8px;background:linear-gradient(145deg,#1d2755,#111735);color:#fff;padding:20px 2px 3px;cursor:pointer;box-shadow:0 3px 0 #080d22}.bet .emoji{display:block;font-size:clamp(18px,5vw,27px);line-height:1}.bet .symbol-img{display:block;width:clamp(26px,7vw,38px);height:clamp(26px,7vw,38px);margin:auto;object-fit:contain}.bet .name{display:block;margin-top:2px;font-size:8px;color:#b8c1eb;white-space:nowrap}.bet .odds{position:absolute;inset:2px 2px auto;border-radius:4px;background:#ffd166;color:#462900;padding:1px;font-size:9px;font-weight:1000}.bet b.led-display{display:flex;margin:2px auto 0;padding:2px 1px;width:max-content;max-width:100%;gap:1px}.bet .seven{width:7px;height:13px}.bet .seven .a,.bet .seven .d,.bet .seven .g{left:2px;width:4px;height:2px}.bet .seven .a{top:0}.bet .seven .g{top:6px}.bet .seven .d{bottom:0}.bet .seven .b,.bet .seven .c,.bet .seven .e,.bet .seven .f{width:2px;height:5px}.bet .seven .b,.bet .seven .f{top:1px}.bet .seven .c,.bet .seven .e{bottom:1px}.bet.selected{border-color:#ff66c4;box-shadow:0 0 9px #ff3d9e66,0 3px 0 #5b1b65}
     .actions{display:grid;grid-template-columns:1fr 1.8fr 1fr;gap:8px;margin-top:11px}.actions button{min-height:50px;border-radius:14px;border:1px solid #59639a;background:#182149;color:#dce3ff;font-weight:1000;cursor:pointer}.actions .spin{border-color:#ff8ccf;background:linear-gradient(110deg,#783dff,#ff3d9e 60%,#ff8a3d);color:#fff;font-size:20px;box-shadow:0 5px 0 #78164f,0 0 14px #ff3d9e77}.actions button:disabled{opacity:.5;cursor:not-allowed}.message{min-height:37px;margin:10px 1px 0;border:1px solid #3d477a;border-radius:10px;background:#0d1430;padding:8px 10px;color:#aeb8e8;text-align:center;font-size:12px}.message.win{border-color:#ffd166;color:#ffe89c;box-shadow:0 0 10px #ffd16633}
     .history{margin-top:10px;border:1px solid #35406d;border-radius:12px;background:#0d1430;overflow:hidden}.history h2{margin:0;padding:8px 11px;background:#151d42;font-size:13px;color:#cbd3fb}.history ol{margin:0;padding:7px 10px 7px 31px;min-height:48px;color:#929dc9;font-size:11px}.history li+li{margin-top:3px}
-    dialog{width:min(calc(100% - 28px),480px);border:1px solid #783dff;border-radius:20px;background:linear-gradient(155deg,#171f49,#0d1430);color:#f8faff;padding:0;box-shadow:0 20px 80px #000d}dialog::backdrop{background:#050817d9;backdrop-filter:blur(6px)}dialog h2{margin:0;padding:13px;text-align:center;background:linear-gradient(100deg,#783dff,#ff3d9e 60%,#ff8a3d);font-size:20px}dialog .rules{padding:15px 18px;line-height:1.65;color:#ccd4fa;font-size:13px}dialog ol{padding-left:22px}dialog table{width:100%;border-collapse:collapse;margin:10px 0}dialog td{border-bottom:1px solid #374172;padding:5px;text-align:center}dialog button{display:block;width:calc(100% - 36px);margin:0 18px 17px;border:1px solid #ffd166;border-radius:11px;background:#202956;color:#ffd166;padding:9px;font-weight:900}
+    dialog{width:min(calc(100% - 28px),480px);border:1px solid #783dff;border-radius:20px;background:linear-gradient(155deg,#171f49,#0d1430);color:#f8faff;padding:0;box-shadow:0 20px 80px #000d}dialog::backdrop{background:#050817d9;backdrop-filter:blur(6px)}dialog h2{margin:0;padding:13px;text-align:center;background:linear-gradient(100deg,#783dff,#ff3d9e 60%,#ff8a3d);font-size:20px}dialog .rules{padding:15px 18px;line-height:1.65;color:#ccd4fa;font-size:13px}dialog ol{padding-left:22px}dialog table{width:100%;border-collapse:collapse;margin:10px 0}dialog td{border-bottom:1px solid #374172;padding:5px;text-align:center}dialog button{display:block;width:calc(100% - 36px);margin:0 18px 17px;border:1px solid #ffd166;border-radius:11px;background:#202956;color:#ffd166;padding:9px;font-weight:900}.auto-copy{text-align:center;color:#cbd3fb;padding:13px 16px 5px}.auto-rounds{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;padding:10px 18px}.auto-rounds button{width:auto;margin:0;min-height:48px;font-size:18px;background:linear-gradient(135deg,#3b277d,#c52d9b);color:#fff;border-color:#ff8bd1}.auto-cancel{margin-top:8px!important}
+    .center.crown-mode .mascot{width:91%;height:auto;max-height:170px;margin:-7px auto -10px;filter:drop-shadow(0 7px 7px #000b) drop-shadow(0 0 9px #ffd44f)}.center.crown-mode .mode-logo{width:94%;max-height:72px;filter:drop-shadow(0 4px 4px #000a) drop-shadow(0 0 7px #ffd44f)}
+    .status .symbol-img{width:26px!important;height:26px!important}
+    /* 傳統版：小丑縮一點，下方的狀態文字才不會被裁掉 */
+    .center:not(.train-mode):not(.crown-mode) .mascot{height:clamp(100px,31vw,165px);width:auto;max-width:clamp(80px,26vw,130px)}
     @keyframes rotate{to{transform:rotate(1turn)}}@keyframes winPulse{to{filter:brightness(1.3);box-shadow:0 0 22px 8px #ffd166;transform:scale(1.12)}}@keyframes lampPulse{to{filter:brightness(1.35);box-shadow:0 0 10px 3px #ff1b32,0 0 24px 7px #b90022,inset 0 2px #fff}}
     @media(max-width:390px){.app{padding-inline:8px}.board{gap:2px;padding:4px}.track{border-width:1px}.track .emoji{font-size:20px}.bets{gap:2px}.bet{min-height:70px}.bet .name{font-size:7px}.brand strong{font-size:20px}}
     @media(prefers-reduced-motion:reduce){.center:before{animation:none}.track.win{animation:none}}
@@ -27,32 +32,44 @@
 </head>
 <body>
 <main class="app">
-  <header><button class="back" id="backButton" aria-label="返回 GD 大廳">‹</button><div class="brand"><strong>GD 小瑪莉</strong><small>LITTLE MARY</small></div><div class="header-actions"><span class="dev" id="modeTag">試玩</span><button class="icon-btn" id="soundButton" aria-label="關閉音效" aria-pressed="true">♪</button><button class="icon-btn" id="rulesButton" aria-label="查看玩法">?</button></div></header>
-  <section class="hud" aria-label="遊戲資訊"><div class="metric"><small id="balanceLabel">試玩餘額</small><b id="balance">—</b></div><div class="metric"><small>本局押注</small><b id="totalBet">0</b></div><div class="metric"><small>上局派彩</small><b id="lastWin">0</b></div></section>
+  <header><button class="back" id="backButton" aria-label="返回 GD 大廳">‹</button><div class="brand"><strong id="gameTitle">GD 小瑪莉</strong><small id="gameSubtitle">LITTLE MARY</small></div><div class="header-actions"><span class="dev" id="modeTag">試玩</span><button class="icon-btn" id="soundButton" aria-label="關閉音效" aria-pressed="true">♪</button><button class="icon-btn" id="rulesButton" aria-label="玩法與最近結果">?</button></div></header>
   <section class="machine" aria-label="小瑪莉機台">
     <div class="display"><span>WIN<div class="led-display" id="winDisplay" aria-label="WIN 0000"></div></span><span>CREDIT<div class="led-display" id="creditDisplay" aria-label="CREDIT 1000"></div></span></div>
-    <div class="board" id="board"><div class="center"><div><img class="mascot" src="img/jp-joker.webp" alt="JP JOKER"><div class="jp">JP JOKER</div><span class="jp-lamp" aria-hidden="true"></span><div class="status" id="status">選擇下方符號後<br>按下<strong>啟動</strong></div></div></div></div>
+    <div class="board" id="board"><div class="center"><div><img class="mode-logo" id="modeLogo" src="img/magic-train-title.webp" alt="魔幻列車" hidden><img class="mascot" src="img/jp-joker.webp" alt="JP JOKER"><div class="jp">JP JOKER</div><span class="jp-lamp" aria-hidden="true"></span><div class="status" id="status">選擇下方符號後<br>按下<strong>啟動</strong></div></div></div></div>
   </section>
   <div class="bet-head"><b>選擇下注符號</b><div class="chips" aria-label="下注面額"><button class="chip active" data-chip="1">1</button><button class="chip" data-chip="5">5</button><button class="chip" data-chip="10">10</button><button class="chip" data-chip="20">20</button><button class="chip" data-chip="100">100</button><button class="chip" data-chip="500">500</button></div></div>
   <section class="bets" id="bets" aria-label="符號下注區"></section>
-  <div class="actions"><button id="clearButton">清除</button><button class="spin" id="spinButton">啟動</button><button id="resetButton">重置</button></div>
+  <div class="actions"><button id="clearButton">清除</button><button class="spin" id="spinButton">啟動</button><button id="autoButton">自動投注</button></div>
   <div class="message" id="message" role="status">選擇面額與符號後按「啟動」</div>
-  <section class="history"><h2>最近結果</h2><ol id="history"><li>尚未進行遊戲</li></ol></section>
 </main>
-<dialog id="rulesDialog"><h2>小瑪莉玩法</h2><div class="rules"><ol><li>選擇面額，再點選一個或多個符號下注。</li><li>每次「啟動」會扣除本局押注，燈號沿外圈旋轉後停在一格。</li><li>落點符號有下注時，依符號倍率派彩（含本金）；停在 ONCE MORE 免費再跑一次。</li><li>每個符號的出現率與倍率成反比，押哪個符號理論回報率都是 <b id="rtpText">95.7%</b>。</li><li>結果由伺服器以 SHA-256 決定（伺服器種子開局前先公布雜湊），可在下方紀錄看到本局的種子。</li></ol><table><tbody id="paytable"></tbody></table><p id="modeNote">從大廳進入時使用 GD 錢包；直接開啟此頁為試玩，點數只存在這台裝置。</p></div><button id="closeRules">我知道了</button></dialog>
+<dialog id="rulesDialog"><h2 id="rulesTitle">小瑪莉玩法</h2><div class="rules"><ol id="modeRules"></ol><table><tbody id="paytable"></tbody></table><p id="modeNote">從大廳進入時使用 GD 錢包；直接開啟此頁為試玩，點數只存在這台裝置。結果由伺服器以 SHA-256 決定（開局前先公布伺服器種子的雜湊），押哪個符號理論回報率都是 <b id="rtpText">—</b>。</p><section class="history"><h2>最近結果</h2><ol id="history"><li>尚未進行遊戲</li></ol></section></div><button id="closeRules">我知道了</button></dialog>
+<dialog id="autoDialog"><h2>自動投注</h2><div class="auto-copy">重複使用目前（上一把）投注配置<br>請選擇自動投注場次</div><div class="auto-rounds"><button data-rounds="5">5 場</button><button data-rounds="10">10 場</button><button data-rounds="20">20 場</button><button data-rounds="50">50 場</button></div><button class="auto-cancel" id="closeAuto">取消</button></dialog>
 <script>
   (()=>{
-    // 規則與 SHA-Platform apps/edge-api/src/littlemary.ts 相同；從大廳進入時以伺服器 /config 為準
-    const ASSET={apple:'img/apple.webp',watermelon:'img/watermelon.webp',star:'img/star.webp',seven:'img/seven.webp',bar:'img/bar.webp',bell:'img/bell.webp',melon:'img/melon.webp',orange:'img/orange.webp'};
-    const NAMES={apple:['🍎','蘋果'],watermelon:['🍉','西瓜'],star:['⭐','雙金星'],seven:['7️⃣','雙七'],bar:['▰','BAR'],bell:['🔔','鈴鐺'],melon:['🍈','香瓜'],orange:['🍊','橘子'],grape:['🍇','葡萄']};
-    let RULES={
-      track:['orange','bell','grape','bar','apple','grape','melon','watermelon','grape','once','apple','grape','orange','bell','grape','seven','apple','grape','melon','star','grape','once','apple','grape'],
-      pays:{apple:5,watermelon:20,star:30,seven:40,bar:50,bell:20,melon:15,orange:10,grape:2},
-      weights:{apple:176076,watermelon:44019,star:29346,seven:22009,bar:17607,bell:44019,melon:58692,orange:88038,grape:440194},
-      onceWeight:80000,total:1000000,maxSpins:20,rtp:0.9569
-    };
+    // 小瑪莉三款：?mode=classic（傳統小瑪莉 little-mary）、train（魔幻列車 magic-train）、crown（皇冠列車 crown-train）。
+    // 結果由 SHA-Platform 決定（apps/edge-api/src/littlemary.ts、littlemary-express.ts），這頁只播放；直接開啟為試玩，用同一套算法在瀏覽器算。
+    const query=new URLSearchParams(location.search);
+    const mode=['classic','train','crown'].includes(query.get('mode'))?query.get('mode'):'classic';
+    const GAME={classic:'little-mary',train:'magic-train',crown:'crown-train'}[mode];
     const ORDER=['apple','watermelon','star','seven','bar','bell','melon','orange','grape'];
-    const sym=id=>id==='once'?{id,icon:'ONCE<br>MORE',name:'再來一次',pay:0}:{id,icon:NAMES[id][0],name:NAMES[id][1],asset:ASSET[id],pay:RULES.pays[id]};
+    const NAMES={apple:['🍎','蘋果'],watermelon:['🍉','西瓜'],star:['⭐','雙金星'],seven:['7️⃣','雙七'],bar:['▰','BAR'],bell:['🔔','鈴鐺'],melon:['🍈','香瓜'],orange:['🍊','橘子'],grape:['🍇','葡萄']};
+    const SPECIAL={
+      once:{icon:'ONCE<br>MORE',name:'再來一次',kind:'classic'},
+      train:{icon:'🚂',asset:'img/train-head.webp',name:'魔幻列車',kind:'train'},car3:{icon:'+3',asset:'img/train-plus3.webp',name:'三節魔幻車廂',kind:'train'},car5:{icon:'+5',asset:'img/train-plus5.webp',name:'五節魔幻車廂',kind:'train'},
+      crown:{icon:'BONUS',asset:'img/crown-bonus.webp',name:'皇冠 BONUS',kind:'crown'},jp:{icon:'JP 500',asset:'img/crown-jp.webp',name:'GRAND JP',kind:'crown'},
+      mult2:{icon:'×2',name:'雙倍站',kind:'crown'},mult3:{icon:'×3',name:'三倍站',kind:'crown'},mult5:{icon:'×5',name:'五倍站',kind:'crown'}
+    };
+    const PAYS={apple:5,watermelon:20,star:30,seven:40,bar:50,bell:20,melon:15,orange:10,grape:2};
+    // 伺服器 /config 讀不到時（試玩）用的預設值，與 SHA-Platform 相同
+    const DEFAULTS={
+      classic:{track:['orange','bell','grape','bar','apple','grape','melon','watermelon','grape','once','apple','grape','orange','bell','grape','seven','apple','grape','melon','star','grape','once','apple','grape'],
+        weights:{apple:176076,watermelon:44019,star:29346,seven:22009,bar:17607,bell:44019,melon:58692,orange:88038,grape:440194},onceWeight:80000,total:1000000,maxSpins:20,rtp:0.9569},
+      train:{track:["apple", "watermelon", "train", "grape", "bell", "apple", "car3", "orange", "grape", "melon", "seven", "apple", "train", "grape", "bar", "bell", "watermelon", "car5", "apple", "grape", "star", "orange", "train", "grape"],cellWeights:[4758865, 2346365, 69010, 9583867, 2346365, 4758865, 138020, 4758865, 9583866, 6367198, 2346365, 4758865, 69010, 9583866, 1863865, 2346365, 2346365, 69010, 4758865, 9583866, 3150531, 4758865, 69010, 9583866],rtp:0.965},
+      crown:{track:["apple", "mult2", "grape", "crown", "bell", "orange", "jp", "watermelon", "grape", "seven", "mult3", "apple", "crown", "grape", "bar", "bell", "jp", "melon", "apple", "mult5", "star", "grape", "crown", "orange"],cellWeights:[5179425, 5554095, 10496455, 1000000, 1247722, 3761027, 500, 3333644, 10496454, 1371289, 5554095, 5179425, 1000000, 10496454, 1025590, 1247721, 500, 4996687, 5179425, 5554095, 2067917, 10496454, 1000000, 3761026],rtp:0.965,stationWeights:{"apple": 1000, "watermelon": 1000, "star": 1000, "seven": 1000, "bar": 1000, "bell": 1000, "melon": 1000, "orange": 1000, "grape": 1000, "crown": 1000, "mult2": 600, "mult3": 350, "mult5": 150, "jp": 3},jpMultiplier:500,stations:5,steps:[3,10]}
+    };
+    let RULES={...DEFAULTS[mode],pays:PAYS};
+    const N=24;
+    const byId=id=>SPECIAL[id]?{id,...SPECIAL[id],pay:0}:{id,icon:NAMES[id][0],name:NAMES[id][1],asset:`img/${id}.webp`,pay:RULES.pays[id]};
     const positions=[...Array(7)].map((_,i)=>[1,i+1]).concat([...Array(5)].map((_,i)=>[i+2,7]),[...Array(7)].map((_,i)=>[7,7-i]),[...Array(5)].map((_,i)=>[6-i,1]));
     const bets=Object.fromEntries(ORDER.map(id=>[id,0]));
     const $=s=>document.querySelector(s),board=$('#board'),betsEl=$('#bets'),message=$('#message'),spinButton=$('#spinButton');
@@ -61,56 +78,87 @@
     const randomHex=n=>hex(crypto.getRandomValues(new Uint8Array(n)));
 
     // ---------- 連線（大廳）或試玩 ----------
-    const query=new URLSearchParams(location.search);
     let token=new URLSearchParams(location.hash.slice(1)).get('token');
-    try{if(token)sessionStorage.setItem('lm.launchToken',token);else token=sessionStorage.getItem('lm.launchToken')}catch{}
+    const TOKEN_KEY=`lm.launchToken.${GAME}`;
+    try{if(token)sessionStorage.setItem(TOKEN_KEY,token);else token=sessionStorage.getItem(TOKEN_KEY)}catch{}
     if(location.hash)history.replaceState(null,'',location.pathname+location.search);
     const apiBase=(()=>{try{const u=new URL(query.get('api')||'');return /\.workers\.dev$|(^|\.)gdclub\.cc$|^(localhost|127\.0\.0\.1)$/.test(u.hostname)?u.href.replace(/\/$/,''):''}catch{return ''}})();
     const remote=!!(token&&apiBase);
     const toUnits=g=>Math.round(g*100)*10, fromMoney=m=>Number(m.units)/10**m.scale;
-    const ERRORS={INSUFFICIENT_FUNDS:'餘額不足',INSUFFICIENT_BALANCE:'餘額不足',INVALID_LAUNCH_TOKEN:'登入已逾時，請回大廳重新進入',COMMITMENT_NOT_ACTIVE:'連線已更新，請再按一次',INVALID_WAGER:'下注金額不正確',INVALID_BET:'下注內容不正確',WRONG_ENVIRONMENT:'伺服器維護中'};
+    const ERRORS={INSUFFICIENT_FUNDS:'餘額不足',INSUFFICIENT_BALANCE:'餘額不足',INVALID_LAUNCH_TOKEN:'登入已逾時，請回大廳重新進入',COMMITMENT_NOT_ACTIVE:'連線已更新，請再按一次',INVALID_WAGER:'下注金額不正確',INVALID_BET:'下注內容不正確（每個符號最少 0.1 G幣）',WRONG_ENVIRONMENT:'伺服器維護中',GAME_NOT_ALLOWED:'請回大廳重新進入這款遊戲'};
     async function api(path,body,method='POST'){
       const res=await fetch(apiBase+path,{method,headers:{'content-type':'application/json',authorization:`Bearer ${token}`},body:method==='GET'?undefined:JSON.stringify(body||{}),cache:'no-store'});
       const data=await res.json().catch(()=>({}));
       if(!res.ok){const code=data.error&&data.error.code;if(code==='COMMITMENT_NOT_ACTIVE')commitment=null;throw new Error(ERRORS[code]||(data.error&&data.error.message)||`連線錯誤 (${res.status})`)}
       return data;
     }
-    const DEMO_KEY='lm.demo';
+    const DEMO_KEY=`lm.demo.${GAME}`;
     let balance=0,commitment=null,clientSeed=randomHex(8),demoSeed='',demoNonce=0;
     async function connect(){
       if(remote){
-        try{const c=await fetch(apiBase+'/games/little-mary/config',{cache:'no-store'}).then(r=>r.json());if(c&&c.track)RULES={...RULES,track:c.track,pays:c.pays,weights:c.weights,maxSpins:c.max_spins,rtp:c.rtp}}catch{}
-        const s=await api('/games/little-mary/session');balance=fromMoney(s.balance);commitment=s.commitment;return;
+        try{
+          const c=await fetch(`${apiBase}/games/${GAME}/config`,{cache:'no-store'}).then(r=>r.json());
+          if(c&&Array.isArray(c.track)){
+            if(mode==='classic')RULES={...RULES,track:c.track,pays:c.pays,weights:c.weights,maxSpins:c.max_spins,rtp:c.rtp};
+            else RULES={...RULES,track:c.track,pays:c.pays,cellWeights:c.weights,rtp:c.rtp,...(mode==='crown'?{stationWeights:c.station_weights,jpMultiplier:c.jp_multiplier,stations:c.stations,steps:c.station_steps}:{})};
+          }
+        }catch{}
+        const s=await api(`/games/${GAME}/session`);balance=fromMoney(s.balance);commitment=s.commitment;return;
       }
       let saved={};try{saved=JSON.parse(localStorage.getItem(DEMO_KEY))||{}}catch{}
-      balance=Number(saved.balance)>0?saved.balance:1000;demoNonce=saved.nonce||0;demoSeed=randomHex(32);
+      balance=Number(saved.balance)>=1?saved.balance:1000;demoNonce=saved.nonce||0;demoSeed=randomHex(32);
     }
     const saveDemo=()=>{if(!remote)try{localStorage.setItem(DEMO_KEY,JSON.stringify({balance,nonce:demoNonce}))}catch{}};
-    // 試玩：跟伺服器同一套算法（SHA256(serverSeed:clientSeed:nonce:spin)）
-    async function demoSpin(seed,nonce,spin,allowOnce){
-      const d=await sha256(`${seed}:${clientSeed}:${nonce}:${spin}`);
-      const u=parseInt(d.slice(0,13),16)/2**52,v=parseInt(d.slice(13,21),16)/2**32;
-      const room=RULES.total-RULES.onceWeight;let r=Math.floor(u*(allowOnce?RULES.total:room)),kind='grape';
-      if(allowOnce&&r<RULES.onceWeight)kind='once';else{if(allowOnce)r-=RULES.onceWeight;for(const s of ORDER){if(r<RULES.weights[s]){kind=s;break}r-=RULES.weights[s]}}
-      const cells=RULES.track.map((k,i)=>k===kind?i:-1).filter(i=>i>=0);
-      return {kind,cell:cells[Math.min(cells.length-1,Math.floor(v*cells.length))]};
+
+    // ---------- 試玩：與伺服器同一套算法 ----------
+    async function draw(seed,nonce,tag){const d=await sha256(`${seed}:${clientSeed}:${nonce}:${tag}`);return {u:parseInt(d.slice(0,13),16)/2**52,v:parseInt(d.slice(13,21),16)/2**32}}
+    const pickWeighted=(w,u)=>{const t=w.reduce((a,b)=>a+b,0);let r=Math.floor(u*t);for(let i=0;i<w.length;i++){if(r<w[i])return i;r-=w[i]}return w.length-1};
+    async function demoClassic(seed,nonce){
+      const stops=[];let symbol=null;
+      for(let spin=0;spin<RULES.maxSpins&&!symbol;spin++){
+        const allowOnce=spin<RULES.maxSpins-1,{u,v}=await draw(seed,nonce,spin);
+        const room=RULES.total-RULES.onceWeight;let r=Math.floor(u*(allowOnce?RULES.total:room)),kind='grape';
+        if(allowOnce&&r<RULES.onceWeight)kind='once';else{if(allowOnce)r-=RULES.onceWeight;for(const s of ORDER){if(r<RULES.weights[s]){kind=s;break}r-=RULES.weights[s]}}
+        const cells=RULES.track.map((k,i)=>k===kind?i:-1).filter(i=>i>=0);stops.push(cells[Math.min(cells.length-1,Math.floor(v*cells.length))]);if(kind!=='once')symbol=kind;
+      }
+      return {stops,symbol,win:bets[symbol]*RULES.pays[symbol]};
+    }
+    const cellPay=c=>{const k=RULES.track[c];return RULES.pays[k]?bets[k]*RULES.pays[k]:0};
+    async function demoExpress(seed,nonce,stake){
+      const stop=pickWeighted(RULES.cellWeights,(await draw(seed,nonce,'stop')).u),landed=RULES.track[stop],out={stop,landed,train:null,crown:null,win:0};
+      if(RULES.pays[landed])out.win=cellPay(stop);
+      else if(landed==='train'||landed==='car3'||landed==='car5'){
+        const t=await draw(seed,nonce,'train'),lens=landed==='car3'?[3]:landed==='car5'?[5]:[3,4,5],length=lens[Math.min(lens.length-1,Math.floor(t.v*lens.length))],end=Math.min(N-1,Math.floor(t.u*N));
+        const cells=[...Array(length)].map((_,i)=>(end-i+N)%N);out.train={end,length,cells};out.win=cells.reduce((s,c)=>s+cellPay(c),0);
+      }else if(landed==='jp')out.win=stake*RULES.jpMultiplier;
+      else if(landed==='crown'){
+        let pos=stop,m=1,jp=0,sub=0;const stations=[];
+        for(let i=0;i<RULES.stations;i++){
+          const cand=[];for(let s=RULES.steps[0];s<=RULES.steps[1];s++){const c=(pos+s)%N;cand.push({c,w:RULES.stationWeights[RULES.track[c]]})}
+          pos=cand[pickWeighted(cand.map(x=>x.w),(await draw(seed,nonce,`crown${i}`)).u)].c;stations.push(pos);
+          const k=RULES.track[pos];if(k==='jp'){jp++;sub+=stake*RULES.jpMultiplier}else if(k.startsWith('mult'))m=Math.max(m,Number(k.slice(4)));else sub+=cellPay(pos);
+        }
+        out.crown={stations,multiplier:m,jp};out.win=sub*m;
+      }
+      return out;
     }
     async function play(stake){
       if(remote){
-        if(!commitment){const s=await api('/games/little-mary/session');commitment=s.commitment}
-        const res=await api('/games/little-mary/bets',{request_id:crypto.randomUUID(),commitment_id:commitment.id,client_seed:clientSeed,
+        if(!commitment){const s=await api(`/games/${GAME}/session`);commitment=s.commitment}
+        const res=await api(`/games/${GAME}/bets`,{request_id:crypto.randomUUID(),commitment_id:commitment.id,client_seed:clientSeed,
           wager:{units:toUnits(stake),currency:'TWD',scale:3},bets:Object.fromEntries(ORDER.filter(id=>bets[id]>0).map(id=>[id,toUnits(bets[id])]))});
         commitment=res.next_commitment;
-        return {stops:res.outcome.stops,symbol:res.outcome.symbol,win:fromMoney(res.payout),balance:fromMoney(res.balance),seed:res.fairness.server_seed,nonce:res.fairness.nonce};
+        const o=res.outcome,base={win:fromMoney(res.payout),balance:fromMoney(res.balance),seed:res.fairness.server_seed,nonce:res.fairness.nonce};
+        return mode==='classic'?{...base,stops:o.stops,symbol:o.symbol}:{...base,stop:o.stop,landed:o.landed,train:o.train,crown:o.crown};
       }
-      const seed=demoSeed,nonce=demoNonce++,stops=[];let symbol=null;
-      for(let spin=0;spin<RULES.maxSpins&&!symbol;spin++){const o=await demoSpin(seed,nonce,spin,spin<RULES.maxSpins-1);stops.push(o.cell);if(o.kind!=='once')symbol=o.kind}
-      const win=bets[symbol]*RULES.pays[symbol];balance=Math.round((balance-stake+win)*100)/100;demoSeed=randomHex(32);saveDemo();
-      return {stops,symbol,win,balance,seed,nonce};
+      const seed=demoSeed,nonce=demoNonce++;
+      const r=mode==='classic'?await demoClassic(seed,nonce):await demoExpress(seed,nonce,stake);
+      balance=Math.round((balance-stake+r.win)*100)/100;demoSeed=randomHex(32);saveDemo();
+      return {...r,balance,seed,nonce};
     }
 
-    // ---------- 畫面 ----------
-    let chip=1,spinning=false,current=-1,lastWin=0,round=0,shown=0,soundEnabled=localStorage.getItem('gdLittleMarySound')!=='off',audioContext=null;
+    // ---------- 畫面與音效 ----------
+    let chip=1,spinning=false,current=-1,lastWin=0,round=0,shown=0,autoRunning=false,autoRemaining=0,soundEnabled=localStorage.getItem('gdLittleMarySound')!=='off',audioContext=null;
     const soundButton=$('#soundButton');
     function ensureAudio(){if(!soundEnabled)return null;const A=window.AudioContext||window.webkitAudioContext;if(!A)return null;if(!audioContext)audioContext=new A();if(audioContext.state==='suspended')audioContext.resume();return audioContext}
     function tone(f,dur=.05,vol=.025,type='square',delay=0){const ctx=ensureAudio();if(!ctx)return;const t=ctx.currentTime+delay,o=ctx.createOscillator(),g=ctx.createGain();o.type=type;o.frequency.setValueAtTime(f,t);g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(vol,t+.004);g.gain.exponentialRampToValueAtTime(.0001,t+dur);o.connect(g).connect(ctx.destination);o.start(t);o.stop(t+dur+.02)}
@@ -123,51 +171,98 @@
     const markup=s=>s.asset?`<img class="symbol-img" src="${s.asset}" alt="">`:`<span class="emoji">${s.icon}</span>`;
     const segments={0:'a b c d e f',1:'b c',2:'a b d e g',3:'a b c d g',4:'b c f g',5:'a c d f g',6:'a c d e f g',7:'a b c',8:'a b c d e f g',9:'a b c d f g'};
     const setLed=(el,value,digits)=>{const raw=String(Math.max(0,Math.floor(value))),text=raw.padStart(digits,'0');el.innerHTML=[...text].map(n=>`<span class="seven" data-on="${segments[n]}"><i class="a"></i><i class="b"></i><i class="c"></i><i class="d"></i><i class="e"></i><i class="f"></i><i class="g"></i></span>`).join('');el.setAttribute('aria-label',raw)};
+    const modeCopy={
+      classic:{title:'傳統小瑪莉',sub:'CLASSIC LITTLE MARY',status:'選擇下方符號後<br>按下<strong>啟動</strong>',rules:'<li>選擇面額，再點選一個或多個符號下注；每次「啟動」扣除本局押注。</li><li>單燈沿 24 格盤面移動，停在哪個符號就依倍率派彩（含本金）。</li><li>停在 ONCE MORE 免費再開一次，不重複扣除下注。</li>'},
+      train:{title:'魔幻列車',sub:'MAGIC EXPRESS',status:'魔幻車頭、+3、+5 可觸發<br><strong>多燈同時派彩</strong>',rules:'<li>選擇面額，再點選一個或多個符號下注；每次「啟動」扣除本局押注。</li><li>停在符號格依倍率派彩（含本金）。</li><li>停在魔幻車頭（3–5 節）、+3、+5 開出魔幻列車：列車停下時車身蓋到的格子，有押注的符號全部派彩。</li>'},
+      crown:{title:'皇冠列車',sub:'CROWN EXPRESS',status:'皇冠觸發 5 站列車<br><strong>JP ×500／倍率加成</strong>',rules:'<li>選擇面額，再點選一個或多個符號下注；每次「啟動」扣除本局押注。</li><li>停在符號格依倍率派彩（含本金）；停在 GRAND JP 派「本局總押注 ×500」。</li><li>停在皇冠開出 5 站免費列車：沿途符號派彩與 JP 累計，最後乘上沿途遇到的最高倍率（×2／×3／×5）。</li><li>直接停在倍率站不派彩（倍率只在皇冠列車中生效）。</li>'}
+    };
     function build(){
-      board.querySelectorAll('.track').forEach(x=>x.remove());betsEl.innerHTML='';
-      RULES.track.forEach((id,i)=>{const s=sym(id),c=document.createElement('button');c.className=`track${id==='once'?' once':''}`;c.type='button';c.dataset.index=i;c.style.gridRow=positions[i][0];c.style.gridColumn=positions[i][1];c.innerHTML=`${markup(s)}<i class="lamp" aria-hidden="true"></i>`;c.setAttribute('aria-label',id==='once'?s.name:`${s.name}，${s.pay}倍`);board.appendChild(c)});
-      ORDER.forEach(id=>{const s=sym(id),b=document.createElement('button');b.className='bet';b.type='button';b.dataset.bet=id;b.innerHTML=`${markup(s)}<span class="name">${s.name}</span><span class="odds">×${s.pay}</span><b class="led-display"></b>`;b.onclick=()=>addBet(id);betsEl.appendChild(b)});
-      $('#paytable').innerHTML=ORDER.map(id=>{const s=sym(id);return `<tr><td>${markup(s)} ${s.name}</td><td>×${s.pay}</td></tr>`}).join('');
+      const copy=modeCopy[mode],isTrain=mode==='train',isCrown=mode==='crown';
+      board.querySelectorAll('.track').forEach(c=>c.remove());betsEl.innerHTML='';current=-1;
+      RULES.track.forEach((id,i)=>{const s=byId(id),c=document.createElement('button');c.className=`track${s.kind?' special '+s.kind:''}${id==='once'?' once':''}${id==='train'?' train':''}${id==='crown'?' crown':''}`;c.type='button';c.dataset.index=i;c.style.gridRow=positions[i][0];c.style.gridColumn=positions[i][1];c.innerHTML=`${markup(s)}<i class="lamp" aria-hidden="true"></i>`;c.setAttribute('aria-label',s.pay?`${s.name}，${s.pay}倍`:s.name);board.appendChild(c)});
+      ORDER.forEach(id=>{const s=byId(id),b=document.createElement('button');b.className='bet';b.type='button';b.dataset.bet=id;b.innerHTML=`${markup(s)}<span class="name">${s.name}</span><span class="odds">×${s.pay}</span><b class="led-display"></b>`;b.onclick=()=>addBet(id);betsEl.appendChild(b)});
+      $('#paytable').innerHTML=ORDER.map(id=>{const s=byId(id);return `<tr><td>${markup(s)} ${s.name}</td><td>×${s.pay}</td></tr>`}).join('')+(isCrown?'<tr><td>GRAND JP</td><td>總押注 ×500</td></tr>':'');
+      const center=$('.center'),jp=$('.jp'),logo=$('#modeLogo'),mascot=$('.mascot');
+      board.classList.toggle('train-board',isTrain);center.classList.toggle('train-mode',isTrain);center.classList.toggle('crown-mode',isCrown);
+      mascot.src=isTrain?'img/magic-train-center.webp':isCrown?'img/crown-train-backplate.webp':'img/jp-joker.webp';mascot.alt=isTrain?'魔幻列車':isCrown?'皇冠列車火車頭':'JP JOKER';
+      jp.hidden=isTrain||isCrown;logo.hidden=!(isTrain||isCrown);logo.src=isCrown?'img/crown-train-title.webp':'img/magic-train-title.webp';logo.alt=copy.title;
+      $('#status').innerHTML=copy.status;$('#gameTitle').textContent=copy.title;$('#gameSubtitle').textContent=copy.sub;$('#rulesTitle').textContent=`${copy.title}玩法`;$('#modeRules').innerHTML=copy.rules;document.title=`${copy.title}｜GD`;
       $('#rtpText').textContent=(Math.floor(RULES.rtp*1000)/10)+'%';
     }
     const totalBet=()=>ORDER.reduce((s,id)=>s+bets[id],0);
-    function sync(){const t=totalBet();$('#balance').textContent=format(shown);$('#totalBet').textContent=format(t);$('#lastWin').textContent=format(lastWin);setLed($('#creditDisplay'),shown,Math.max(4,String(Math.floor(shown)).length));setLed($('#winDisplay'),lastWin,4);ORDER.forEach(id=>{const b=document.querySelector(`[data-bet="${id}"]`);setLed(b.querySelector('b'),bets[id],Math.max(3,String(bets[id]).length));b.classList.toggle('selected',bets[id]>0)})}
+    function sync(){setLed($('#creditDisplay'),shown,Math.max(4,String(Math.floor(shown)).length));setLed($('#winDisplay'),lastWin,Math.max(4,String(Math.floor(lastWin)).length));ORDER.forEach(id=>{const b=document.querySelector(`[data-bet="${id}"]`);setLed(b.querySelector('b'),bets[id],Math.max(3,String(bets[id]).length));b.classList.toggle('selected',bets[id]>0)})}
     function announce(t,win=false){message.textContent=t;message.classList.toggle('win',win)}
-    function addBet(id){if(spinning)return;if(totalBet()+chip>balance){announce('餘額不足，請降低下注');return}bets[id]+=chip;sync();announce(`${sym(id).name} 增加 ${chip} G幣`)}
-    function clearBets(){if(spinning)return;ORDER.forEach(id=>bets[id]=0);sync();announce('本局下注已清除')}
+    function addBet(id){if(spinning||autoRunning)return;if(totalBet()+chip>balance){announce('餘額不足，請降低下注');return}bets[id]+=chip;sync();announce(`${byId(id).name} 增加 ${chip} G幣`)}
+    function clearBets(){if(spinning||autoRunning)return;ORDER.forEach(id=>bets[id]=0);sync();announce('本局下注已清除')}
     const wait=ms=>new Promise(r=>setTimeout(r,ms));
-    async function runTo(target){
-      const n=RULES.track.length,laps=2+Math.floor(Math.random()*2),steps=laps*n+((target-current+n)%n||n);
-      for(let step=0;step<steps;step++){if(current>=0)document.querySelector(`[data-index="${current}"]`).classList.remove('active');current=(current+1)%n;document.querySelector(`[data-index="${current}"]`).classList.add('active');const rem=steps-step;playTick(step,rem);await wait(rem<7?125+(7-rem)*28:55)}
+    const cellEl=i=>document.querySelector(`[data-index="${(i+N)%N}"]`);
+    async function runSteps(steps,pace=55,keep=''){
+      for(let step=0;step<steps;step++){if(current>=0)cellEl(current).classList.remove('active');current=(current+1)%N;cellEl(current).classList.add('active');if(keep)cellEl(current).classList.add(keep);const rem=steps-step;playTick(step,rem);await wait(rem<7?125+(7-rem)*28:pace)}
+    }
+    const stepsTo=(target,laps)=>laps*N+((target-current+N)%N||N);
+    async function runTo(target){await runSteps(stepsTo(target,2+Math.floor(Math.random()*2)))}
+    // 魔幻列車：列車繞一圈後停在伺服器決定的車頭位置，車身蓋到的格子亮起
+    async function runTrain(train){
+      announce(`魔幻列車啟動：${train.length} 節列車！`,true);$('#status').innerHTML=`✨ 魔幻列車<br><strong>${train.length} 格同步開獎</strong>`;playOnceMore();
+      const steps=stepsTo(train.end,1);
+      for(let step=0;step<steps;step++){document.querySelectorAll('.train-win').forEach(c=>c.classList.remove('train-win'));if(current>=0)cellEl(current).classList.remove('active');current=(current+1)%N;for(let car=0;car<train.length;car++)cellEl(current-car).classList.add('train-win');cellEl(current).classList.add('active');const rem=steps-step;playTick(step,rem);await wait(rem<7?125+(7-rem)*28:58)}
+      const names=train.cells.map(c=>RULES.track[c]).filter(k=>RULES.pays[k]&&bets[k]>0).map(k=>byId(k).name);
+      return names;
+    }
+    // 皇冠列車：依伺服器的 5 站逐站前進，累計顯示
+    async function runCrown(crown,stake){
+      announce('皇冠列車啟動：5 站免費開獎！',true);$('#status').innerHTML='👑 CROWN EXPRESS<br><strong>5 站免費列車</strong>';playWin();await wait(500);
+      let sub=0,m=1;
+      for(let i=0;i<crown.stations.length;i++){
+        const st=crown.stations[i];await runSteps((st-current+N)%N||N,72,'crown-win');
+        const k=RULES.track[st],item=byId(k);
+        if(k==='jp')sub+=stake*RULES.jpMultiplier;else if(k.startsWith('mult'))m=Math.max(m,Number(k.slice(4)));else sub+=cellPay(st);
+        $('#status').innerHTML=`👑 皇冠列車第 ${i+1}/${crown.stations.length} 站<br><strong>${item.name}｜累積 ${format(sub)} ×${m}</strong>`;await wait(380);
+      }
     }
     async function spin(){
-      const stake=totalBet();if(spinning)return;if(stake<=0){announce('請先選擇至少一個下注符號');return}if(stake>balance){announce('餘額不足');return}
-      ensureAudio();spinning=true;spinButton.disabled=true;lastWin=0;shown=Math.max(0,balance-stake);sync();announce('燈號旋轉中…');
-      let r;try{r=await play(stake)}catch(e){shown=balance;sync();announce(e.message);spinning=false;spinButton.disabled=false;return}
-      for(let i=0;i<r.stops.length;i++){
-        await runTo(r.stops[i]);
-        if(i<r.stops.length-1){$('#status').innerHTML='ONCE MORE<br><strong>免費再轉一次</strong>';announce('停在 ONCE MORE，免費再轉一次！',true);playOnceMore();await wait(700)}
+      const stake=totalBet();if(spinning)return false;if(stake<=0){announce('請先選擇至少一個下注符號');return false}if(stake>balance){announce('餘額不足');return false}
+      ensureAudio();spinning=true;spinButton.disabled=true;document.querySelectorAll('.train-win,.crown-win').forEach(c=>c.classList.remove('train-win','crown-win'));
+      lastWin=0;shown=Math.max(0,balance-stake);sync();announce('燈號旋轉中…');
+      let r;try{r=await play(stake)}catch(e){shown=balance;sync();announce(e.message);spinning=false;spinButton.disabled=autoRunning;return false}
+      let landed,label;
+      if(mode==='classic'){
+        for(let i=0;i<r.stops.length;i++){await runTo(r.stops[i]);if(i<r.stops.length-1){$('#status').innerHTML='ONCE MORE<br><strong>免費再轉一次</strong>';announce('停在 ONCE MORE，免費再轉一次！',true);playOnceMore();await wait(700)}}
+        landed=byId(r.symbol);label=r.win>0?`${markup(landed)} ${landed.name}<br><strong>派彩 ${format(r.win)}</strong>`:`${markup(landed)} ${landed.name}<br><strong>本局未中</strong>`;
+      }else{
+        await runTo(r.stop);landed=byId(r.landed);
+        if(r.train){const names=await runTrain(r.train);label=`✨ ${r.train.length} 節魔幻列車進站<br><strong>${names.length?names.join('、'):'未押中'}｜派彩 ${format(r.win)}</strong>`}
+        else if(r.crown){await runCrown(r.crown,stake);label=`👑 皇冠列車到站<br><strong>${r.crown.jp?'GRAND JP！ ':''}×${r.crown.multiplier}｜派彩 ${format(r.win)}</strong>`}
+        else if(r.landed==='jp')label=`💎 GRAND JP<br><strong>總押注 ×${RULES.jpMultiplier}｜派彩 ${format(r.win)}</strong>`;
+        else if(r.landed.startsWith('mult'))label=`${landed.icon} ${landed.name}<br><strong>皇冠列車中才生效</strong>`;
+        else label=r.win>0?`${markup(landed)} ${landed.name}<br><strong>派彩 ${format(r.win)}</strong>`:`${markup(landed)} ${landed.name}<br><strong>本局未中</strong>`;
       }
-      const landed=sym(r.symbol),cell=document.querySelector(`[data-index="${current}"]`);
-      balance=r.balance;shown=balance;lastWin=r.win;
-      if(lastWin>0){cell.classList.add('win');setTimeout(()=>cell.classList.remove('win'),2300);$('#status').innerHTML=`${markup(landed)} ${landed.name}<br><strong>派彩 ${format(lastWin)}</strong>`;announce(`恭喜！${landed.name} ×${landed.pay}，獲得 ${format(lastWin)} G幣`,true);playWin()}
-      else{$('#status').innerHTML=`${markup(landed)} ${landed.name}<br><strong>本局未中</strong>`;announce(`落在${landed.name}，本局未派彩`);playMiss()}
-      round++;addHistory(landed,lastWin,r);sync();spinning=false;spinButton.disabled=false;
-      if(stake>balance)announce('餘額不足以再押同樣的注，請調整下注');
+      const cell=cellEl(current);balance=r.balance;shown=balance;lastWin=r.win;$('#status').innerHTML=label;
+      if(lastWin>0){cell.classList.add('win');setTimeout(()=>cell.classList.remove('win'),2300);announce(`恭喜！${landed.name}，獲得 ${format(lastWin)} G幣`,true);playWin()}
+      else{announce(`落在${landed.name}，本局未派彩`);playMiss()}
+      round++;addHistory(landed,lastWin,r);sync();spinning=false;spinButton.disabled=autoRunning;
+      if(stake>balance&&!autoRunning)announce('餘額不足以再押同樣的注，請調整下注');
+      return true;
     }
-    function addHistory(s,win,r){const list=$('#history');if(round===1)list.replaceChildren();const li=document.createElement('li');li.textContent=`${NAMES[s.id][0]} ${s.name}｜${win>0?`派彩 ${format(win)}`:'未中'}`;li.title=`server seed ${r.seed}・client seed ${clientSeed}・nonce ${r.nonce}`;list.prepend(li);while(list.children.length>5)list.lastElementChild.remove()}
+    function addHistory(s,win,r){const list=$('#history');if(round===1)list.replaceChildren();const li=document.createElement('li');li.textContent=`${String(s.icon).replace(/<br>/g,' ')} ${s.name}｜${win>0?`派彩 ${format(win)}`:'未中'}`;li.title=`server seed ${r.seed}・client seed ${clientSeed}・nonce ${r.nonce}`;list.prepend(li);while(list.children.length>5)list.lastElementChild.remove()}
+    const autoDialog=$('#autoDialog'),autoButton=$('#autoButton');
+    function syncAutoButton(){autoButton.textContent=autoRunning?`停止自動（剩 ${autoRemaining}）`:'自動投注';autoButton.classList.toggle('win',autoRunning)}
+    async function startAuto(rounds){
+      const stake=totalBet();if(stake<=0){announce('請先完成上一把投注配置');return}if(stake>balance){announce('餘額不足，無法開始自動投注');return}
+      autoDialog.close();autoRunning=true;autoRemaining=rounds;syncAutoButton();spinButton.disabled=true;announce(`自動投注開始，共 ${rounds} 場`);
+      while(autoRunning&&autoRemaining>0){if(totalBet()>balance){announce(`餘額不足，自動投注提前停止；剩餘 ${autoRemaining} 場`);break}if(!(await spin()))break;autoRemaining--;syncAutoButton();if(autoRunning&&autoRemaining>0){spinButton.disabled=true;await wait(450)}}
+      const finished=autoRemaining===0;autoRunning=false;autoRemaining=0;spinButton.disabled=false;syncAutoButton();if(finished)announce(`自動投注 ${rounds} 場已完成`,true);
+    }
     document.querySelectorAll('.chip').forEach(b=>b.onclick=()=>{if(spinning)return;chip=Number(b.dataset.chip);document.querySelectorAll('.chip').forEach(x=>x.classList.toggle('active',x===b));announce(`下注面額切換為 ${chip}`)});
-    $('#clearButton').onclick=clearBets;spinButton.onclick=spin;
-    $('#resetButton').textContent=remote?'重押上局':'重置';
-    let lastBets=null;const origSpin=spin;spinButton.onclick=()=>{if(!spinning&&totalBet()>0)lastBets={...bets};origSpin()};
-    $('#resetButton').onclick=()=>{if(spinning)return;if(remote){if(!lastBets)return announce('還沒有上局的下注');Object.assign(bets,lastBets);if(totalBet()>balance){clearBets();return announce('餘額不足以重押上局')}sync();return announce('已重押上局')}
-      balance=1000;shown=balance;lastWin=0;saveDemo();clearBets();$('#history').innerHTML='<li>尚未進行遊戲</li>';round=0;$('#status').innerHTML='選擇下方符號後<br>按下<strong>啟動</strong>';announce('試玩點數已重置為 1,000')};
+    $('#clearButton').onclick=clearBets;spinButton.onclick=()=>spin();
+    autoButton.onclick=()=>{if(autoRunning){autoRunning=false;syncAutoButton();announce('將於本場結束後停止自動投注');return}if(spinning)return;if(totalBet()<=0){announce('請先下注一把，再設定自動投注');return}autoDialog.showModal()};
+    document.querySelectorAll('[data-rounds]').forEach(b=>b.onclick=()=>startAuto(Number(b.dataset.rounds)));$('#closeAuto').onclick=()=>autoDialog.close();
     soundButton.onclick=()=>{soundEnabled=!soundEnabled;localStorage.setItem('gdLittleMarySound',soundEnabled?'on':'off');syncSoundButton();if(soundEnabled)tone(660,.08,.03,'sine')};syncSoundButton();
     const rules=$('#rulesDialog');$('#rulesButton').onclick=()=>rules.showModal();$('#closeRules').onclick=()=>rules.close();
     // 返回大廳：只接受 gdclub.cc 系列網址（GDBO 給的 return），否則回大廳首頁
     const back=(()=>{try{const u=new URL(query.get('return')||'/',location.href);return /(^|\.)gdclub\.cc$|^(localhost|127\.0\.0\.1)$/.test(u.hostname)||u.origin===location.origin?u.href:'/'}catch{return '/'}})();
     $('#backButton').onclick=()=>location.href=back;
-    $('#modeTag').textContent=remote?'GD 錢包':'試玩';$('#balanceLabel').textContent=remote?'G幣餘額':'試玩餘額';
+    $('#modeTag').textContent=remote?'GD 錢包':'試玩';
     build();sync();
     connect().then(()=>{build();shown=balance;sync()}).catch(e=>{announce(e.message);spinButton.disabled=true});
   })();
