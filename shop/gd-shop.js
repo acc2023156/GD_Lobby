@@ -255,13 +255,45 @@
   }
   let layer = null, audio = null, audioId = null, drawHeld = false;
   const endDrawMusic = () => { if (drawHeld) { drawHeld = false; releaseMusic(); } };
-  /** 抽卡音效：shop/fx/ 裡的 draw／flip／rare，換檔案（同檔名）就能換音效；音量跟「音源 → 音效音量」。 */
-  const FX = {};
+  /**
+   * 抽卡音效：shop/fx/ 裡的 draw／flip／rare（mp3），換檔案（同檔名）就能換音效；音量跟「音源 → 音效音量」。
+   * 用 Web Audio 播放：翻卡、稀有卡的音效是動畫計時器觸發的（不在點擊當下），手機（特別是 iPhone）用 <audio> 會被擋掉沒聲音；
+   * AudioContext 在玩家第一次點畫面時解鎖，之後計時器裡也能播。解碼失敗時退回 <audio>。
+   */
+  const FX_NAMES = ['draw', 'flip', 'rare'];
+  const FX_BUF = {}, FX_TAG = {};
+  let sfxCtx = null;
+  function fxContext() {
+    const A = window.AudioContext || window.webkitAudioContext;
+    if (!A) return null;
+    try { if (!sfxCtx) sfxCtx = new A(); if (sfxCtx.state === 'suspended') sfxCtx.resume().catch(() => {}); } catch (e) { return null; }
+    return sfxCtx;
+  }
+  const fxUrl = (name) => `shop/fx/${name}.mp3?v=20261022`;
+  function loadFx(name) {
+    const ctx = fxContext();
+    if (!ctx) return Promise.reject(new Error('no web audio'));
+    return (FX_BUF[name] ||= fetch(fxUrl(name)).then((r) => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
+      .then((b) => new Promise((ok, no) => ctx.decodeAudioData(b, ok, no)))
+      .catch((e) => { delete FX_BUF[name]; throw e; }));
+  }
+  function sfxTag(name, level) {
+    try { const a = (FX_TAG[name] ||= new Audio(fxUrl(name))).cloneNode(); a.volume = level; a.play().catch(() => {}); } catch (e) { /* ignore */ }
+  }
   function sfx(name) {
     const level = window.GDAudio ? window.GDAudio.sfx : 1;
     if (!level) return;
-    try { const a = (FX[name] ||= new Audio(`shop/fx/${name}.mp3`)).cloneNode(); a.volume = level; a.play().catch(() => {}); } catch (e) { /* ignore */ }
+    const ctx = fxContext();
+    if (!ctx) return sfxTag(name, level);
+    loadFx(name).then((buf) => {
+      const src = ctx.createBufferSource(), gain = ctx.createGain();
+      gain.gain.value = level; src.buffer = buf; src.connect(gain).connect(ctx.destination); src.start();
+    }).catch(() => sfxTag(name, level));
   }
+  // 第一次點畫面時解鎖音效並預先載入（抽卡時不用等下載）
+  const unlockFx = () => { if (fxContext()) FX_NAMES.forEach((n) => loadFx(n).catch(() => {})); };
+  document.addEventListener('pointerdown', unlockFx, { once: true, capture: true });
+  document.addEventListener('touchend', () => fxContext(), { capture: true, passive: true });
   const calm = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
   /**
    * 開卡粒子與光暈，依手機效能分三級（CPU 核心數／記憶體）：
