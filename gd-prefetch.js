@@ -63,7 +63,9 @@
   function skinFiles(game, skin) {
     const root = `${BASE}/skins/${game}/`;
     const files = [];
-    const add = (f) => { if (typeof f === 'string' && f) files.push(root + f); };
+    // 素材版本（GD_Slots 部署時寫進 skin.json 的 v）：網址要跟遊戲載入時完全一樣（同樣加 ?v=），預載的檔進遊戲才用得到
+    const v = typeof skin.v === 'string' && /^[\w-]+$/.test(skin.v) ? `?v=${skin.v}` : '';
+    const add = (f) => { if (typeof f === 'string' && f) files.push(root + f + v); };
     const pick = (l) => (english && l.srcEn ? l.srcEn : l.src);
     Object.values({ ...skin.symbols, ...(english ? skin.symbolsEn : {}) }).forEach(add);
     Object.values(skin.win || {}).forEach((w) => (w.layers || []).forEach((l) => { if (!l.sheet) add(pick(l)); }));
@@ -76,7 +78,8 @@
   }
 
   async function prefetch(game) {
-    const skin = await fetch(`${BASE}/skins/${game}/skin.json`, { credentials: 'same-origin' }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    // 同遊戲：skin.json 每次確認新版（才拿得到最新的素材版本）
+    const skin = await fetch(`${BASE}/skins/${game}/skin.json`, { credentials: 'same-origin', cache: 'no-cache' }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
     if (!skin) return;
     await pool([...(await codeFiles(game)), ...skinFiles(game, skin)]);
   }
