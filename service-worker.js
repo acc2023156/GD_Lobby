@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gd-lobby-v46';
+const CACHE_NAME = 'gd-lobby-v47';
 const APP_SHELL = [
   './',
   './index.html',
@@ -41,7 +41,7 @@ self.addEventListener('fetch', event => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
   // gdclub.cc 上大廳在根目錄，遊戲（SLOTS、SHA 遊戲）也在同網址：遊戲的檔案與 API 不經過大廳的 service worker
-  if (/^\/(slots|seth-slot|Plinko|MINES|Crash|Dice|PaiGowTiles|HomeRun|LittleMary|MJW|mahjong-fortune-slot)(\/|$)/.test(url.pathname)) return;
+  if (/^\/(slots|seth-slot|Plinko|MINES|Crash|Dice|PaiGowTiles|HomeRun|LittleMary|MJW|mahjong-fortune-slot|GD_Fishing)(\/|$)/.test(url.pathname)) return;
   // 音效與音樂（mp3 等）不經過 service worker：瀏覽器播放時用分段（Range）請求，手機（iPhone）拿到快取的整檔回應會播不出來
   if (request.destination === 'audio' || request.destination === 'video' || request.headers.has('range') || /\.(mp3|m4a|wav|ogg|aac)$/i.test(url.pathname)) return;
 
