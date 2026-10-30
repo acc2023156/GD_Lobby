@@ -270,7 +270,9 @@
     '魔幻列車':`/LittleMary/?mode=train&return=${exclusiveReturn}`,
     '皇冠列車':`/LittleMary/?mode=crown&return=${exclusiveReturn}`,
     '六子骰':`/Dice/?return=${exclusiveReturn}`,
-    '黑粒仔':`/PaiGowTiles/?return=${exclusiveReturn}`
+    '黑粒仔':`/PaiGowTiles/?return=${exclusiveReturn}`,
+    // 捕魚・海底寶藏（深海尋寶 Sea treasure，GD_Fishing）：大廳版先用試玩金幣，之後改走 GDBO /game-sessions
+    '海底寶藏':`/GD_Fishing/?return=${encodeURIComponent(location.origin+location.pathname+'?cat=fish')}`
   };
   function openGame(g){selectedGame=g[0];modalArt.innerHTML=g[7]?`<img src="${g[7]}" alt="${g[0]} ICON">`:`<span aria-hidden="true">${g[1]}</span>`;modalOfferName.textContent=g[0];modalStatus.hidden=true;modalStatus.textContent='';playButton.textContent='進入遊戲';dialog.showModal()}
   /**
