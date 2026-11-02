@@ -219,7 +219,8 @@
   // categories：後台開著的分類；games 只含開著的遊戲（後台關掉的分類與遊戲不會回傳，大廳就不顯示）
   api.call('/lobby/games')
     .then(({ games, categories }) => {
-      const next = Object.fromEntries(games.map((g) => [g.name, g]));
+      // 用 game_key 對應（後台可以改名稱）；index.html 的 tilesOf 依這份資料排出卡片
+      const next = Object.fromEntries(games.map((g) => [g.key, g]));
       const cats = Array.isArray(categories) && categories.length ? categories : null;
       lobbyCache.set('games', next);
       lobbyCache.set('categories', cats);
