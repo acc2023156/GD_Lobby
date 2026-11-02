@@ -880,6 +880,8 @@
   // SLOTS（LKS 機率）：一律經 GDBO 啟動（會員帳號、後踢前）。GDBO 依 LKS_GAME_URLS 決定開 GD_Slots 新版或 LKS（GCP）舊版，
   // 大廳不用跟著切換。未登入時 requireLogin 會先要求登入，不會直連 GCP。
   const SLOT_GAMES = { 雷神索爾: 91004, 惡魔偵探: 91008, 財神: 91009, 羅馬競技場: 91006, 金銀島: 91005, 開心農場: 91007 };
+  // 捕魚・海底寶藏三個廳（GDBO provider fish）：同一個 ICON、不同名稱，經 GDBO 開局接主錢包
+  const FISH_GAMES = { '海底寶藏・新手廳': 'sea-treasure-novice', '海底寶藏・高手廳': 'sea-treasure-expert', '海底寶藏・尊榮廳': 'sea-treasure-vip' };
   // 啟動中：按鈕變灰顯示「載入中…」，不可重按；失敗或從遊戲按上一頁回來（bfcache）時恢復
   let launching = false;
   const setLaunching = (on) => {
@@ -897,7 +899,8 @@
   });
   // capture 階段先攔截，未登入或後端失敗時不落回舊的展示連結
   playButton.addEventListener('click', async (e) => {
-    const gameId = HASH_GAMES[selectedGame];
+    const fishId = FISH_GAMES[selectedGame];
+    const gameId = HASH_GAMES[selectedGame] || fishId;
     const productId = SLOT_GAMES[selectedGame];
     if (!gameId && !productId) return;
     e.stopImmediatePropagation();
@@ -918,13 +921,13 @@
     const offerChecked = !!$('input', offerCard)?.checked;
     if (window.GDLoading) { dialog.close(); window.GDLoading.show(slots ? 'slots' : 'exclusive'); }
     try {
-      if (pendingOffer && offerChecked) {
+      if (pendingOffer && offerChecked && !fishId) {
         modalStatus.textContent = '正在鎖定優惠錢包…';
         await api.call(`/promotions/${pendingOffer.promotionId}/accept`, { method: 'POST', body: { tierIdx: pendingOffer.tierIdx, gameId }, idempotent: true });
         pendingOffer = null;
         modalStatus.textContent = '正在取得遊戲連線…';
       }
-      const returnUrl = location.origin + location.pathname + (slots ? '?cat=slots' : '?cat=exclusive');
+      const returnUrl = location.origin + location.pathname + (slots ? '?cat=slots' : fishId ? '?cat=fish' : '?cat=exclusive');
       const { url } = await api.call('/game-sessions', { method: 'POST', body: productId ? { productId, returnUrl } : { gameId, returnUrl } });
       await window.GDMusic?.fadeOut();
       location.href = url;
