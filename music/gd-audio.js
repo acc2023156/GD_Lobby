@@ -10,7 +10,7 @@
 
   const SCRIPT = document.currentScript && document.currentScript.src;
   const LOBBY = new URL('../', SCRIPT || 'https://acc2023156.github.io/GD_Lobby/music/gd-audio.js').href;
-  const IN_LOBBY = location.href.startsWith(LOBBY) && !/\/(Plinko|MINES|Crash|Dice|PaiGowTiles|HomeRun|MJW|mahjong-fortune-slot|slots|seth-slot)\//.test(location.pathname);
+  const IN_LOBBY = location.href.startsWith(LOBBY) && !/\/(Plinko|MINES|Crash|Dice|PaiGowTiles|HomeRun|MJW|mahjong-fortune-slot|Nobunaga|slots|seth-slot)\//.test(location.pathname);
   const KEY = 'gd-music';
   const LEVELS = [0, 25, 50, 75, 100];
 
