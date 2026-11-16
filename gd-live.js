@@ -880,7 +880,8 @@
   const HASH_GAMES = { 珠珠寶貝: 'plinko', 寶石探險: 'mines', 沖高高: 'crash', 六子骰: 'dice', 黑粒仔: 'pai-gow-tiles', 全壘打: 'home-run-derby', 傳統小瑪莉: 'little-mary', 魔幻列車: 'magic-train', 皇冠列車: 'crown-train', 戰神賽特: 'seth' };
   // SLOTS（LKS 機率）：一律經 GDBO 啟動（會員帳號、後踢前）。GDBO 依 LKS_GAME_URLS 決定開 GD_Slots 新版或 LKS（GCP）舊版，
   // 大廳不用跟著切換。未登入時 requireLogin 會先要求登入，不會直連 GCP。
-  const SLOT_GAMES = { 雷神索爾: 91004, 惡魔偵探: 91008, 財神: 91009, 羅馬競技場: 91006, 金銀島: 91005, 開心農場: 91007 };
+  // 龍虎川中島（92001）：柏青斯洛，GD_Slots apps/pachislot 的 Worker；GDBO 後台「大廳遊戲」打開才會出現
+  const SLOT_GAMES = { 雷神索爾: 91004, 惡魔偵探: 91008, 財神: 91009, 羅馬競技場: 91006, 金銀島: 91005, 開心農場: 91007, 龍虎川中島: 92001 };
   // 捕魚・海底寶藏三個廳（GDBO provider fish）：同一個 ICON、不同名稱，經 GDBO 開局接主錢包
   const FISH_GAMES = { '海底寶藏・新手廳': 'sea-treasure-novice', '海底寶藏・高手廳': 'sea-treasure-expert', '海底寶藏・尊榮廳': 'sea-treasure-vip' };
   // 啟動中：按鈕變灰顯示「載入中…」，不可重按；失敗或從遊戲按上一頁回來（bfcache）時恢復
