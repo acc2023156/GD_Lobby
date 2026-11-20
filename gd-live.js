@@ -292,7 +292,8 @@
     bar.setAttribute('aria-label', `VIP 進度 ${pct}%`);
     $('i', bar).style.width = pct + '%';
     $('#balance').textContent = compact(me.mainAvailable);
-    $('#balance').title = coins(me.mainAvailable);
+    // 遊戲中（柏青斯洛的座位錢包）：坐在機台上時額度先轉進座位，離開遊戲幾秒～幾分鐘內轉回主錢包
+    $('#balance').title = coins(me.mainAvailable) + (me.inGame ? `（另有遊戲中 ${coins(me.inGame)}）` : '');
     $('#diaBalance').textContent = compact(me.diamonds || 0);
     // 會員中心
     renderNickname(shownName);
@@ -312,6 +313,8 @@
     $('.profile-list li button').onclick = () => navigator.clipboard?.writeText(me.profile.aid);
     // 錢包與商城
     $('.wallet-summary [data-g]').textContent = coins(me.mainAvailable);
+    const walletNote = $('.wallet-summary > span');
+    if (walletNote) walletNote.textContent = me.inGame ? `另有遊戲中 ${coins(me.inGame)} G幣：離開遊戲後回到主錢包` : 'G幣可自由下注與贈禮・D鑽可在 D鑽商城抽卡';
     $('.wallet-summary [data-dia]').textContent = num(me.diamonds || 0);
     $('.shop-balance>span').textContent = 'VIP ' + level;
     $('.shop-balance [data-g]').textContent = coins(me.mainAvailable);
