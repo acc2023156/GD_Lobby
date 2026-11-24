@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gd-lobby-v49';
+const CACHE_NAME = 'gd-lobby-v50';
 const APP_SHELL = [
   './',
   './index.html',
@@ -8,6 +8,7 @@ const APP_SHELL = [
   './icons/nav/slots.png',
   './icons/nav/poker.png',
   './icons/nav/fishing.png',
+  './icons/nav/pachislot.png',
   './icons/nav/rewards.png',
   './icons/nav/glory.png',
   './icons/nav/shop.png',
