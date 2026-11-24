@@ -230,7 +230,7 @@
       render();
     })
     .catch((err) => console.warn('lobby games', err));
-  const emptyFavorites = () => ({ exclusive: [], slots: [], poker: [], fish: [] });
+  const emptyFavorites = () => ({ exclusive: [], slots: [], poker: [], fish: [], pachi: [] });
   function setFavorites(aid, r) {
     const changed = !sameJson(r.favorites, lobby.favorites) || r.max !== lobby.max;
     lobby.favorites = r.favorites;
@@ -884,7 +884,9 @@
   // SLOTS（LKS 機率）：一律經 GDBO 啟動（會員帳號、後踢前）。GDBO 依 LKS_GAME_URLS 決定開 GD_Slots 新版或 LKS（GCP）舊版，
   // 大廳不用跟著切換。未登入時 requireLogin 會先要求登入，不會直連 GCP。
   // 龍与虎（92001，原名龍虎川中島）：柏青斯洛，GD_Slots apps/pachislot 的 Worker；GDBO 後台「大廳遊戲」打開才會出現
-  const SLOT_GAMES = { 雷神索爾: 91004, 惡魔偵探: 91008, 財神: 91009, 羅馬競技場: 91006, 金銀島: 91005, 開心農場: 91007, 龍与虎: 92001 };
+  const SLOT_GAMES = { 雷神索爾: 91004, 惡魔偵探: 91008, 財神: 91009, 羅馬競技場: 91006, 金銀島: 91005, 開心農場: 91007, 龍与虎: 92001, '龍与虎・新手廳': 92001, '龍与虎・高手廳': 92001, '龍与虎・尊榮廳': 92001 };
+  // 柏青斯洛的分廳入口（大廳「柏青斯洛」分類的三張廳卡）：開局網址後面加 hall，遊戲直接開那一廳的選台
+  const PACHI_HALLS = { '龍与虎・新手廳': 'novice', '龍与虎・高手廳': 'expert', '龍与虎・尊榮廳': 'vip' };
   // 捕魚・海底寶藏三個廳（GDBO provider fish）：同一個 ICON、不同名稱，經 GDBO 開局接主錢包
   const FISH_GAMES = { '海底寶藏・新手廳': 'sea-treasure-novice', '海底寶藏・高手廳': 'sea-treasure-expert', '海底寶藏・尊榮廳': 'sea-treasure-vip' };
   // 啟動中：按鈕變灰顯示「載入中…」，不可重按；失敗或從遊戲按上一頁回來（bfcache）時恢復
@@ -932,8 +934,10 @@
         pendingOffer = null;
         modalStatus.textContent = '正在取得遊戲連線…';
       }
-      const returnUrl = location.origin + location.pathname + (slots ? '?cat=slots' : fishId ? '?cat=fish' : '?cat=exclusive');
-      const { url } = await api.call('/game-sessions', { method: 'POST', body: productId ? { productId, returnUrl } : { gameId, returnUrl } });
+      const pachiHall = PACHI_HALLS[selectedGame] || (productId === 92001 ? '' : null);
+      const returnUrl = location.origin + location.pathname + (pachiHall !== null ? '?cat=pachi' : slots ? '?cat=slots' : fishId ? '?cat=fish' : '?cat=exclusive');
+      let { url } = await api.call('/game-sessions', { method: 'POST', body: productId ? { productId, returnUrl } : { gameId, returnUrl } });
+      if (pachiHall) url += (url.includes('#') ? '&' : '#') + 'hall=' + pachiHall;
       await window.GDMusic?.fadeOut();
       location.href = url;
     } catch (err) {
