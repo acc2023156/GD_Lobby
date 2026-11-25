@@ -1,6 +1,6 @@
 /* 獎勵中心「遊戲介紹」分頁：每款遊戲一頁（分頁切換），頁首兩格影片，接著玩法步驟、特色、派彩表、小提示。
  * 數值照 GD_Slots 引擎設定（apps/worker slotConfig）：線數、押注倍數、免費遊戲場數與倍數、派彩表。
- * 影片：在 videos 的 src 填網址就會顯示播放器，沒填顯示「影片準備中」。 */
+ * 影片：9:16（720×1280）。在 videos 的 src 填網址就會顯示播放器（poster 封面、dur 時長可省），沒填顯示「影片準備中」。 */
 (() => {
   const $ = (s, root = document) => root.querySelector(s);
   const $$ = (s, root = document) => [...root.querySelectorAll(s)];
@@ -35,7 +35,10 @@
         { icon: '🎟️', title: '購買免費遊戲', text: `以 <em>${BUY_X} 倍</em>總押注直接進入免費遊戲。` },
       ],
       tips: ['分散符號只會出現在中間三輪，看到第 2、3 輪都有就準備好吧。', '免費遊戲 ×4 再加上百搭 ×2，同一條線最高可達 8 倍加成。'],
-      videos: [{ title: '快速上手', src: '' }, { title: '免費遊戲實錄', src: '' }],
+      videos: [
+        { title: '重大獎', src: 'video/gof-bigwin.mp4?v=20261125', poster: 'video/gof-bigwin.jpg?v=20261125', dur: '13 秒' },
+        { title: '購買免費遊戲', src: 'video/gof-buy-feature.mp4?v=20261125', poster: 'video/gof-buy-feature.jpg?v=20261125', dur: '52 秒' },
+      ],
     },
     {
       key: 'pirate', name: '金銀島', tagline: '揚帆出海・寶藏滿艙', ways: true, betX: 50,
@@ -142,7 +145,6 @@
     .gd-gd-strip{display:grid;grid-auto-flow:column;grid-auto-columns:84px;justify-content:start;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:thin}
     .gd-gd-strip button{border:2px solid transparent;border-radius:14px;padding:4px 4px 6px;background:#111838;color:var(--gd-sub);font:inherit;font-size:12px;font-weight:900;cursor:pointer;display:grid;gap:4px;justify-items:center;position:relative}
     .gd-gd-strip button img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;display:block}
-    .gd-gd-strip button i{position:absolute;left:6px;top:6px;min-width:20px;height:20px;border-radius:10px;background:#0b1026cc;color:var(--gd-gold);font-style:normal;font-size:11px;line-height:20px}
     .gd-gd-strip button.on{border-color:var(--gd-pink);color:#fff;box-shadow:0 0 10px #ff3d9e66}
     .gd-gd-hero{display:grid;grid-template-columns:120px minmax(0,1fr);gap:14px;align-items:center;padding:14px;border-radius:18px;border:1px solid #35406d;background:radial-gradient(circle at 85% 10%,#783dff44,transparent 55%),linear-gradient(135deg,#1c2557,#121a40)}
     .gd-gd-hero>img{width:120px;height:120px;border-radius:18px;object-fit:cover;box-shadow:0 6px 18px #0008}
@@ -152,9 +154,9 @@
     .gd-gd-hero p{margin:6px 0 0;color:#cfd5f5;font-size:13px;line-height:1.65}
     .gd-gd-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;grid-column:1/-1}
     .gd-gd-chips span{border:1px solid #35406d;border-radius:999px;padding:4px 10px;font-size:12px;font-weight:900;color:#d6dcff;background:#0d1430}
-    .gd-gd-videos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+    .gd-gd-videos{display:grid;grid-template-columns:repeat(2,minmax(0,240px));justify-content:center;gap:12px}
     .gd-gd-video{border-radius:14px;overflow:hidden;border:1px solid #35406d;background:#0b1026}
-    .gd-gd-video video,.gd-gd-video .ph{display:block;width:100%;aspect-ratio:16/9;object-fit:cover;background:#05081a}
+    .gd-gd-video video,.gd-gd-video .ph{display:block;width:100%;height:auto;aspect-ratio:9/16;object-fit:cover;background:#05081a}
     .gd-gd-video .ph{display:grid;place-items:center;align-content:center;gap:6px;color:#6f79ad;font-size:12px;background:repeating-linear-gradient(135deg,#0b1026 0 12px,#0e1430 12px 24px)}
     .gd-gd-video .ph b{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;background:#ff3d9e33;border:2px solid #ff3d9e88;color:#fff;font-size:18px}
     .gd-gd-video footer{display:flex;justify-content:space-between;padding:7px 10px;font-size:13px;font-weight:900}
@@ -195,7 +197,7 @@
     @media (max-width:520px){
       .activity-tabs{padding:0 6px}.activity-tab{font-size:15px}
       .gd-gd-hero{grid-template-columns:84px minmax(0,1fr)}.gd-gd-hero>img{width:84px;height:84px}.gd-gd-hero h2{font-size:21px}
-      .gd-gd-videos,.gd-gd-steps{grid-template-columns:1fr}
+      .gd-gd-videos{gap:8px}.gd-gd-steps{grid-template-columns:1fr}
     }`;
   document.head.appendChild(style);
 
@@ -233,11 +235,11 @@
     const total = g.betX;
     const range = `${num(LINE_BETS[0] * total)}～${num(LINE_BETS[1] * total)}`;
     const free = g.features[0];
-    const video = (v) => `<div class="gd-gd-video">${v.src ? `<video src="${esc(v.src)}" controls playsinline preload="metadata"></video>` : '<div class="ph"><b>▶</b>影片準備中</div>'}<footer><span>${esc(v.title)}</span><small>${esc(g.name)}</small></footer></div>`;
+    const video = (v) => `<div class="gd-gd-video">${v.src ? `<video src="${esc(v.src)}"${v.poster ? ` poster="${esc(v.poster)}"` : ''} width="720" height="1280" controls playsinline preload="metadata"></video>` : '<div class="ph"><b>▶</b>影片準備中</div>'}<footer><span>${esc(v.title)}</span><small>${esc(v.dur || g.name)}</small></footer></div>`;
     const icon = (f) => (f.sym !== undefined ? symImg(g, f.sym) : `<span>${f.icon}</span>`);
     panel.innerHTML = `<div class="gd-gd">
       <nav class="gd-gd-cats">${GUIDE_CATS.map((c, i) => `<button data-gd-cat="${i}" class="${i === cat ? 'on' : ''}">${esc(c.name)}</button>`).join('')}</nav>
-      <nav class="gd-gd-strip">${list.map((x, i) => `<button data-gd-page="${i}" class="${i === page ? 'on' : ''}"><i>${i + 1}</i><img src="${esc(thumb(x.name))}" alt="" loading="lazy">${esc(x.name)}</button>`).join('')}</nav>
+      <nav class="gd-gd-strip">${list.map((x, i) => `<button data-gd-page="${i}" class="${i === page ? 'on' : ''}"><img src="${esc(thumb(x.name))}" alt="" loading="lazy">${esc(x.name)}</button>`).join('')}</nav>
       <section class="gd-gd-hero"><img src="${esc(thumb(g.name))}" alt=""><div><div class="gd-gd-label">${esc(GUIDE_CATS[cat].name)} · ${page + 1} / ${list.length}</div><h2>${esc(g.name)}<small>${esc(g.tagline)}</small></h2><p>${esc(g.intro)}</p></div><div class="gd-gd-chips">${g.chips.map((c) => `<span>${esc(c)}</span>`).join('')}<span>總押注 ${range}</span></div></section>
       <section class="gd-gd-videos">${g.videos.map(video).join('')}</section>
       <div class="gd-gd-cta"><button class="gd-gd-play" data-gd-play>立即遊玩 →</button><button class="gd-gd-link" data-gd-jump="pays">看派彩表</button></div>
@@ -252,6 +254,8 @@
       <nav class="gd-gd-pager"><button data-gd-step="-1" ${page === 0 ? 'disabled' : ''}>‹ ${page > 0 ? esc(list[page - 1].name) : '上一款'}</button><span>${page + 1} / ${list.length}</span><button data-gd-step="1" ${page === list.length - 1 ? 'disabled' : ''}>${page < list.length - 1 ? esc(list[page + 1].name) : '下一款'} ›</button></nav>
     </div>`;
     const go = (p) => { page = Math.max(0, Math.min(list.length - 1, p)); render(); panel.scrollTop = 0; $('.gd-gd-strip .on', panel)?.scrollIntoView({ block: 'nearest', inline: 'center' }); };
+    // 播一段時暫停另一段
+    $$('video', panel).forEach((v) => v.addEventListener('play', () => $$('video', panel).forEach((o) => o !== v && o.pause())));
     $$('[data-gd-cat]', panel).forEach((b) => (b.onclick = () => { cat = Number(b.dataset.gdCat); page = 0; render(); }));
     $$('[data-gd-page]', panel).forEach((b) => (b.onclick = () => go(Number(b.dataset.gdPage))));
     $$('[data-gd-step]', panel).forEach((b) => (b.onclick = () => go(page + Number(b.dataset.gdStep))));
@@ -273,6 +277,12 @@
     touchX = null;
     if (Math.abs(dx) > 70 && Math.abs(dx) > Math.abs(dy) * 1.5) $(`[data-gd-step="${dx < 0 ? 1 : -1}"]`, panel)?.click();
   });
+
+  // 關閉獎勵中心或切到其他分頁時停止播放
+  const stopVideos = () => { if ($('#activityLayer')?.hidden || !panel.classList.contains('active')) $$('video', panel).forEach((v) => v.pause()); };
+  const layer = $('#activityLayer');
+  if (layer) new MutationObserver(stopVideos).observe(layer, { attributes: true, attributeFilter: ['hidden'] });
+  new MutationObserver(stopVideos).observe(panel, { attributes: true, attributeFilter: ['class'] });
 
   render();
 })();
