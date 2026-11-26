@@ -1,4 +1,5 @@
-/* 獎勵中心「遊戲介紹」分頁：每款遊戲一頁（分頁切換），頁首兩格影片，接著玩法步驟、特色、派彩表、小提示。
+/* 獎勵中心「遊戲介紹」分頁：每款遊戲一頁（分頁切換），頁首兩格影片，接著玩法步驟、特色、派彩表／規則表、小提示。
+ * 這支檔案不在大廳開啟時載入：第一次點「遊戲介紹」才由 index.html 載入（見 loadGuide），影片也要按播放才下載。
  * 數值照 GD_Slots 引擎設定（apps/worker slotConfig）：線數、押注倍數、免費遊戲場數與倍數、派彩表。
  * 影片：9:16（720×1280）。在 videos 的 src 填網址就會顯示播放器（poster 封面、dur 時長可省），沒填顯示「影片準備中」。 */
 (() => {
@@ -11,6 +12,9 @@
   const SLOTS_BASE = /(^|\.)gdclub\.cc$/.test(location.hostname) ? '/slots' : 'https://dev.gdclub.cc/slots';
   const skins = {};
   const loadSkin = (key) => (skins[key] ??= fetch(`${SLOTS_BASE}/skins/${key}/skin.json`).then((r) => (r.ok ? r.json() : null)).then((j) => j?.symbols || null).catch(() => null));
+  // 影片與封面放在 GD_Slots 的靜態檔（packages/client/public/guide/ → /slots/guide/）：/slots/* 直接由 static assets 回應，
+  // 不經閘道 Worker、不算每日請求額度（大廳 Pages 的檔案每個請求都經過閘道，影片的分段請求也會一直算）
+  const GUIDE_MEDIA = `${SLOTS_BASE}/guide`;
   const LINE_BETS = [1, 100]; // 每線押注最小、最大
   const BUY_X = 100;
 
@@ -36,8 +40,8 @@
       ],
       tips: ['分散符號只會出現在中間三輪，看到第 2、3 輪都有就準備好吧。', '免費遊戲 ×4 再加上百搭 ×2，同一條線最高可達 8 倍加成。'],
       videos: [
-        { title: '重大獎', src: 'video/gof-bigwin.mp4?v=20261125', poster: 'video/gof-bigwin.jpg?v=20261125', dur: '13 秒' },
-        { title: '購買免費遊戲', src: 'video/gof-buy-feature.mp4?v=20261125', poster: 'video/gof-buy-feature.jpg?v=20261125', dur: '52 秒' },
+        { title: '重大獎', src: `${GUIDE_MEDIA}/gof-bigwin.mp4`, poster: `${GUIDE_MEDIA}/gof-bigwin.jpg`, dur: '13 秒' },
+        { title: '購買免費遊戲', src: `${GUIDE_MEDIA}/gof-buy-feature.mp4`, poster: `${GUIDE_MEDIA}/gof-buy-feature.jpg`, dur: '52 秒' },
       ],
     },
     {
@@ -132,8 +136,175 @@
     },
   ];
 
-  // 分類：先做老虎機，之後在這裡加其他分類
-  const GUIDE_CATS = [{ key: 'slots', name: '老虎機', list: SLOT_GUIDES }];
+  /**
+   * GD獨家：玩法各不相同，每款自己寫三步（steps）與規則表（table：cols 表頭、rows 每列；格子可用 {img} 放圖）。
+   * 數值照各遊戲程式：小瑪莉 LittleMary/index.html 的 PAYS／DEFAULTS、黑粒仔 PaiGowTiles、六子骰 Dice、全壘打 HomeRun/js/derby.js、
+   * 沖高高 Crash、寶石探險 MINES、珠珠寶貝 Plinko/js/engine.js。
+   */
+  const LM = (id) => ({ img: `LittleMary/img/${id}.webp` });
+  const LM_PAYS = [['bar', 'BAR', 50], ['seven', '雙七', 40], ['star', '雙金星', 30], ['watermelon', '西瓜', 20], ['bell', '鈴鐺', 20], ['melon', '香瓜', 15], ['orange', '橘子', 10], ['apple', '蘋果', 5], ['grape', '葡萄', 2]];
+  const lmTable = (extra = []) => ({ title: '符號賠率', hint: '派彩 = 該符號押注 × 倍率（含本金）。', cols: ['符號', '倍率'], rows: [...LM_PAYS.map(([id, n, x]) => [LM(id), n, `×${x}`]), ...extra].map(([ic, n, v]) => [{ ...ic, label: n }, v]) });
+  const LM_STEPS = (third) => [
+    { t: '選面額', p: '面額 1、5、10、20、100、500，點一下面額再點符號，同一個符號可以一直加注。' },
+    { t: '押符號', p: '9 個符號可以押一個或多個，下方會顯示每個符號的押注；按「清除」重押。' },
+    { t: '按啟動', p: third },
+  ];
+  const VIDEOS = [{ title: '快速上手', src: '' }, { title: '大獎實錄', src: '' }];
+  const EXCLUSIVE_GUIDES = [
+    {
+      name: '傳統小瑪莉', tagline: '經典跑燈・一燈定輸贏',
+      intro: '懷舊小瑪莉機台：押好水果與 BAR，按下啟動後單燈繞著 24 格跑，停在哪個符號就派彩。停到 ONCE MORE 還能免費再開一次。',
+      chips: ['24 格跑燈', '9 種符號', '最高 ×50', 'RTP 95.69%'],
+      steps: LM_STEPS('單燈沿 24 格移動，停在有押的符號就依倍率派彩（含本金）；也可以自動投注 5～50 場。'),
+      features: [
+        { ...LM('bar'), title: 'BAR ×50', text: '最高倍率符號，押中一次 <em>50 倍</em>。' },
+        { icon: '🔁', title: 'ONCE MORE', text: '盤面上 2 格 ONCE MORE，停到就<em>免費再開一次</em>，不重複扣押注。' },
+        { icon: '🤖', title: '自動投注', text: '照目前的押注配置連開 <em>5／10／20／50</em> 場。' },
+      ],
+      table: lmTable(),
+      tips: ['押哪個符號理論回報率都一樣，差別只在倍率與出現次數：葡萄常出但 ×2，BAR 少出但 ×50。', '結果由伺服器以 SHA-256 決定，開局前先公布種子的雜湊。'],
+      videos: VIDEOS,
+    },
+    {
+      name: '魔幻列車', tagline: '列車進站・多燈齊發',
+      intro: '小瑪莉的列車版本：除了一般跑燈派彩，停在魔幻車頭、+3、+5 會開出魔幻列車，車身蓋到的每一格只要有押都一起派彩。',
+      chips: ['24 格跑燈', '魔幻列車', '多燈同時派彩', 'RTP 96.5%'],
+      steps: LM_STEPS('停在符號格依倍率派彩；停在魔幻車頭、+3、+5 開出列車，車身蓋到的有押符號全部派彩。'),
+      features: [
+        { ...LM('train-head'), title: '魔幻車頭', text: '盤面 3 個車頭，停到開出 <em>3～5 節</em>的魔幻列車。' },
+        { ...LM('train-plus3'), title: '+3 車廂', text: '直接開出三節列車。' },
+        { ...LM('train-plus5'), title: '+5 車廂', text: '直接開出五節列車，蓋到的格子最多。' },
+      ],
+      table: lmTable([[LM('train-head'), '魔幻車頭', '開出 3–5 節列車'], [LM('train-plus3'), '+3', '開出 3 節列車'], [LM('train-plus5'), '+5', '開出 5 節列車']]),
+      tips: ['列車蓋到的格子才派彩，所以押越多種符號，列車進站時越容易一次中好幾個。'],
+      videos: VIDEOS,
+    },
+    {
+      name: '皇冠列車', tagline: '皇冠啟程・JP ×500',
+      intro: '小瑪莉的皇冠版本：停在皇冠開出 5 站免費列車，沿途符號派彩與 JP 一路累計，最後再乘上沿途遇到的最高倍率；停在 GRAND JP 直接派總押注 ×500。',
+      chips: ['24 格跑燈', '5 站皇冠列車', 'GRAND JP ×500', 'RTP 96.5%'],
+      steps: LM_STEPS('停在符號格依倍率派彩；停在皇冠開出 5 站免費列車；停在 GRAND JP 派總押注 ×500。'),
+      features: [
+        { ...LM('crown-bonus'), title: '皇冠列車', text: '盤面 3 個皇冠，停到開出 <em>5 站</em>免費列車，沿途派彩累計。' },
+        { icon: '✖️', title: '倍率站 ×2／×3／×5', text: '列車經過倍率站，最後總派彩乘上<em>沿途最高倍率</em>。直接停在倍率站不派彩。' },
+        { ...LM('crown-jp'), title: 'GRAND JP', text: '停到 JP 派<em>本局總押注 ×500</em>，列車途中遇到 JP 也算。' },
+      ],
+      table: lmTable([[LM('crown-bonus'), '皇冠', '開出 5 站免費列車'], [LM('crown-jp'), 'GRAND JP', '總押注 ×500'], [{ icon: '✖️' }, '倍率站', '列車中 ×2／×3／×5']]),
+      tips: ['倍率站只在皇冠列車裡生效；列車沿途遇到 ×5，整趟派彩就 ×5。'],
+      videos: VIDEOS,
+    },
+    {
+      name: '黑粒仔', tagline: '台灣推牌九・五秒一局',
+      intro: '台灣民間的推牌九：一莊三門，每家 4 張骨牌自動配成前、後兩對，跟莊家比大小。不用記牌、不用出牌，發完就翻開，一局約 5 秒。',
+      chips: ['一莊三門', '壓一賠一不抽水', '一副牌打兩局', 'RTP 99.31%'],
+      steps: [
+        { t: '押門', p: '押初門、川門、尾門其中一門或多門（直接點桌上的門也可以），每門同樣金額。' },
+        { t: '自動配牌', p: '莊家與三門各拿 4 張，自動配成前對（小）與後對（大），取前對最大的配法。' },
+        { t: '比大小', p: '前對比前對、後對比後對：兩對都贏派 1 賠 1，一勝一負退本金，兩對都輸輸掉押注。' },
+      ],
+      features: [
+        { icon: '🀄', title: '至尊寶最大', text: '丁三＋二四為<em>至尊寶</em>，接著雙天、雙地、雙人……對子，再來天王、地王、天槓、地槓與點數。' },
+        { icon: '⚖️', title: '同點莊吃', text: '兩對一樣大算莊家贏，鱉十遇鱉十也是莊家贏；莊家優勢只有 0.69%。' },
+        { icon: '👑', title: '上莊', text: 'VIP 與錢包符合時可以<em>自己當莊</em>，吃三門的注、賠三門的贏。' },
+      ],
+      table: { title: '單門結果', hint: '每門獨立和莊家比，押幾門都不影響每門的期望值。', cols: ['結果', '條件', '派彩', '機率'], rows: [['贏', '前後兩對都贏', '1 賠 1（押 10 拿回 20）', '36.52%'], ['走', '一勝一負', '退回本金', '26.27%'], ['輸', '兩對都輸', '0', '37.21%']] },
+      tips: ['點數 = 兩張相加取個位數；同點比兩張中較大的一張。', '至尊兩張不成對時可當 3 或 6 點，自動取大。', '莊家三門全贏顯示「通殺」，全輸顯示「通賠」。'],
+      videos: VIDEOS,
+    },
+    {
+      name: '六子骰', tagline: '一到六顆・押你想的點',
+      intro: '實體骰子玩法：選 1～6 顆骰子，押總點數、某個點數出現幾顆，或豹子。下注前就看得到勝率、倍數與可贏派彩。',
+      chips: ['1～6 顆骰子', '三種玩法', '下注前看勝率', 'RTP 98%'],
+      steps: [
+        { t: '選骰子數', p: '1～6 顆，骰子越多，總點數的分布越集中。' },
+        { t: '選玩法與目標', p: '總點數（剛好／以上／以下）、指定點數出現幾顆、豹子；點分布圖的長條可直接選目標。' },
+        { t: '擲骰', p: '贏了派彩 = 下注 × 倍數，輸了失去下注；也可設定自動投注。' },
+      ],
+      features: [
+        { icon: '📊', title: '分布圖', text: '每種結果一根長條，越高越常開出，<em>綠色 = 會贏</em>。' },
+        { icon: '🎯', title: '倍數 = 0.98 ÷ 勝率', text: '任何押法的長期回報都是 98%，只是勝率和倍數的取捨不同。' },
+        { icon: '🐆', title: '豹子', text: '所有骰子同點；可押任意豹子或指定點數（2 顆骰以上）。' },
+      ],
+      table: { title: '押法範例（3 顆骰）', hint: '勝率超過 97% 的押法不開放（倍數會低於 1.01×）。', cols: ['玩法', '押法', '勝率', '倍數'], rows: [['總點數', '總點 ≥ 11（大）', '50%', '1.96×'], ['指定點數', '至少 1 個 6', '42.13%', '2.33×'], ['豹子', '任意豹子', '2.78%', '35.28×']] },
+      tips: ['紅色的 1 點與 4 點是傳統骰子的樣式。', '每局結果可在「公平性」視窗用種子重算。'],
+      videos: VIDEOS,
+    },
+    {
+      name: '全壘打', tagline: '十球競賽・猜全壘打支數',
+      intro: '全壘打競賽：一局打 10 球，每球都有 40% 機率飛出全壘打牆。開打前猜這局會打出幾支全壘打，猜中依倍數派彩，最高 2,000 倍。',
+      chips: ['一局 10 球', '猜全壘打支數', '最高 ×2,000', 'RTP 約 98.5%'],
+      steps: [
+        { t: '下注', p: '每注 10～100，以 10 為單位。' },
+        { t: '猜支數', p: '選「剛好 k 支」「k 支以上」「k 支以下」（k = 0～10），倍數馬上顯示。' },
+        { t: '開打', p: '10 球依序打出，全壘打支數符合就派彩；猜中機率超過 97% 的選項不開放。' },
+      ],
+      features: [
+        { icon: '⚾', title: '每球 40%', text: '每一球獨立判定，<em>40%</em> 機率是全壘打。' },
+        { icon: '💥', title: '剛好 10 支 ×2,000', text: '最難的押法，十球全部飛出牆外。' },
+        { icon: '🔍', title: '公平性驗證', text: '每一球的距離、方向與是否全壘打都能用種子重算。' },
+      ],
+      table: { title: '「剛好 k 支」倍數', hint: '倍數無條件捨去到小數兩位；「以上／以下」的倍數在遊戲內的表格。', cols: ['支數', '機率', '倍數'], rows: [['0', '0.60%', '162.90×'], ['1', '4.03%', '24.43×'], ['2', '12.09%', '8.14×'], ['3', '21.50%', '4.58×'], ['4', '25.08%', '3.92×'], ['5', '20.07%', '4.90×'], ['6', '11.15%', '8.83×'], ['7', '4.25%', '23.19×'], ['8', '1.06%', '92.77×'], ['9', '0.16%', '626.24×'], ['10', '0.01%', '2,000×']] },
+      tips: ['最常見的是 3～5 支；押「4 支以上」約 1.59×，勝率約六成。'],
+      videos: VIDEOS,
+    },
+    {
+      name: '沖高高', tagline: '倍數狂飆・見好就收',
+      intro: '多人同時下注的倍數遊戲：火箭起飛後倍數一路往上沖，隨時可以兌現拿走目前倍數；來不及兌現就跟著爆掉。',
+      chips: ['多人同局', '隨時兌現', '自動兌現', 'RTP 99%'],
+      steps: [
+        { t: '下注', p: '每局有 7 秒下注時間；可先設定「自動兌現倍數」。' },
+        { t: '倍數上升', p: '起飛後倍數從 1.00× 開始往上沖，約 10 秒 1.82×、20 秒 3.32×、30 秒 6.05×。' },
+        { t: '兌現', p: '在爆掉前按「兌現」，派彩 = 下注 × 兌現倍數；沒兌現就輸掉這注。' },
+      ],
+      features: [
+        { icon: '🚀', title: '自動兌現', text: '設定目標倍數，到了<em>自動兌現</em>，不怕手慢。' },
+        { icon: '👥', title: '多人同局', text: '看得到其他玩家下注與兌現，一起拼誰收得漂亮。' },
+        { icon: '🔍', title: '公平性驗證', text: '開局前公布種子雜湊，爆掉後公布種子，可自行重算。' },
+      ],
+      table: { title: '倍數與時間', hint: '莊家優勢 1%；爆掉點的中位數約 1.98×，約 10% 機率衝到 10× 以上。', cols: ['起飛後', '倍數'], rows: [['10 秒', '1.82×'], ['20 秒', '3.32×'], ['30 秒', '6.05×'], ['約 38 秒', '10×']] },
+      tips: ['想穩就設低一點的自動兌現；想衝大倍數就要接受多數局會爆掉。'],
+      videos: VIDEOS,
+    },
+    {
+      name: '寶石探險', tagline: '翻寶石・避地雷',
+      intro: '5×5 共 25 格，藏著你選的地雷數量，其餘都是寶石。每翻開一顆寶石倍數就往上加，隨時可以兌現；翻到地雷就輸掉這局。',
+      chips: ['5 × 5 盤面', '地雷 1～24 顆', '隨時兌現', 'RTP 98%'],
+      steps: [
+        { t: '下注選雷數', p: '選下注金額與地雷數（1～24），按「下注」。' },
+        { t: '翻格子', p: '每翻開一顆寶石倍數上升；也可以「隨機翻一格」。翻到地雷本局輸掉下注。' },
+        { t: '兌現', p: '翻開至少一格後可隨時兌現，派彩 = 下注 × 目前倍數；寶石全翻完自動兌現。' },
+      ],
+      features: [
+        { icon: '💎', title: '雷越多倍數越高', text: '24 顆雷只翻 1 格就是 <em>24.50×</em>。' },
+        { icon: '📈', title: '倍數階梯', text: '畫面上隨時顯示下一格的勝率與倍數。' },
+        { icon: '🤖', title: '自動模式', text: '預選要翻的格子，設定局數與停利停損。' },
+      ],
+      table: { title: '倍數表（括號為勝率）', hint: '倍數 = 0.98 ÷ 連續翻中的機率，任何雷數與翻法的長期回報都是 98%。', cols: ['地雷', '翻 1 格', '翻 3 格', '翻 5 格'], rows: [['1', '1.02×（96%）', '1.11×（88%）', '1.22×（80%）'], ['3', '1.11×（88%）', '1.46×（67%）', '1.98×（50%）'], ['5', '1.22×（80%）', '1.98×（50%）', '3.36×（29%）'], ['24', '24.50×（4%）', '—', '—']] },
+      tips: ['想穩就少雷少翻；想拼大倍數就多雷，但通常翻一兩格就該收。'],
+      videos: VIDEOS,
+    },
+    {
+      name: '珠珠寶貝', tagline: '彈珠落下・倍數開獎',
+      intro: '彈珠從頂端落下，一路撞釘子左右彈跳，最後掉進底部的倍數格。越靠邊的格子倍數越高，可以自己選排數與風險。',
+      chips: ['8～16 排', '低／中／高風險', '最高 ×1,000', '可連續投注'],
+      steps: [
+        { t: '選排數與風險', p: '排數 8～16，風險低、中、高；倍數格會跟著變。' },
+        { t: '下注', p: '設定下注金額與投注次數，一次可以放好幾顆彈珠。' },
+        { t: '看落點', p: '彈珠掉進哪一格就派彩 = 下注 × 該格倍數。' },
+      ],
+      features: [
+        { icon: '⚪', title: '邊格倍數最高', text: '高風險 16 排，兩側邊格 <em>1,000×</em>。' },
+        { icon: '🎚️', title: '風險可調', text: '低風險中間格也常回本；高風險中間格只有 0.2×，賭邊格。' },
+        { icon: '🔍', title: '結果由伺服器決定', text: '落點與倍數由平台決定，動畫只是呈現。' },
+      ],
+      table: { title: '邊格最高倍數', hint: '中間格倍數最低，越往兩側越高。', cols: ['排數', '低風險', '中風險', '高風險'], rows: [['8', '5.6×', '13×', '29×'], ['12', '10×', '33×', '170×'], ['16', '16×', '110×', '1,000×']] },
+      tips: ['排數越多，彈珠越容易落在中間，邊格越難但倍數越高。'],
+      videos: VIDEOS,
+    },
+  ];
+
+  // 分類：GD獨家在老虎機左邊
+  const GUIDE_CATS = [{ key: 'exclusive', name: 'GD獨家', list: EXCLUSIVE_GUIDES }, { key: 'slots', name: '老虎機', list: SLOT_GUIDES }];
 
   const style = document.createElement('style');
   style.textContent = `
@@ -193,9 +364,15 @@
     .gd-gd-pager button{border:1px solid #35406d;border-radius:999px;padding:8px 14px;background:#111838;color:#d6dcff;font:inherit;font-weight:900;cursor:pointer;min-width:0;max-width:44%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .gd-gd-pager button:disabled{opacity:.35;cursor:default}
     .gd-gd-pager span{color:#8d97c7;font-size:13px;font-weight:900}
-    .activity-tab{white-space:nowrap}
+    .gd-gd-table{overflow-x:auto;border-radius:12px;border:1px solid var(--gd-line)}
+    .gd-gd-table table{width:100%;border-collapse:collapse;font-size:13px;min-width:280px}
+    .gd-gd-table th{background:#111838;color:var(--gd-gold);font-weight:900;text-align:left;padding:8px 10px;white-space:nowrap}
+    .gd-gd-table td{padding:7px 10px;border-top:1px solid var(--gd-line);color:#d6dcff;background:#151b3d}
+    .gd-gd-table td img{width:34px;height:34px;object-fit:contain;display:block}
+    .gd-gd-table td .sym{display:flex;align-items:center;gap:10px;font-weight:900;color:#fff}
+    .gd-gd-table td .ic{font-size:22px}
+    .gd-gd-table tbody tr:nth-child(even) td{background:#121838}
     @media (max-width:520px){
-      .activity-tabs{padding:0 6px}.activity-tab{font-size:15px}
       .gd-gd-hero{grid-template-columns:84px minmax(0,1fr)}.gd-gd-hero>img{width:84px;height:84px}.gd-gd-hero h2{font-size:21px}
       .gd-gd-videos{gap:8px}.gd-gd-steps{grid-template-columns:1fr}
     }`;
@@ -228,28 +405,40 @@
     return special + regular;
   }
 
+  // 老虎機的三步由數值產生；GD獨家每款自己寫 steps
+  const slotSteps = (g) => {
+    const total = g.betX, range = `${num(LINE_BETS[0] * total)}～${num(LINE_BETS[1] * total)}`, free = g.features[0];
+    return [
+      { t: '設定押注', p: `每線押注 ${LINE_BETS[0]}～${LINE_BETS[1]}，${g.ways ? `243 WAYS 總押注為 ${total} 倍` : `${total} 條線全開`}，總押注 ${range}。` },
+      { t: '按下旋轉', p: `${g.ways ? '從第 1 輪起，相鄰轉輪出現相同符號即得獎，不必在同一條線上。' : `由最左輪起，${total} 條連線上出現相同符號即得獎。`}也可設定自動 10～200 轉。` },
+      { t: `觸發${free.title}`, p: free.text, html: true },
+    ];
+  };
+  const cell = (c) => (c && typeof c === 'object' ? `<span class="sym">${c.img ? `<img src="${esc(c.img)}" alt="" loading="lazy">` : `<span class="ic">${c.icon}</span>`}${c.label ? esc(c.label) : ''}</span>` : esc(c));
+  const ruleTable = (t) => `<p class="gd-gd-hint">${esc(t.hint || '')}</p><div class="gd-gd-table"><table><thead><tr>${t.cols.map((c) => `<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${t.rows.map((r) => `<tr>${r.map((c) => `<td>${cell(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+
   function render() {
     const list = GUIDE_CATS[cat].list;
     const g = list[page];
-    if (!(g.key + ':map' in skins)) loadSkin(g.key).then((map) => { skins[g.key + ':map'] = map; if (map && list[page] === g) render(); });
-    const total = g.betX;
-    const range = `${num(LINE_BETS[0] * total)}～${num(LINE_BETS[1] * total)}`;
-    const free = g.features[0];
-    const video = (v) => `<div class="gd-gd-video">${v.src ? `<video src="${esc(v.src)}"${v.poster ? ` poster="${esc(v.poster)}"` : ''} width="720" height="1280" controls playsinline preload="metadata"></video>` : '<div class="ph"><b>▶</b>影片準備中</div>'}<footer><span>${esc(v.title)}</span><small>${esc(v.dur || g.name)}</small></footer></div>`;
-    const icon = (f) => (f.sym !== undefined ? symImg(g, f.sym) : `<span>${f.icon}</span>`);
+    const slot = Boolean(g.syms);
+    if (slot && !(g.key + ':map' in skins)) loadSkin(g.key).then((map) => { skins[g.key + ':map'] = map; if (map && list[page] === g) render(); });
+    const chips = slot ? [...g.chips, `總押注 ${num(LINE_BETS[0] * g.betX)}～${num(LINE_BETS[1] * g.betX)}`] : g.chips;
+    const steps = g.steps || slotSteps(g);
+    const video = (v) => `<div class="gd-gd-video">${v.src ? `<video src="${esc(v.src)}"${v.poster ? ` poster="${esc(v.poster)}"` : ''} width="720" height="1280" controls playsinline preload="none"></video>` : '<div class="ph"><b>▶</b>影片準備中</div>'}<footer><span>${esc(v.title)}</span><small>${esc(v.dur || g.name)}</small></footer></div>`;
+    const icon = (f) => (f.sym !== undefined ? symImg(g, f.sym) : f.img ? `<img src="${esc(f.img)}" alt="" loading="lazy">` : `<span>${f.icon}</span>`);
     panel.innerHTML = `<div class="gd-gd">
       <nav class="gd-gd-cats">${GUIDE_CATS.map((c, i) => `<button data-gd-cat="${i}" class="${i === cat ? 'on' : ''}">${esc(c.name)}</button>`).join('')}</nav>
       <nav class="gd-gd-strip">${list.map((x, i) => `<button data-gd-page="${i}" class="${i === page ? 'on' : ''}"><img src="${esc(thumb(x.name))}" alt="" loading="lazy">${esc(x.name)}</button>`).join('')}</nav>
-      <section class="gd-gd-hero"><img src="${esc(thumb(g.name))}" alt=""><div><div class="gd-gd-label">${esc(GUIDE_CATS[cat].name)} · ${page + 1} / ${list.length}</div><h2>${esc(g.name)}<small>${esc(g.tagline)}</small></h2><p>${esc(g.intro)}</p></div><div class="gd-gd-chips">${g.chips.map((c) => `<span>${esc(c)}</span>`).join('')}<span>總押注 ${range}</span></div></section>
+      <section class="gd-gd-hero"><img src="${esc(thumb(g.name))}" alt=""><div><div class="gd-gd-label">${esc(GUIDE_CATS[cat].name)} · ${page + 1} / ${list.length}</div><h2>${esc(g.name)}<small>${esc(g.tagline)}</small></h2><p>${esc(g.intro)}</p></div><div class="gd-gd-chips">${chips.map((c) => `<span>${esc(c)}</span>`).join('')}</div></section>
       <section class="gd-gd-videos">${g.videos.map(video).join('')}</section>
-      <div class="gd-gd-cta"><button class="gd-gd-play" data-gd-play>立即遊玩 →</button><button class="gd-gd-link" data-gd-jump="pays">看派彩表</button></div>
-      <section class="gd-gd-sec"><h3><small>三步上手</small>從押注到${esc(free.title)}</h3><div class="gd-gd-steps">
-        <div class="gd-gd-step"><i>1</i><b>設定押注</b><p>每線押注 ${LINE_BETS[0]}～${LINE_BETS[1]}，${g.ways ? `243 WAYS 總押注為 ${total} 倍` : `${total} 條線全開`}，總押注 ${range}。</p></div>
-        <div class="gd-gd-step"><i>2</i><b>按下旋轉</b><p>${g.ways ? '從第 1 輪起，相鄰轉輪出現相同符號即得獎，不必在同一條線上。' : `由最左輪起，${total} 條連線上出現相同符號即得獎。`}也可設定自動 10～200 轉。</p></div>
-        <div class="gd-gd-step"><i>3</i><b>觸發${esc(free.title)}</b><p>${free.text}</p></div>
+      <div class="gd-gd-cta"><button class="gd-gd-play" data-gd-play>立即遊玩 →</button><button class="gd-gd-link" data-gd-jump="pays">${slot ? '看派彩表' : '看規則表'}</button></div>
+      <section class="gd-gd-sec"><h3><small>三步上手</small>${slot ? `從押注到${esc(g.features[0].title)}` : '照著做就會玩'}</h3><div class="gd-gd-steps">
+        ${steps.map((s, i) => `<div class="gd-gd-step"><i>${i + 1}</i><b>${esc(s.t)}</b><p>${s.html ? s.p : esc(s.p)}</p></div>`).join('')}
       </div></section>
-      <section class="gd-gd-sec"><h3><small>遊戲特色</small>讓贏分翻倍的關鍵</h3><div class="gd-gd-feats">${g.features.map((f) => `<div class="gd-gd-feat">${icon(f)}<div><b>${esc(f.title)}</b><p>${f.text}</p></div></div>`).join('')}</div></section>
-      <section class="gd-gd-sec" data-gd-sec="pays"><h3><small>派彩表</small>符號賠率</h3><p class="gd-gd-hint">${g.ways ? `以押注 ${total} 計算。` : '賠率 × 每線押注；分散獎賞 × 總押注。'}</p><div class="gd-gd-pays">${paytable(g)}</div></section>
+      <section class="gd-gd-sec"><h3><small>遊戲特色</small>${slot ? '讓贏分翻倍的關鍵' : '這款好玩在哪'}</h3><div class="gd-gd-feats">${g.features.map((f) => `<div class="gd-gd-feat">${icon(f)}<div><b>${esc(f.title)}</b><p>${f.text}</p></div></div>`).join('')}</div></section>
+      ${slot
+        ? `<section class="gd-gd-sec" data-gd-sec="pays"><h3><small>派彩表</small>符號賠率</h3><p class="gd-gd-hint">${g.ways ? `以押注 ${g.betX} 計算。` : '賠率 × 每線押注；分散獎賞 × 總押注。'}</p><div class="gd-gd-pays">${paytable(g)}</div></section>`
+        : `<section class="gd-gd-sec" data-gd-sec="pays"><h3><small>規則表</small>${esc(g.table.title)}</h3>${ruleTable(g.table)}</section>`}
       <section class="gd-gd-sec"><h3><small>小提示</small>玩之前先知道</h3><ul class="gd-gd-tips">${g.tips.map((t) => `<li>${esc(t)}</li>`).join('')}<li>如遇程式故障，所有遊戲及派彩一律作廢。</li></ul></section>
       <nav class="gd-gd-pager"><button data-gd-step="-1" ${page === 0 ? 'disabled' : ''}>‹ ${page > 0 ? esc(list[page - 1].name) : '上一款'}</button><span>${page + 1} / ${list.length}</span><button data-gd-step="1" ${page === list.length - 1 ? 'disabled' : ''}>${page < list.length - 1 ? esc(list[page + 1].name) : '下一款'} ›</button></nav>
     </div>`;
