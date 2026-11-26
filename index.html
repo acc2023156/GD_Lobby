@@ -143,6 +143,9 @@
     .gift-table th{color:#aeb8e8}
     .gift-table td{background:#1b2350;color:#f8faff}
     .gift-blank{color:#aeb8e8}
+    /* 獎勵中心四個分頁：不換行，手機上縮小（gd-guide.js 要點開遊戲介紹才載入，這段不能放在那裡） */
+    .activity-card .activity-tab{white-space:nowrap}
+    @media (max-width:520px){.activity-card .activity-tabs{padding:0 6px}.activity-card .activity-tab{font-size:15px}}
   </style>
 </head>
 <body>
@@ -507,7 +510,11 @@
   }, true);
 </script>
 <script src="gd-live.js?v=20261124a"></script>
-<script src="gd-guide.js?v=20261125a"></script>
+<script>
+  // 遊戲介紹：第一次點分頁才載入 gd-guide.js（內容多，玩家進大廳時不用先下載）
+  (()=>{const tab=document.querySelector('[data-activity-tab="guide"]'),panel=document.querySelector('[data-activity-panel="guide"]');if(!tab||!panel)return;let state='';
+    tab.addEventListener('click',()=>{if(state)return;state='loading';panel.innerHTML='<div class="notice-empty">載入中…</div>';const s=document.createElement('script');s.src='gd-guide.js?v=20261126a';s.onload=()=>{state='done'};s.onerror=()=>{state='';s.remove();panel.innerHTML='<div class="notice-empty">載入失敗，請再點一次「遊戲介紹」</div>'};document.body.appendChild(s)})})();
+</script>
 <script src="shop/gd-shop.js?v=20261022a"></script>
 <script src="gd-glint.js?v=20261018a" defer></script>
 <script src="gd-prefetch.js?v=20261014a" defer></script>
