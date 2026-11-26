@@ -375,7 +375,60 @@
       videos: [],
     },
   ];
-  const GUIDE_CATS = [{ key: 'exclusive', name: 'GD獨家', list: EXCLUSIVE_GUIDES }, { key: 'slots', name: '老虎機', list: SLOT_GUIDES }, { key: 'pachi', name: '柏青斯洛', list: PACHI_GUIDES }];
+  // ---------- 捕魚（GD_Fishing「Sea treasure」海底寶藏）：數值照 Sea treasure/shared/sea-rules.js ----------
+  const FISH_GUIDES = [
+    {
+      name: '海底寶藏', icon: 'treasure_TCH.webp', tagline: '四人同桌・深海尋寶',
+      intro: '四人同桌的捕魚機：按住水面開砲，子彈打中的魚有機會被捕獲，依那條魚的倍率乘上押注派彩。大魚、BOSS、海盜船倍率最高；新手廳、高手廳、尊榮廳玩法相同，只差押注大小。',
+      chips: ['四人同桌', '押注 10 段', 'BOSS 擊殺轉盤 ×2～×5', '海盜船邊打邊掉錢', '三個廳'],
+      steps: [
+        { t: '選廳入桌', p: '在大廳「捕魚」選新手廳、高手廳或尊榮廳（VIP 1／2／4），進去就和其他玩家同桌，四個砲台各在一邊。' },
+        { t: '調整押注', p: '砲台兩旁的 −／＋ 換押注，共 10 段；押注越高砲台越大、炮管越多，同一發押注平均分給每根炮管。' },
+        { t: '開砲捕魚', p: '按住水面朝那個方向開砲；「AUTO」自動連發，「鎖定」自動追最近的魚，點一下魚就指定打牠。捕獲時派彩 = 押注 × 魚的倍率。' },
+      ],
+      features: [
+        { icon: '👑', title: 'BOSS 與擊殺轉盤', text: '李逵、美人魚、雙頭企鵝王、招財金蟾、四頭鯊輪流登場，平均 <em>×95～×165</em>；打死時轉盤 <em>×2～×5</em> 決定這一下拿多少，一次就是大獎。' },
+        { icon: '🏴‍☠️', title: '海盜船邊打邊掉錢', text: '海盜小艇、海盜船、飛行海盜船：<em>每打中一發就掉錢</em>當場派彩，擊沉時再付剩下的，飛行海盜船最高 ×250。' },
+        { icon: '🌀', title: '黃金魚・金幣漩渦', text: '黃金魚 <em>×80～×150</em>，捕獲時捲起金幣漩渦；招財金蟾 BOSS 也會。' },
+        { icon: '❄️', title: '冰凍炸彈・炸彈魚', text: '捕獲冰凍炸彈<em>全場冰凍</em>，魚游不動更好打；炸彈魚爆炸時<em>連同附近的魚一起派彩</em>。' },
+        { icon: '🎯', title: '越打越容易捕獲', text: '大魚和海盜船剛出場倍率在最高點，被打越多倍率往低點走、<em>捕獲機率同步上升</em>；押注大小不影響捕獲機率。' },
+        { icon: '🎁', title: '每日寶箱', text: '每天開砲 10 發後出現寶箱；打 BOSS 的押注有 <em>1%</em> 存進寶箱，存滿可以領出。' },
+      ],
+      tables: [
+        {
+          title: '三個廳', hint: '玩法、魚的倍率都一樣，只差押注大小；押注 10 段是基本押注的 1、2、3、5、10、20、30、50、80、100 倍。',
+          cols: ['廳', '每發押注', 'VIP'],
+          rows: [['新手廳', '0.1～10 G', 'VIP 1'], ['高手廳', '1～100 G', 'VIP 2'], ['尊榮廳', '10～1,000 G', 'VIP 4']],
+        },
+        {
+          title: '魚的倍率', hint: '派彩 = 押注 × 倍率（實際派彩在倍率的 ±15% 內浮動）。有區間的魚：剛出場在高點，越打越接近低點。',
+          cols: ['魚', '倍率'],
+          rows: [
+            ['銀魚', '×3'], ['小丑魚', '×4'], ['金魚', '×5'], ['藍刺魚', '×6'], ['河豚', '×8'],
+            ['魷魚、水母', '×10'], ['海馬', '×12'], ['龍蝦、螃蟹', '×15'], ['章魚', '×18'],
+            ['燈籠魚', '×20'], ['冰凍炸彈', '×20・全場冰凍'], ['炸彈魚', '×20・連同爆炸範圍的魚'],
+            ['海龜', '×25～×30'], ['海豚', '×30'], ['銀鯊', '×35'], ['鷹魟', '×40'], ['鬼蝠魟', '×40～×70'], ['魔鬼魚', '×50'],
+            ['金鯊', '×50～×80'], ['藍鯨', '×60～×120'], ['黃金魚', '×80～×150'],
+            ['海盜小艇', '×30～×70'], ['海盜船', '×60～×150'], ['飛行海盜船', '×100～×250'],
+            ['BOSS（五種）', '平均 ×95～×165，擊殺轉盤 ×2～×5'],
+          ],
+        },
+      ],
+      tips: [
+        '捕獲機率只看魚，不看押注；押高押低打同一條魚的難度一樣，只是派彩大小不同。',
+        '大魚、海盜船打越久越容易捕獲，跟別人一起打同一條也算數。',
+        'BOSS 從畫面橫越，看到「BOSS 來襲」就可以準備鎖定。',
+        '同桌其他玩家的砲台在另外三邊；誰的子彈捕獲那條魚，派彩就歸誰。',
+      ],
+      // 尊榮廳試玩實錄（含遊戲音效），倍率照正常機率、沒有改過
+      videos: [
+        { title: 'BOSS 擊殺轉盤 ×5', src: `${GUIDE_MEDIA}/fish/boss-wheel.mp4`, poster: `${GUIDE_MEDIA}/fish/boss-wheel.jpg`, dur: '50 秒' },
+        { title: '鬼蝠魟 BIG WIN', src: `${GUIDE_MEDIA}/fish/manta-bigwin.mp4`, poster: `${GUIDE_MEDIA}/fish/manta-bigwin.jpg`, dur: '24 秒' },
+        { title: '擊殺雙頭企鵝王', src: `${GUIDE_MEDIA}/fish/penguin-boss.mp4`, poster: `${GUIDE_MEDIA}/fish/penguin-boss.jpg`, dur: '38 秒' },
+      ],
+    },
+  ];
+  const GUIDE_CATS = [{ key: 'exclusive', name: 'GD獨家', list: EXCLUSIVE_GUIDES }, { key: 'slots', name: '老虎機', list: SLOT_GUIDES }, { key: 'pachi', name: '柏青斯洛', list: PACHI_GUIDES }, { key: 'fish', name: '捕魚', list: FISH_GUIDES }];
 
   const style = document.createElement('style');
   style.textContent = `
@@ -396,7 +449,7 @@
     .gd-gd-hero p{margin:6px 0 0;color:#cfd5f5;font-size:13px;line-height:1.65}
     .gd-gd-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;grid-column:1/-1}
     .gd-gd-chips span{border:1px solid #35406d;border-radius:999px;padding:4px 10px;font-size:12px;font-weight:900;color:#d6dcff;background:#0d1430}
-    .gd-gd-videos{display:grid;grid-template-columns:repeat(2,minmax(0,240px));justify-content:center;gap:12px}
+    .gd-gd-videos{display:grid;grid-template-columns:repeat(2,minmax(0,240px));justify-content:center;gap:12px}.gd-gd-videos>:last-child:nth-child(odd):not(:first-child){grid-column:1/-1;justify-self:center;width:calc(50% - 6px);max-width:240px}
     .gd-gd-video{border-radius:14px;overflow:hidden;border:1px solid #35406d;background:#0b1026}
     .gd-gd-video video,.gd-gd-video .ph{display:block;width:100%;height:auto;aspect-ratio:9/16;object-fit:cover;background:#05081a}
     .gd-gd-vbox{aspect-ratio:9/16;background:#05081a}
@@ -471,6 +524,7 @@
   let cat = 0, page = 0;
 
   const thumb = (name) => (typeof catalog !== 'undefined' ? catalog.find((g) => g[0] === name)?.[7] : '') || '';
+  const thumbOf = (g) => g.icon || thumb(g.name);
   const symSrc = (g, id) => {
     const own = skins[g.key + ':map']?.[id];
     return own ? `${SLOTS_BASE}/skins/${g.key}/${own}` : g.syms[id] ? `${SLOTS_BASE}/skins/${g.key}/symbols/${g.syms[id]}.webp` : '';
@@ -559,8 +613,8 @@
     const icon = (f) => (f.sym !== undefined ? symImg(g, f.sym) : f.img ? `<img src="${esc(f.img)}" alt="" loading="lazy">` : `<span>${f.icon}</span>`);
     panel.innerHTML = `<div class="gd-gd">
       <nav class="gd-gd-cats">${GUIDE_CATS.map((c, i) => `<button data-gd-cat="${i}" class="${i === cat ? 'on' : ''}">${esc(c.name)}</button>`).join('')}${GUIDE_CATS[cat].key === 'exclusive' ? `<a class="gd-gd-fairchip" href="${FAIRNESS_URL}" target="_blank" rel="noopener">🛡️ 公平性驗證</a>` : ''}</nav>
-      <nav class="gd-gd-strip">${list.map((x, i) => `<button data-gd-page="${i}" class="${i === page ? 'on' : ''}"><img src="${esc(thumb(x.name))}" alt="" loading="lazy">${esc(x.name)}</button>`).join('')}</nav>
-      <section class="gd-gd-hero"><img src="${esc(thumb(g.name))}" alt=""><div><div class="gd-gd-label">${esc(GUIDE_CATS[cat].name)} · ${page + 1} / ${list.length}</div><h2>${esc(g.name)}<small>${esc(g.tagline)}</small></h2><p>${esc(g.intro)}</p></div><div class="gd-gd-chips">${chips.map((c) => `<span>${esc(c)}</span>`).join('')}</div></section>
+      <nav class="gd-gd-strip">${list.map((x, i) => `<button data-gd-page="${i}" class="${i === page ? 'on' : ''}"><img src="${esc(thumbOf(x))}" alt="" loading="lazy">${esc(x.name)}</button>`).join('')}</nav>
+      <section class="gd-gd-hero"><img src="${esc(thumbOf(g))}" alt=""><div><div class="gd-gd-label">${esc(GUIDE_CATS[cat].name)} · ${page + 1} / ${list.length}</div><h2>${esc(g.name)}<small>${esc(g.tagline)}</small></h2><p>${esc(g.intro)}</p></div><div class="gd-gd-chips">${chips.map((c) => `<span>${esc(c)}</span>`).join('')}</div></section>
       ${g.videos.length ? `<section class="gd-gd-videos">${g.videos.map(video).join('')}</section>` : ''}
       <div class="gd-gd-cta"><button class="gd-gd-play" data-gd-play>立即遊玩 →</button><button class="gd-gd-link" data-gd-jump="pays">${slot ? '看派彩表' : '看規則表'}</button></div>
       <section class="gd-gd-sec"><h3><small>三步上手</small>${slot ? `從押注到${esc(g.features[0].title)}` : '照著做就會玩'}</h3><div class="gd-gd-steps">
@@ -569,7 +623,7 @@
       <section class="gd-gd-sec"><h3><small>遊戲特色</small>${slot ? '讓贏分翻倍的關鍵' : '這款好玩在哪'}</h3><div class="gd-gd-feats">${g.features.map((f, i) => (g.media ? `<div class="gd-gd-feat has-shot">${shot(g, `f${i + 1}`)}<div><b>${esc(f.title)}</b><p>${f.text}</p></div></div>` : `<div class="gd-gd-feat">${icon(f)}<div><b>${esc(f.title)}</b><p>${f.text}</p></div></div>`)).join('')}</div></section>
       ${slot
         ? `<section class="gd-gd-sec" data-gd-sec="pays"><h3><small>派彩表</small>符號賠率</h3><p class="gd-gd-hint">${g.ways ? `以押注 ${g.betX} 計算。` : '賠率 × 每線押注；分散獎賞 × 總押注。'}</p><div class="gd-gd-pays">${paytable(g)}</div></section>`
-        : `<section class="gd-gd-sec" data-gd-sec="pays"><h3><small>規則表</small>${esc(g.table.title)}</h3>${ruleTable(g.table)}</section>`}
+        : (g.tables || [g.table]).map((t, i) => `<section class="gd-gd-sec"${i ? '' : ' data-gd-sec="pays"'}><h3><small>規則表</small>${esc(t.title)}</h3>${ruleTable(t)}</section>`).join('')}
       ${g.fair ? `<section class="gd-gd-sec"><h3><small>公平性驗證</small>SHA-256 公開驗證</h3><div class="gd-gd-fair">
         <div class="gd-gd-fairvid">${video(FAIRNESS_VIDEO)}</div>
         <div class="gd-gd-fairtext">
@@ -596,7 +650,8 @@
     $('[data-gd-jump]', panel).onclick = () => $('[data-gd-sec="pays"]', panel).scrollIntoView({ behavior: 'smooth', block: 'start' });
     $('[data-gd-play]', panel).onclick = () => {
       // 柏青斯洛：回大廳的柏青斯洛分頁選廳（龍与虎分新手／高手／尊榮三張廳卡）
-      if (GUIDE_CATS[cat].key === 'pachi') { $('#activityLayer').hidden = true; document.querySelector('.cat[data-cat="pachi"]')?.click(); return; }
+      // 柏青斯洛、捕魚：回大廳那個分頁選廳（三個廳各一張卡）
+      if (GUIDE_CATS[cat].key === 'pachi' || GUIDE_CATS[cat].key === 'fish') { $('#activityLayer').hidden = true; document.querySelector(`.cat[data-cat="${GUIDE_CATS[cat].key}"]`)?.click(); return; }
       const tile = typeof catalog !== 'undefined' && catalog.find((x) => x[0] === g.name);
       if (!tile || typeof openGame !== 'function') return;
       $('#activityLayer').hidden = true;
