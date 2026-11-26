@@ -209,7 +209,10 @@
       ],
       table: { title: '單門結果', hint: '每門獨立和莊家比，押幾門都不影響每門的期望值。', cols: ['結果', '條件', '派彩', '機率'], rows: [['贏', '前後兩對都贏', '1 賠 1（押 10 拿回 20）', '36.52%'], ['走', '一勝一負', '退回本金', '26.27%'], ['輸', '兩對都輸', '0', '37.21%']] },
       tips: ['點數 = 兩張相加取個位數；同點比兩張中較大的一張。', '至尊兩張不成對時可當 3 或 6 點，自動取大。', '莊家三門全贏顯示「通殺」，全輸顯示「通賠」。'],
-      videos: VIDEOS,
+      videos: [
+        { title: '快速上手', src: `${GUIDE_MEDIA}/paigow/guide-a.mp4`, poster: `${GUIDE_MEDIA}/paigow/guide-a.jpg`, dur: '32 秒' },
+        { title: '比牌規則', src: `${GUIDE_MEDIA}/paigow/guide-b.mp4`, poster: `${GUIDE_MEDIA}/paigow/guide-b.jpg`, dur: '48 秒' },
+      ],
     },
     {
       name: '六子骰', media: 'dice', tagline: '一到六顆・押你想的點',
@@ -328,6 +331,12 @@
     .gd-gd-videos{display:grid;grid-template-columns:repeat(2,minmax(0,240px));justify-content:center;gap:12px}
     .gd-gd-video{border-radius:14px;overflow:hidden;border:1px solid #35406d;background:#0b1026}
     .gd-gd-video video,.gd-gd-video .ph{display:block;width:100%;height:auto;aspect-ratio:9/16;object-fit:cover;background:#05081a}
+    .gd-gd-vbox{aspect-ratio:9/16;background:#05081a}
+    .gd-gd-vbox video{object-fit:contain}
+    .gd-gd-zoomback{position:fixed;inset:0;z-index:1000;background:#000c;opacity:0;transition:opacity .3s}
+    .gd-gd-zoomback.on{opacity:1}
+    .gd-gd-zoomclose{position:fixed;top:max(12px,env(safe-area-inset-top));right:12px;z-index:1002;width:42px;height:42px;border:2px solid #ffffff66;border-radius:50%;background:#000a;color:#fff;font-size:26px;line-height:1;cursor:pointer;opacity:0;transition:opacity .3s}
+    .gd-gd-zoomclose.on{opacity:1}
     .gd-gd-video .ph{display:grid;place-items:center;align-content:center;gap:6px;color:#6f79ad;font-size:12px;background:repeating-linear-gradient(135deg,#0b1026 0 12px,#0e1430 12px 24px)}
     .gd-gd-video .ph b{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;background:#ff3d9e33;border:2px solid #ff3d9e88;color:#fff;font-size:18px}
     .gd-gd-video footer{display:flex;justify-content:space-between;padding:7px 10px;font-size:13px;font-weight:900}
@@ -422,6 +431,47 @@
   const cell = (c) => (c && typeof c === 'object' ? `<span class="sym">${c.img ? `<img src="${esc(c.img)}" alt="" loading="lazy">` : `<span class="ic">${c.icon}</span>`}${c.label ? esc(c.label) : ''}</span>` : esc(c));
   const ruleTable = (t) => `<p class="gd-gd-hint">${esc(t.hint || '')}</p><div class="gd-gd-table"><table><thead><tr>${t.cols.map((c) => `<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${t.rows.map((r) => `<tr>${r.map((c) => `<td>${cell(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
 
+  /**
+   * 影片放大：開始播放時從原本的小格放大到畫面中央（後面變暗），播完或按背景／× 縮回原位。
+   * 背景與 × 放在獎勵中心那一層裡（同一個疊放層，影片才會在背景上面）；全部遊戲的影片都套用。
+   */
+  const zoom = { v: null, back: null, close: null, timer: 0 };
+  const zoomTarget = () => {
+    const h = Math.min(innerHeight * 0.9, (innerWidth - 24) * 16 / 9), w = h * 9 / 16;
+    return { left: (innerWidth - w) / 2, top: (innerHeight - h) / 2, width: w, height: h };
+  };
+  const place = (v, r) => Object.assign(v.style, { left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px' });
+  function zoomIn(v) {
+    if (zoom.v === v) return;
+    zoomOut(true);
+    const host = panel.closest('.activity-layer') || document.body;
+    const back = document.createElement('div'); back.className = 'gd-gd-zoomback';
+    const close = document.createElement('button'); close.className = 'gd-gd-zoomclose'; close.type = 'button'; close.setAttribute('aria-label', '縮小影片'); close.textContent = '×';
+    host.append(back, close);
+    const r = v.getBoundingClientRect();
+    Object.assign(v.style, { position: 'fixed', zIndex: 1001, margin: 0, transition: 'none', background: '#000', borderRadius: '14px' });
+    place(v, r);
+    v.getBoundingClientRect();
+    requestAnimationFrame(() => {
+      v.style.transition = 'left .3s ease, top .3s ease, width .3s ease, height .3s ease';
+      place(v, zoomTarget());
+      back.classList.add('on'); close.classList.add('on');
+    });
+    back.onclick = close.onclick = () => { v.pause(); zoomOut(); };
+    Object.assign(zoom, { v, back, close });
+  }
+  function zoomOut(instant) {
+    const { v, back, close } = zoom;
+    if (!v) return;
+    zoom.v = null;
+    close.remove(); back.classList.remove('on');
+    const done = () => { ['position', 'zIndex', 'margin', 'transition', 'left', 'top', 'width', 'height', 'background', 'borderRadius'].forEach((k) => (v.style[k] = '')); back.remove(); };
+    if (instant || !v.isConnected) return done();
+    place(v, v.parentElement.getBoundingClientRect());
+    setTimeout(done, 320);
+  }
+  addEventListener('resize', () => { if (zoom.v) { zoom.v.style.transition = 'none'; place(zoom.v, zoomTarget()); } });
+
   function render() {
     const list = GUIDE_CATS[cat].list;
     const g = list[page];
@@ -429,7 +479,7 @@
     if (slot && !(g.key + ':map' in skins)) loadSkin(g.key).then((map) => { skins[g.key + ':map'] = map; if (map && list[page] === g) render(); });
     const chips = slot ? [...g.chips, `總押注 ${num(LINE_BETS[0] * g.betX)}～${num(LINE_BETS[1] * g.betX)}`] : g.chips;
     const steps = g.steps || slotSteps(g);
-    const video = (v) => `<div class="gd-gd-video">${v.src ? `<video src="${esc(v.src)}"${v.poster ? ` poster="${esc(v.poster)}"` : ''} width="720" height="1280" controls playsinline preload="none"></video>` : '<div class="ph"><b>▶</b>影片準備中</div>'}<footer><span>${esc(v.title)}</span><small>${esc(v.dur || g.name)}</small></footer></div>`;
+    const video = (v) => `<div class="gd-gd-video">${v.src ? `<div class="gd-gd-vbox"><video src="${esc(v.src)}"${v.poster ? ` poster="${esc(v.poster)}"` : ''} width="720" height="1280" controls playsinline preload="none"></video></div>` : '<div class="ph"><b>▶</b>影片準備中</div>'}<footer><span>${esc(v.title)}</span><small>${esc(v.dur || g.name)}</small></footer></div>`;
     const icon = (f) => (f.sym !== undefined ? symImg(g, f.sym) : f.img ? `<img src="${esc(f.img)}" alt="" loading="lazy">` : `<span>${f.icon}</span>`);
     panel.innerHTML = `<div class="gd-gd">
       <nav class="gd-gd-cats">${GUIDE_CATS.map((c, i) => `<button data-gd-cat="${i}" class="${i === cat ? 'on' : ''}">${esc(c.name)}</button>`).join('')}</nav>
@@ -448,8 +498,12 @@
       <nav class="gd-gd-pager"><button data-gd-step="-1" ${page === 0 ? 'disabled' : ''}>‹ ${page > 0 ? esc(list[page - 1].name) : '上一款'}</button><span>${page + 1} / ${list.length}</span><button data-gd-step="1" ${page === list.length - 1 ? 'disabled' : ''}>${page < list.length - 1 ? esc(list[page + 1].name) : '下一款'} ›</button></nav>
     </div>`;
     const go = (p) => { page = Math.max(0, Math.min(list.length - 1, p)); render(); panel.scrollTop = 0; $('.gd-gd-strip .on', panel)?.scrollIntoView({ block: 'nearest', inline: 'center' }); };
-    // 播一段時暫停另一段
-    $$('video', panel).forEach((v) => v.addEventListener('play', () => $$('video', panel).forEach((o) => o !== v && o.pause())));
+    zoomOut(true);
+    // 播一段時暫停另一段；開始播就放大，播完縮回
+    $$('video', panel).forEach((v) => {
+      v.addEventListener('play', () => { $$('video', panel).forEach((o) => o !== v && o.pause()); zoomIn(v); });
+      v.addEventListener('ended', () => zoomOut());
+    });
     $$('[data-gd-cat]', panel).forEach((b) => (b.onclick = () => { cat = Number(b.dataset.gdCat); page = 0; render(); }));
     $$('[data-gd-page]', panel).forEach((b) => (b.onclick = () => go(Number(b.dataset.gdPage))));
     $$('[data-gd-step]', panel).forEach((b) => (b.onclick = () => go(page + Number(b.dataset.gdStep))));
@@ -473,7 +527,7 @@
   });
 
   // 關閉獎勵中心或切到其他分頁時停止播放
-  const stopVideos = () => { if ($('#activityLayer')?.hidden || !panel.classList.contains('active')) $$('video', panel).forEach((v) => v.pause()); };
+  const stopVideos = () => { if ($('#activityLayer')?.hidden || !panel.classList.contains('active')) { $$('video', panel).forEach((v) => v.pause()); zoomOut(true); } };
   const layer = $('#activityLayer');
   if (layer) new MutationObserver(stopVideos).observe(layer, { attributes: true, attributeFilter: ['hidden'] });
   new MutationObserver(stopVideos).observe(panel, { attributes: true, attributeFilter: ['class'] });
