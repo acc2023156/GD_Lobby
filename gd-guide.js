@@ -277,7 +277,10 @@
       ],
       table: { title: '倍數與時間', hint: '爆掉點的中位數約 1.98×，約 10% 機率衝到 10× 以上。', cols: ['起飛後', '倍數'], rows: [['10 秒', '1.82×'], ['20 秒', '3.32×'], ['30 秒', '6.05×'], ['約 38 秒', '10×']] },
       tips: ['想穩就設低一點的自動兌現；想衝大倍數就要接受多數局會爆掉。', '開局前公布種子雜湊，爆掉後公布種子，「驗證本局」會顯示比對結果。'],
-      videos: VIDEOS,
+      videos: [
+        { title: '快速上手', src: `${GUIDE_MEDIA}/crash/guide-a.mp4`, poster: `${GUIDE_MEDIA}/crash/guide-a.jpg`, dur: '44 秒' },
+        { title: '自動兌現', src: `${GUIDE_MEDIA}/crash/guide-b.mp4`, poster: `${GUIDE_MEDIA}/crash/guide-b.jpg`, dur: '48 秒' },
+      ],
     },
     {
       name: '寶石探險', fair: { id: 'mines', how: '遊戲內「驗證本局」：查看地雷位置的種子與比對結果；「公平性設定」可以換客戶種子。' }, media: 'mines', tagline: '翻寶石・避地雷',
