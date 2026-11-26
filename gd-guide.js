@@ -298,7 +298,10 @@
       ],
       table: { title: '倍數表（括號為勝率）', hint: '雷越多、翻越多格，倍數越高，翻中的機率也越低。', cols: ['地雷', '翻 1 格', '翻 3 格', '翻 5 格'], rows: [['1', '1.02×（96%）', '1.11×（88%）', '1.22×（80%）'], ['3', '1.11×（88%）', '1.46×（67%）', '1.98×（50%）'], ['5', '1.22×（80%）', '1.98×（50%）', '3.36×（29%）'], ['24', '24.50×（4%）', '—', '—']] },
       tips: ['想穩就少雷少翻；想拼大倍數就多雷，24 顆雷只翻 1 格就是 24.50×。', '自動模式可以預選要翻的格子，設定局數與停利停損。'],
-      videos: VIDEOS,
+      videos: [
+        { title: '快速上手', src: `${GUIDE_MEDIA}/mines/guide-a.mp4`, poster: `${GUIDE_MEDIA}/mines/guide-a.jpg`, dur: '22 秒' },
+        { title: '雷數與倍數', src: `${GUIDE_MEDIA}/mines/guide-b.mp4`, poster: `${GUIDE_MEDIA}/mines/guide-b.jpg`, dur: '34 秒' },
+      ],
     },
     {
       name: '珠珠寶貝', fair: { id: 'plinko', how: '遊戲內「驗證本局」：查看彈珠路徑的種子與比對結果。' }, media: 'plinko', tagline: '彈珠落下・倍數開獎',
@@ -316,7 +319,10 @@
       ],
       table: { title: '邊格最高倍數', hint: '中間格倍數最低，越往兩側越高。', cols: ['排數', '低風險', '中風險', '高風險'], rows: [['8', '5.6×', '13×', '29×'], ['12', '10×', '33×', '170×'], ['16', '16×', '110×', '1,000×']] },
       tips: ['排數越多，彈珠越容易落在中間，邊格越難但倍數越高。', '低風險中間格也常回本；高風險中間格只有 0.2×，賭邊格。'],
-      videos: VIDEOS,
+      videos: [
+        { title: '快速上手', src: `${GUIDE_MEDIA}/plinko/guide-a.mp4`, poster: `${GUIDE_MEDIA}/plinko/guide-a.jpg`, dur: '28 秒' },
+        { title: '風險與排數', src: `${GUIDE_MEDIA}/plinko/guide-b.mp4`, poster: `${GUIDE_MEDIA}/plinko/guide-b.jpg`, dur: '44 秒' },
+      ],
     },
   ];
 
