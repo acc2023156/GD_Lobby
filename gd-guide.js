@@ -420,7 +420,12 @@
         'BOSS 從畫面橫越，看到「BOSS 來襲」就可以準備鎖定。',
         '同桌其他玩家的砲台在另外三邊；誰的子彈捕獲那條魚，派彩就歸誰。',
       ],
-      videos: [],
+      // 尊榮廳試玩實錄（含遊戲音效），倍率照正常機率、沒有改過
+      videos: [
+        { title: 'BOSS 擊殺轉盤 ×5', src: `${GUIDE_MEDIA}/fish/boss-wheel.mp4`, poster: `${GUIDE_MEDIA}/fish/boss-wheel.jpg`, dur: '50 秒' },
+        { title: '鬼蝠魟 BIG WIN', src: `${GUIDE_MEDIA}/fish/manta-bigwin.mp4`, poster: `${GUIDE_MEDIA}/fish/manta-bigwin.jpg`, dur: '24 秒' },
+        { title: '擊殺雙頭企鵝王', src: `${GUIDE_MEDIA}/fish/penguin-boss.mp4`, poster: `${GUIDE_MEDIA}/fish/penguin-boss.jpg`, dur: '38 秒' },
+      ],
     },
   ];
   const GUIDE_CATS = [{ key: 'exclusive', name: 'GD獨家', list: EXCLUSIVE_GUIDES }, { key: 'slots', name: '老虎機', list: SLOT_GUIDES }, { key: 'pachi', name: '柏青斯洛', list: PACHI_GUIDES }, { key: 'fish', name: '捕魚', list: FISH_GUIDES }];
@@ -444,7 +449,7 @@
     .gd-gd-hero p{margin:6px 0 0;color:#cfd5f5;font-size:13px;line-height:1.65}
     .gd-gd-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;grid-column:1/-1}
     .gd-gd-chips span{border:1px solid #35406d;border-radius:999px;padding:4px 10px;font-size:12px;font-weight:900;color:#d6dcff;background:#0d1430}
-    .gd-gd-videos{display:grid;grid-template-columns:repeat(2,minmax(0,240px));justify-content:center;gap:12px}
+    .gd-gd-videos{display:grid;grid-template-columns:repeat(2,minmax(0,240px));justify-content:center;gap:12px}.gd-gd-videos>:last-child:nth-child(odd):not(:first-child){grid-column:1/-1;justify-self:center;width:calc(50% - 6px);max-width:240px}
     .gd-gd-video{border-radius:14px;overflow:hidden;border:1px solid #35406d;background:#0b1026}
     .gd-gd-video video,.gd-gd-video .ph{display:block;width:100%;height:auto;aspect-ratio:9/16;object-fit:cover;background:#05081a}
     .gd-gd-vbox{aspect-ratio:9/16;background:#05081a}
