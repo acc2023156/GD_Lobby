@@ -327,7 +327,55 @@
   ];
 
   // 分類：GD獨家在老虎機左邊
-  const GUIDE_CATS = [{ key: 'exclusive', name: 'GD獨家', list: EXCLUSIVE_GUIDES }, { key: 'slots', name: '老虎機', list: SLOT_GUIDES }];
+  // ---------- 柏青斯洛（GD_Slots apps/pachislot，龍与虎）：數值照 engine/spec/ryuko.json 與 halls.ts ----------
+  const PACHI_BASE = /(^|\.)gdclub\.cc$/.test(location.hostname) ? '/GD_Pachislot/ryuko' : 'https://dev.gdclub.cc/GD_Pachislot/ryuko';
+  const RK = (f) => ({ img: `${PACHI_BASE}/art/${f}.webp` });
+  const PACHI_GUIDES = [
+    {
+      name: '龍与虎', tagline: '龍虎雙主體・川中島決戰',
+      intro: '還原實體斯洛機台：一台裡有龍（上杉）、虎（武田）兩台獨立機台，拉哪支拉桿就轉哪一邊，兩邊可以同時 AUTO。中 BONUS、前哨戰勝利或打到天井，就進入「川中島」AT，一場一場跟對手一騎討。',
+      chips: ['3 輪斯洛', '龍虎雙主體', '天井 800G', '川中島 AT', '最高 5,000 倍'],
+      steps: [
+        { t: '選廳入座', p: '在大廳「柏青斯洛」選新手廳、高手廳或尊榮廳，進去看每一台的資料（BIG／REG／AT 次數、差枚走勢），點一台坐下，或按「快速入座」。每轉固定押 3 枚，每枚金額依廳而定。' },
+        { t: '拉桿、按停止', p: '拉龍或虎的拉桿開始轉，依序按左、中、右停止鈕。長按拉桿開那一邊的 AUTO；在上液晶左右滑動，可以切換看龍或虎。' },
+        { t: '中獎進 BONUS／AT', p: '中線對齊龍7 或虎7 進 BIG，毘或菱進軍議 REG，龍7 虎7 龍7 是最高的「龍虎相搏」。BONUS 後有機會直接進川中島 AT。' },
+      ],
+      features: [
+        { ...RK('ui/lever_dragon'), title: '龍虎雙主體', text: '同一台座位上有<em>龍、虎兩台獨立機台</em>，各自的天井、BONUS、AT 與資料燈分開算，設定共用。兩邊可以同時 AUTO；背景那邊當選時，側燈與拉桿會快閃，切過去就從那一局開始播。' },
+        { ...RK('symbol/B7'), title: '上杉路線・車懸りの陣', text: '每場川中島開戰都接車懸り。<em>越後面的場次上乘越多</em>（第五次 ×2），強チェリー有機會進「毘沙門天」連續上乘。' },
+        { ...RK('symbol/R7'), title: '武田路線・風林火山', text: '每場隨機抽一個陣：<em>風</em>上乘機率提升、<em>林</em>軍配受保底較易拿到、<em>火</em>上乘局數 ×2、<em>山</em>這場一騎討必勝。' },
+        { icon: '⚔️', title: '川中島 AT', text: '每場 20 局，結束時一騎討決定能不能進下一場，<em>第一次到第五次</em>越往後越容易繼續。武田有「軍配受」保底，輸了也能用一個擋下繼續。' },
+        { icon: '🐉', title: '龍虎相搏・龍虎決戰', text: '中線龍7 虎7 龍7：先 30 局龍虎 BIG，接著直接進<em>龍虎決戰</em>（從第五次開始、繼續率最高）。' },
+        { icon: '⏱️', title: '天井 800G', text: '通常時 800 局沒進 AT，下一局直接進 AT，<em>從第二次川中島開始</em>。液晶上會顯示天井剩幾局。' },
+      ],
+      table: {
+        title: '配當表', hint: '每轉押 3 枚；派彩以枚計算，乘上每枚金額就是 G 幣。リプレイ下一局不用投入。',
+        cols: ['中線', '說明'],
+        rows: [
+          ['龍7 虎7 龍7', '龍虎相搏：龍虎 BIG 30 局＋龍虎決戰'],
+          ['龍7 龍7 龍7', 'BIG（上杉）20 局'],
+          ['虎7 虎7 虎7', 'BIG（武田）20 局'],
+          ['毘 毘 毘', '軍議 REG（上杉）8 局'],
+          ['菱 菱 菱', '軍議 REG（武田）8 局'],
+          ['軍配 軍配 軍配', '9 枚（BONUS 中 12 枚）'],
+          ['太刀 太刀 太刀', '5 枚'],
+          ['櫻 櫻 櫻', '2 枚（強チェリー）'],
+          ['櫻 ─ ─', '2 枚'],
+          ['毘 菱 毘', '1 枚（チャンス目）'],
+          ['陣笠 陣笠 陣笠', 'リプレイ（下一局免費）'],
+        ],
+      },
+      tips: [
+        'AT 中液晶會出押し順提示，照順序按停止鈕才拿得到軍配 9 枚。',
+        '強チェリー、チャンス目、スイカ有機會進「前哨戰」（10 局），前哨戰中再中小役就可能進 AT。',
+        '休憩可以保留座位 15 分鐘（每天 3 次）；BONUS／AT 中斷線，座位會保留 10 分鐘。',
+        '離席時未入帳的局會先入帳，餘額回到主錢包。',
+        '單場 AT 最多贏到 5,000 倍（15,000 枚），到上限 AT 直接結束。',
+      ],
+      videos: [],
+    },
+  ];
+  const GUIDE_CATS = [{ key: 'exclusive', name: 'GD獨家', list: EXCLUSIVE_GUIDES }, { key: 'slots', name: '老虎機', list: SLOT_GUIDES }, { key: 'pachi', name: '柏青斯洛', list: PACHI_GUIDES }];
 
   const style = document.createElement('style');
   style.textContent = `
@@ -513,7 +561,7 @@
       <nav class="gd-gd-cats">${GUIDE_CATS.map((c, i) => `<button data-gd-cat="${i}" class="${i === cat ? 'on' : ''}">${esc(c.name)}</button>`).join('')}${GUIDE_CATS[cat].key === 'exclusive' ? `<a class="gd-gd-fairchip" href="${FAIRNESS_URL}" target="_blank" rel="noopener">🛡️ 公平性驗證</a>` : ''}</nav>
       <nav class="gd-gd-strip">${list.map((x, i) => `<button data-gd-page="${i}" class="${i === page ? 'on' : ''}"><img src="${esc(thumb(x.name))}" alt="" loading="lazy">${esc(x.name)}</button>`).join('')}</nav>
       <section class="gd-gd-hero"><img src="${esc(thumb(g.name))}" alt=""><div><div class="gd-gd-label">${esc(GUIDE_CATS[cat].name)} · ${page + 1} / ${list.length}</div><h2>${esc(g.name)}<small>${esc(g.tagline)}</small></h2><p>${esc(g.intro)}</p></div><div class="gd-gd-chips">${chips.map((c) => `<span>${esc(c)}</span>`).join('')}</div></section>
-      <section class="gd-gd-videos">${g.videos.map(video).join('')}</section>
+      ${g.videos.length ? `<section class="gd-gd-videos">${g.videos.map(video).join('')}</section>` : ''}
       <div class="gd-gd-cta"><button class="gd-gd-play" data-gd-play>立即遊玩 →</button><button class="gd-gd-link" data-gd-jump="pays">${slot ? '看派彩表' : '看規則表'}</button></div>
       <section class="gd-gd-sec"><h3><small>三步上手</small>${slot ? `從押注到${esc(g.features[0].title)}` : '照著做就會玩'}</h3><div class="gd-gd-steps">
         ${steps.map((s, i) => `<div class="gd-gd-step">${shot(g, `s${i + 1}`)}<i>${i + 1}</i><b>${esc(s.t)}</b><p>${s.html ? s.p : esc(s.p)}</p></div>`).join('')}
@@ -547,6 +595,8 @@
     $$('[data-gd-step]', panel).forEach((b) => (b.onclick = () => go(page + Number(b.dataset.gdStep))));
     $('[data-gd-jump]', panel).onclick = () => $('[data-gd-sec="pays"]', panel).scrollIntoView({ behavior: 'smooth', block: 'start' });
     $('[data-gd-play]', panel).onclick = () => {
+      // 柏青斯洛：回大廳的柏青斯洛分頁選廳（龍与虎分新手／高手／尊榮三張廳卡）
+      if (GUIDE_CATS[cat].key === 'pachi') { $('#activityLayer').hidden = true; document.querySelector('.cat[data-cat="pachi"]')?.click(); return; }
       const tile = typeof catalog !== 'undefined' && catalog.find((x) => x[0] === g.name);
       if (!tile || typeof openGame !== 'function') return;
       $('#activityLayer').hidden = true;
