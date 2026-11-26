@@ -15,6 +15,9 @@
   // 影片與封面放在 GD_Slots 的靜態檔（packages/client/public/guide/ → /slots/guide/）：/slots/* 直接由 static assets 回應，
   // 不經閘道 Worker、不算每日請求額度（大廳 Pages 的檔案每個請求都經過閘道，影片的分段請求也會一直算）
   const GUIDE_MEDIA = `${SLOTS_BASE}/guide`;
+  // SHA 平台共用的公平性驗證頁（SHA repo apps/fairness-ui）。目前部署的是開發測試站；正式站有了改這一行。
+  // 已接上回合驗證的遊戲在 fair.id 填 game_id（網址只預填遊戲，不帶種子或下注資料）。
+  const FAIRNESS_URL = 'https://sha-fairness-dev.pages.dev/';
   const LINE_BETS = [1, 100]; // 每線押注最小、最大
   const BUY_X = 100;
 
@@ -152,7 +155,7 @@
   const VIDEOS = [{ title: '快速上手', src: '' }, { title: '大獎實錄', src: '' }];
   const EXCLUSIVE_GUIDES = [
     {
-      name: '傳統小瑪莉', tagline: '經典跑燈・一燈定輸贏',
+      name: '傳統小瑪莉', fair: { how: '每局結果由伺服器以 SHA-256 決定，開局前先公布種子雜湊；遊戲右上「?」可看規則與最近結果。' }, tagline: '經典跑燈・一燈定輸贏',
       intro: '懷舊小瑪莉機台：押好水果與 BAR，按下啟動後單燈繞著 24 格跑，停在哪個符號就派彩。停到 ONCE MORE 還能免費再開一次。',
       chips: ['24 格跑燈', '9 種符號', '最高 ×50', '自動投注'],
       steps: LM_STEPS('單燈沿 24 格移動，停在有押的符號就依倍率派彩（含本金）；也可以自動投注 5～50 場。'),
@@ -166,7 +169,7 @@
       videos: VIDEOS,
     },
     {
-      name: '魔幻列車', tagline: '列車進站・多燈齊發',
+      name: '魔幻列車', fair: { how: '每局結果由伺服器以 SHA-256 決定，開局前先公布種子雜湊；遊戲右上「?」可看規則與最近結果。' }, tagline: '列車進站・多燈齊發',
       intro: '小瑪莉的列車版本：除了一般跑燈派彩，停在魔幻車頭、+3、+5 會開出魔幻列車，車身蓋到的每一格只要有押都一起派彩。',
       chips: ['24 格跑燈', '魔幻列車', '多燈同時派彩'],
       steps: LM_STEPS('停在符號格依倍率派彩；停在魔幻車頭、+3、+5 開出列車，車身蓋到的有押符號全部派彩。'),
@@ -180,7 +183,7 @@
       videos: VIDEOS,
     },
     {
-      name: '皇冠列車', tagline: '皇冠啟程・JP ×500',
+      name: '皇冠列車', fair: { how: '每局結果由伺服器以 SHA-256 決定，開局前先公布種子雜湊；遊戲右上「?」可看規則與最近結果。' }, tagline: '皇冠啟程・JP ×500',
       intro: '小瑪莉的皇冠版本：停在皇冠開出 5 站免費列車，沿途符號派彩與 JP 一路累計，最後再乘上沿途遇到的最高倍率；停在 GRAND JP 直接派總押注 ×500。',
       chips: ['24 格跑燈', '5 站皇冠列車', 'GRAND JP ×500'],
       steps: LM_STEPS('停在符號格依倍率派彩；停在皇冠開出 5 站免費列車；停在 GRAND JP 派總押注 ×500。'),
@@ -194,7 +197,7 @@
       videos: VIDEOS,
     },
     {
-      name: '黑粒仔', media: 'paigow', tagline: '台灣推牌九・五秒一局',
+      name: '黑粒仔', fair: { how: '桌面右下「公平性」：看本副牌與下一副牌的種子雜湊；這副牌打完就公開種子，可以重算每一局的牌序。' }, media: 'paigow', tagline: '台灣推牌九・五秒一局',
       intro: '台灣民間的推牌九：一莊三門，每家 4 張骨牌自動配成前、後兩對，跟莊家比大小。不用記牌、不用出牌，發完就翻開，一局約 5 秒。',
       chips: ['一莊三門', '壓一賠一不抽水', '一副牌打兩局'],
       steps: [
@@ -210,12 +213,12 @@
       table: { title: '單門結果', hint: '每門獨立和莊家比，押幾門都不影響每門的期望值。', cols: ['結果', '條件', '派彩', '機率'], rows: [['贏', '前後兩對都贏', '1 賠 1（押 10 拿回 20）', '36.52%'], ['走', '一勝一負', '退回本金', '26.27%'], ['輸', '兩對都輸', '0', '37.21%']] },
       tips: ['點數 = 兩張相加取個位數；同點比兩張中較大的一張。', '至尊兩張不成對時可當 3 或 6 點，自動取大。', '莊家三門全贏顯示「通殺」，全輸顯示「通賠」。'],
       videos: [
-        { title: '快速上手', src: `${GUIDE_MEDIA}/paigow/guide-a.mp4`, poster: `${GUIDE_MEDIA}/paigow/guide-a.jpg`, dur: '32 秒' },
-        { title: '比牌規則', src: `${GUIDE_MEDIA}/paigow/guide-b.mp4`, poster: `${GUIDE_MEDIA}/paigow/guide-b.jpg`, dur: '48 秒' },
+        { title: '快速上手', src: `${GUIDE_MEDIA}/paigow/guide-a.mp4?v=2`, poster: `${GUIDE_MEDIA}/paigow/guide-a.jpg?v=2`, dur: '40 秒' },
+        { title: '比牌規則', src: `${GUIDE_MEDIA}/paigow/guide-b.mp4?v=2`, poster: `${GUIDE_MEDIA}/paigow/guide-b.jpg?v=2`, dur: '58 秒' },
       ],
     },
     {
-      name: '六子骰', media: 'dice', tagline: '一到六顆・押你想的點',
+      name: '六子骰', fair: { how: '遊戲內「公平性」：輸入任一局的種子重新計算骰子；客戶種子可以自己改。' }, media: 'dice', tagline: '一到六顆・押你想的點',
       intro: '實體骰子玩法：選 1～6 顆骰子，押總點數、某個點數出現幾顆，或豹子。下注前就看得到勝率、倍數與可贏派彩。',
       chips: ['1～6 顆骰子', '三種玩法', '下注前看勝率'],
       steps: [
@@ -233,7 +236,7 @@
       videos: VIDEOS,
     },
     {
-      name: '全壘打', media: 'homerun', tagline: '十球競賽・猜全壘打支數',
+      name: '全壘打', fair: { how: '遊戲內「公平性驗證」：重算每一球的距離、方向與是否全壘打。' }, media: 'homerun', tagline: '十球競賽・猜全壘打支數',
       intro: '全壘打競賽：一局打 10 球，每球都有 40% 機率飛出全壘打牆。開打前猜這局會打出幾支全壘打，猜中依倍數派彩，最高 2,000 倍。',
       chips: ['一局 10 球', '猜全壘打支數', '最高 ×2,000'],
       steps: [
@@ -251,7 +254,7 @@
       videos: VIDEOS,
     },
     {
-      name: '沖高高', media: 'crash', tagline: '倍數狂飆・見好就收',
+      name: '沖高高', fair: { id: 'crash', how: '遊戲內「驗證本局」：開局前公布種子雜湊，爆掉後公布種子，可以重算爆掉的倍數。' }, media: 'crash', tagline: '倍數狂飆・見好就收',
       intro: '多人同時下注的倍數遊戲：火箭起飛後倍數一路往上沖，隨時可以兌現拿走目前倍數；來不及兌現就跟著爆掉。',
       chips: ['多人同局', '隨時兌現', '自動兌現'],
       steps: [
@@ -269,7 +272,7 @@
       videos: VIDEOS,
     },
     {
-      name: '寶石探險', media: 'mines', tagline: '翻寶石・避地雷',
+      name: '寶石探險', fair: { id: 'mines', how: '遊戲內「驗證本局」：重算地雷位置；「公平性設定」可以換客戶種子。' }, media: 'mines', tagline: '翻寶石・避地雷',
       intro: '5×5 共 25 格，藏著你選的地雷數量，其餘都是寶石。每翻開一顆寶石倍數就往上加，隨時可以兌現；翻到地雷就輸掉這局。',
       chips: ['5 × 5 盤面', '地雷 1～24 顆', '隨時兌現'],
       steps: [
@@ -287,7 +290,7 @@
       videos: VIDEOS,
     },
     {
-      name: '珠珠寶貝', media: 'plinko', tagline: '彈珠落下・倍數開獎',
+      name: '珠珠寶貝', fair: { id: 'plinko', how: '遊戲內「驗證本局」：重算彈珠路徑與落點倍數。' }, media: 'plinko', tagline: '彈珠落下・倍數開獎',
       intro: '彈珠從頂端落下，一路撞釘子左右彈跳，最後掉進底部的倍數格。越靠邊的格子倍數越高，可以自己選排數與風險。',
       chips: ['8～16 排', '低／中／高風險', '最高 ×1,000', '可連續投注'],
       steps: [
@@ -360,6 +363,12 @@
     .gd-gd-shot{display:block;width:100%;height:150px;object-fit:contain;background:#0b1026;border-radius:10px;margin-bottom:8px}
     .gd-gd-feat.has-shot{grid-template-columns:1fr;gap:0}
     .gd-gd-feat.has-shot>img.gd-gd-shot{width:100%;height:110px;object-fit:contain;background:#0b1026;border-radius:10px;display:block}
+    .gd-gd-fairchip{margin-left:auto;display:inline-flex;align-items:center;border:1px solid #3fbf7f;border-radius:999px;padding:6px 14px;color:#7ff0c4;background:#0d2a22;font-weight:900;text-decoration:none;font-size:14px}
+    .gd-gd-fair{border-radius:14px;padding:12px;background:linear-gradient(135deg,#0f2a24,#121a40);border:1px solid #2f6b55;display:grid;gap:8px}
+    .gd-gd-fair p{margin:0;color:#d6dcff;font-size:13px;line-height:1.7}
+    .gd-gd-fair p.how{color:#bff3dc}
+    .gd-gd-fair small{color:#8d97c7;font-size:12px}
+    .gd-gd-fairbtn{justify-self:start;border-radius:999px;padding:9px 18px;background:linear-gradient(180deg,#5ef0a8,#22b874);color:#05301c;font-weight:900;text-decoration:none}
     .gd-gd-hint{margin:-4px 0 8px;color:#8d97c7;font-size:12px}
     .gd-gd-pays{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
     .gd-gd-pay{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px;align-items:center;border-radius:12px;padding:8px;background:#151b3d;border:1px solid var(--gd-line)}
@@ -482,7 +491,7 @@
     const video = (v) => `<div class="gd-gd-video">${v.src ? `<div class="gd-gd-vbox"><video src="${esc(v.src)}"${v.poster ? ` poster="${esc(v.poster)}"` : ''} width="720" height="1280" controls playsinline preload="none"></video></div>` : '<div class="ph"><b>▶</b>影片準備中</div>'}<footer><span>${esc(v.title)}</span><small>${esc(v.dur || g.name)}</small></footer></div>`;
     const icon = (f) => (f.sym !== undefined ? symImg(g, f.sym) : f.img ? `<img src="${esc(f.img)}" alt="" loading="lazy">` : `<span>${f.icon}</span>`);
     panel.innerHTML = `<div class="gd-gd">
-      <nav class="gd-gd-cats">${GUIDE_CATS.map((c, i) => `<button data-gd-cat="${i}" class="${i === cat ? 'on' : ''}">${esc(c.name)}</button>`).join('')}</nav>
+      <nav class="gd-gd-cats">${GUIDE_CATS.map((c, i) => `<button data-gd-cat="${i}" class="${i === cat ? 'on' : ''}">${esc(c.name)}</button>`).join('')}${GUIDE_CATS[cat].key === 'exclusive' ? `<a class="gd-gd-fairchip" href="${FAIRNESS_URL}" target="_blank" rel="noopener">🔒 公平性驗證</a>` : ''}</nav>
       <nav class="gd-gd-strip">${list.map((x, i) => `<button data-gd-page="${i}" class="${i === page ? 'on' : ''}"><img src="${esc(thumb(x.name))}" alt="" loading="lazy">${esc(x.name)}</button>`).join('')}</nav>
       <section class="gd-gd-hero"><img src="${esc(thumb(g.name))}" alt=""><div><div class="gd-gd-label">${esc(GUIDE_CATS[cat].name)} · ${page + 1} / ${list.length}</div><h2>${esc(g.name)}<small>${esc(g.tagline)}</small></h2><p>${esc(g.intro)}</p></div><div class="gd-gd-chips">${chips.map((c) => `<span>${esc(c)}</span>`).join('')}</div></section>
       <section class="gd-gd-videos">${g.videos.map(video).join('')}</section>
@@ -494,6 +503,12 @@
       ${slot
         ? `<section class="gd-gd-sec" data-gd-sec="pays"><h3><small>派彩表</small>符號賠率</h3><p class="gd-gd-hint">${g.ways ? `以押注 ${g.betX} 計算。` : '賠率 × 每線押注；分散獎賞 × 總押注。'}</p><div class="gd-gd-pays">${paytable(g)}</div></section>`
         : `<section class="gd-gd-sec" data-gd-sec="pays"><h3><small>規則表</small>${esc(g.table.title)}</h3>${ruleTable(g.table)}</section>`}
+      ${g.fair ? `<section class="gd-gd-sec"><h3><small>公平性驗證</small>每一局都能自己驗算</h3><div class="gd-gd-fair">
+        <p>GD獨家全部使用 SHA 平台同一套公平機制：開局前先公布<em>伺服器種子的 SHA-256 雜湊</em>，結束後公開種子；用伺服器種子＋你的客戶種子＋局號，就能自己算出一樣的結果與派彩，平台事後改不了。</p>
+        <p class="how">🔍 ${esc(g.fair.how)}</p>
+        <a class="gd-gd-fairbtn" href="${FAIRNESS_URL}${g.fair.id ? `?game_id=${g.fair.id}` : ''}" target="_blank" rel="noopener">開啟公平性驗證頁 ↗</a>
+        ${g.fair.id ? '' : '<small>這款的回合驗證頁接入中，驗證頁可先看教學範例；遊戲內已可驗證。</small>'}
+      </div></section>` : ''}
       <section class="gd-gd-sec"><h3><small>小提示</small>玩之前先知道</h3><ul class="gd-gd-tips">${g.tips.map((t) => `<li>${esc(t)}</li>`).join('')}<li>如遇程式故障，所有遊戲及派彩一律作廢。</li></ul></section>
       <nav class="gd-gd-pager"><button data-gd-step="-1" ${page === 0 ? 'disabled' : ''}>‹ ${page > 0 ? esc(list[page - 1].name) : '上一款'}</button><span>${page + 1} / ${list.length}</span><button data-gd-step="1" ${page === list.length - 1 ? 'disabled' : ''}>${page < list.length - 1 ? esc(list[page + 1].name) : '下一款'} ›</button></nav>
     </div>`;
