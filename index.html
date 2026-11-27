@@ -513,7 +513,7 @@
 <script>
   // 遊戲介紹：第一次點分頁才載入 gd-guide.js（內容多，玩家進大廳時不用先下載）
   (()=>{const tab=document.querySelector('[data-activity-tab="guide"]'),panel=document.querySelector('[data-activity-panel="guide"]');if(!tab||!panel)return;let state='';
-    tab.addEventListener('click',()=>{if(state)return;state='loading';panel.innerHTML='<div class="notice-empty">載入中…</div>';const s=document.createElement('script');s.src='gd-guide.js?v=20261126c';s.onload=()=>{state='done'};s.onerror=()=>{state='';s.remove();panel.innerHTML='<div class="notice-empty">載入失敗，請再點一次「遊戲介紹」</div>'};document.body.appendChild(s)})})();
+    tab.addEventListener('click',()=>{if(state)return;state='loading';panel.innerHTML='<div class="notice-empty">載入中…</div>';const s=document.createElement('script');s.src='gd-guide.js?v=20261127a';s.onload=()=>{state='done'};s.onerror=()=>{state='';s.remove();panel.innerHTML='<div class="notice-empty">載入失敗，請再點一次「遊戲介紹」</div>'};document.body.appendChild(s)})})();
 </script>
 <script src="shop/gd-shop.js?v=20261022a"></script>
 <script src="gd-glint.js?v=20261018a" defer></script>

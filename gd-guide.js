@@ -344,9 +344,9 @@
         { ...RK('ui/lever_dragon'), title: '龍虎雙主體', text: '同一台座位上有<em>龍、虎兩台獨立機台</em>，各自的天井、BONUS、AT 與資料燈分開算，設定共用。兩邊可以同時 AUTO；背景那邊當選時，側燈與拉桿會快閃，切過去就從那一局開始播。' },
         { ...RK('symbol/B7'), title: '上杉路線・車懸りの陣', text: '每場川中島開戰都接車懸り。<em>越後面的場次上乘越多</em>（第五次 ×2），強チェリー有機會進「毘沙門天」連續上乘。' },
         { ...RK('symbol/R7'), title: '武田路線・風林火山', text: '每場隨機抽一個陣：<em>風</em>上乘機率提升、<em>林</em>軍配受保底較易拿到、<em>火</em>上乘局數 ×2、<em>山</em>這場一騎討必勝。' },
-        { icon: '⚔️', title: '川中島 AT', text: '每場 20 局，結束時一騎討決定能不能進下一場，<em>第一次到第五次</em>越往後越容易繼續。武田有「軍配受」保底，輸了也能用一個擋下繼續。' },
-        { icon: '🐉', title: '龍虎相搏・龍虎決戰', text: '中線龍7 虎7 龍7：先 30 局龍虎 BIG，接著直接進<em>龍虎決戰</em>（從第五次開始、繼續率最高）。' },
-        { icon: '⏱️', title: '天井 800G', text: '通常時 800 局沒進 AT，下一局直接進 AT，<em>從第二次川中島開始</em>。液晶上會顯示天井剩幾局。' },
+        { ...RK('lcd/at_uesugi'), title: '川中島 AT', text: '每場 20 局，結束時一騎討決定能不能進下一場，<em>第一次到第五次</em>越往後越容易繼續。武田有「軍配受」保底，輸了也能用一個擋下繼續。' },
+        { ...RK('lcd/at_premium'), title: '龍虎相搏・龍虎決戰', text: '中線龍7 虎7 龍7：先 30 局龍虎 BIG，接著直接進<em>龍虎決戰</em>（從第五次開始、繼續率最高）。' },
+        { ...RK('cabinet/counter_on'), title: '天井 800G', text: '通常時 800 局沒進 AT，下一局直接進 AT，<em>從第二次川中島開始</em>。液晶上會顯示天井剩幾局。' },
       ],
       table: {
         title: '配當表', hint: '每轉押 3 枚；派彩以枚計算，乘上每枚金額就是 G 幣。リプレイ下一局不用投入。',
@@ -376,66 +376,71 @@
     },
   ];
   // ---------- 捕魚（GD_Fishing「Sea treasure」海底寶藏）：數值照 Sea treasure/shared/sea-rules.js ----------
-  const FISH_GUIDES = [
-    {
-      name: '海底寶藏', icon: 'treasure_TCH.webp', tagline: '四人同桌・深海尋寶',
-      intro: '四人同桌的捕魚機：按住水面開砲，子彈打中的魚有機會被捕獲，依那條魚的倍率乘上押注派彩。大魚、BOSS、海盜船倍率最高；新手廳、高手廳、尊榮廳玩法相同，只差押注大小。',
+  const FISH_GUIDES = (() => {
+    const F = (n, label) => ({ img: `${GUIDE_MEDIA}/fish/sp/${n}.webp`, label });
+    const HALL = (id, label) => ({ img: `halls/${id}.webp`, label, wide: true });
+    return [{
+      name: '海底寶藏', icon: 'treasure_TCH.webp', media: 'fish', tagline: '四人同桌・深海尋寶',
+      intro: '四人同桌的捕魚機：按住水面開砲，子彈打中的魚有機會被捕獲，依那條魚的倍率乘上押注派彩。大魚、BOSS、海盜船倍率最高。分新手廳、高手廳、尊榮廳三個廳，玩法和倍率都一樣，只差押注大小。',
       chips: ['四人同桌', '押注 10 段', 'BOSS 擊殺轉盤 ×2～×5', '海盜船邊打邊掉錢', '三個廳'],
       steps: [
-        { t: '選廳入桌', p: '在大廳「捕魚」選新手廳、高手廳或尊榮廳（VIP 1／2／4），進去就和其他玩家同桌，四個砲台各在一邊。' },
+        { t: '選廳入桌', p: '在大廳「捕魚」點海底寶藏的新手廳、高手廳或尊榮廳（VIP 1／2／4），進去就和其他玩家同桌，四個砲台各在一邊。' },
         { t: '調整押注', p: '砲台兩旁的 −／＋ 換押注，共 10 段；押注越高砲台越大、炮管越多，同一發押注平均分給每根炮管。' },
         { t: '開砲捕魚', p: '按住水面朝那個方向開砲；「AUTO」自動連發，「鎖定」自動追最近的魚，點一下魚就指定打牠。捕獲時派彩 = 押注 × 魚的倍率。' },
       ],
       features: [
-        { icon: '👑', title: 'BOSS 與擊殺轉盤', text: '李逵、美人魚、雙頭企鵝王、招財金蟾、四頭鯊輪流登場，平均 <em>×95～×165</em>；打死時轉盤 <em>×2～×5</em> 決定這一下拿多少，一次就是大獎。' },
-        { icon: '🏴‍☠️', title: '海盜船邊打邊掉錢', text: '海盜小艇、海盜船、飛行海盜船：<em>每打中一發就掉錢</em>當場派彩，擊沉時再付剩下的，飛行海盜船最高 ×250。' },
-        { icon: '🌀', title: '黃金魚・金幣漩渦', text: '黃金魚 <em>×80～×150</em>，捕獲時捲起金幣漩渦；招財金蟾 BOSS 也會。' },
-        { icon: '❄️', title: '冰凍炸彈・炸彈魚', text: '捕獲冰凍炸彈<em>全場冰凍</em>，魚游不動更好打；炸彈魚爆炸時<em>連同附近的魚一起派彩</em>。' },
-        { icon: '🎯', title: '越打越容易捕獲', text: '大魚和海盜船剛出場倍率在最高點，被打越多倍率往低點走、<em>捕獲機率同步上升</em>；押注大小不影響捕獲機率。' },
-        { icon: '🎁', title: '每日寶箱', text: '每天開砲 10 發後出現寶箱；打 BOSS 的押注有 <em>1%</em> 存進寶箱，存滿可以領出。' },
+        { title: 'BOSS 與擊殺轉盤', text: '李逵、美人魚、雙頭企鵝王、招財金蟾、四頭鯊輪流登場；打死時轉盤 <em>×2～×5</em> 決定這一下拿多少，一次就是大獎。' },
+        { title: '海盜船邊打邊掉錢', text: '海盜小艇、海盜船、飛行海盜船：<em>每打中一發就掉錢</em>當場派彩，擊沉時再付剩下的，飛行海盜船最高 ×250。' },
+        { title: '黃金魚・金幣漩渦', text: '黃金魚 <em>×80～×150</em>，捕獲時捲起金幣漩渦；招財金蟾 BOSS 也會。' },
+        { title: '冰凍炸彈・炸彈魚', text: '捕獲冰凍炸彈<em>全場冰凍</em>，魚游不動更好打；炸彈魚爆炸時<em>連同附近的魚一起派彩</em>。' },
+        { title: '鎖定・越打越容易捕獲', text: '「鎖定」自動追魚。大魚和海盜船剛出場倍率在最高點，被打越多倍率往低點走、<em>捕獲機率同步上升</em>；押注大小不影響捕獲機率。' },
+        { title: '每日寶箱', text: '每天開砲 10 發後出現寶箱；打 BOSS 的押注有 <em>1%</em> 存進寶箱，存滿可以領出。' },
       ],
       tables: [
         {
-          title: '三個廳', hint: '玩法、魚的倍率都一樣，只差押注大小；押注 10 段是基本押注的 1、2、3、5、10、20、30、50、80、100 倍。',
+          title: '三個廳：新手、高手、尊榮', hint: '三個廳的魚、倍率、BOSS、捕獲機率完全一樣，差別只有每發押注（一個廳是前一個的 10 倍）和進廳的 VIP 等級：新手廳小額先熟悉玩法，尊榮廳押注最大、一隻 BOSS 就是大獎。每個廳押注都分 10 段：基本押注的 1、2、3、5、10、20、30、50、80、100 倍。',
           cols: ['廳', '每發押注', 'VIP'],
-          rows: [['新手廳', '0.1～10 G', 'VIP 1'], ['高手廳', '1～100 G', 'VIP 2'], ['尊榮廳', '10～1,000 G', 'VIP 4']],
+          rows: [
+            [HALL('novice', '新手廳'), '0.1～10 G', 'VIP 1'],
+            [HALL('expert', '高手廳'), '1～100 G', 'VIP 2'],
+            [HALL('vip', '尊榮廳'), '10～1,000 G', 'VIP 4'],
+          ],
         },
         {
           title: '魚的倍率', hint: '派彩 = 押注 × 倍率（實際派彩在倍率的 ±15% 內浮動）。有區間的魚：剛出場在高點，越打越接近低點。',
           cols: ['魚', '倍率'],
           rows: [
-            ['銀魚', '×3'], ['小丑魚', '×4'], ['金魚', '×5'], ['藍刺魚', '×6'], ['河豚', '×8'],
-            ['魷魚、水母', '×10'], ['海馬', '×12'], ['龍蝦、螃蟹', '×15'], ['章魚', '×18'],
-            ['燈籠魚', '×20'], ['冰凍炸彈', '×20・全場冰凍'], ['炸彈魚', '×20・連同爆炸範圍的魚'],
-            ['海龜', '×25～×30'], ['海豚', '×30'], ['銀鯊', '×35'], ['鷹魟', '×40'], ['鬼蝠魟', '×40～×70'], ['魔鬼魚', '×50'],
-            ['金鯊', '×50～×80'], ['藍鯨', '×60～×120'], ['黃金魚', '×80～×150'],
-            ['海盜小艇', '×30～×70'], ['海盜船', '×60～×150'], ['飛行海盜船', '×100～×250'],
-            ['BOSS（五種）', '平均 ×95～×165，擊殺轉盤 ×2～×5'],
+            [F('clownfish', '小丑魚'), '×4'], [F('goldfish', '金魚'), '×5'], [F('bluetang', '藍刺魚'), '×6'], [F('puffer', '河豚'), '×8'],
+            [F('squid', '魷魚'), '×10'], [F('jellyfish', '水母'), '×10'], [F('seahorse', '海馬'), '×12'],
+            [F('lobster', '龍蝦'), '×15'], [F('crab', '螃蟹'), '×15'], [F('octopus', '章魚'), '×18'],
+            [F('lanternfish', '燈籠魚'), '×20'], [F('freezebomb', '冰凍炸彈'), '×20・全場冰凍'],
+            [F('turtle', '海龜'), '×25'], [F('dolphin', '海豚'), '×30'], [F('silvershark', '銀鯊'), '×35'],
+            [F('devilray', '魔鬼魚'), '×50'], [F('goldshark', '金鯊'), '×50～×80'], [F('whale', '藍鯨'), '×60～×120'],
+            ['銀魚', '×3'], ['海月水母、金黃水母', '×8、×10'], ['藍點魟、炸彈魚', '×20（炸彈魚連同爆炸範圍的魚）'], ['大海龜', '×30'],
+            ['鷹魟', '×40'], ['鬼蝠魟', '×40～×70'], ['黃金魚', '×80～×150'],
+            [F('ship_boat', '海盜小艇'), '×30～×70'], [F('ship_pirate', '海盜船'), '×60～×150'], [F('ship_flying', '飛行海盜船'), '×100～×250'],
+            [F('likui', '李逵'), '平均 ×120・擊殺轉盤 ×2～×5'], [F('mermaid', '美人魚'), '平均 ×110・擊殺轉盤'], [F('penguin', '雙頭企鵝王'), '平均 ×95・擊殺轉盤'],
+            [F('toad', '招財金蟾'), '平均 ×165・擊殺轉盤'], [F('shark4', '四頭鯊'), '平均 ×135・擊殺轉盤'],
           ],
         },
       ],
-      tips: [
-        '捕獲機率只看魚，不看押注；押高押低打同一條魚的難度一樣，只是派彩大小不同。',
-        '大魚、海盜船打越久越容易捕獲，跟別人一起打同一條也算數。',
-        'BOSS 從畫面橫越，看到「BOSS 來襲」就可以準備鎖定。',
-        '同桌其他玩家的砲台在另外三邊；誰的子彈捕獲那條魚，派彩就歸誰。',
-      ],
+      tips: [],
       // 尊榮廳試玩實錄（含遊戲音效），倍率照正常機率、沒有改過
       videos: [
         { title: 'BOSS 擊殺轉盤 ×5', src: `${GUIDE_MEDIA}/fish/boss-wheel.mp4`, poster: `${GUIDE_MEDIA}/fish/boss-wheel.jpg`, dur: '50 秒' },
         { title: '鬼蝠魟 BIG WIN', src: `${GUIDE_MEDIA}/fish/manta-bigwin.mp4`, poster: `${GUIDE_MEDIA}/fish/manta-bigwin.jpg`, dur: '24 秒' },
         { title: '擊殺雙頭企鵝王', src: `${GUIDE_MEDIA}/fish/penguin-boss.mp4`, poster: `${GUIDE_MEDIA}/fish/penguin-boss.jpg`, dur: '38 秒' },
       ],
-    },
-  ];
+    }];
+  })();
   const GUIDE_CATS = [{ key: 'exclusive', name: 'GD獨家', list: EXCLUSIVE_GUIDES }, { key: 'slots', name: '老虎機', list: SLOT_GUIDES }, { key: 'pachi', name: '柏青斯洛', list: PACHI_GUIDES }, { key: 'fish', name: '捕魚', list: FISH_GUIDES }];
 
   const style = document.createElement('style');
   style.textContent = `
     .gd-gd{--gd-line:#2b3566;--gd-gold:#ffd166;--gd-pink:#ff3d9e;--gd-sub:#aeb8e8;color:#eef1ff;display:grid;gap:14px}
     .gd-gd em{font-style:normal;color:var(--gd-gold);font-weight:900}
-    .gd-gd-cats{display:flex;gap:8px;flex-wrap:wrap}
-    .gd-gd-cats button{border:1px solid #35406d;border-radius:999px;padding:6px 16px;background:#111838;color:var(--gd-sub);font:inherit;font-weight:900;cursor:pointer}
+    .gd-gd-cats{display:flex;gap:6px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}.gd-gd-cats::-webkit-scrollbar{display:none}
+    .gd-gd-cats button{flex:none;white-space:nowrap;border:1px solid #35406d;border-radius:999px;padding:6px 12px;background:#111838;color:var(--gd-sub);font:inherit;font-weight:900;cursor:pointer}
     .gd-gd-cats button.on{background:linear-gradient(180deg,#ff6ec7,#ff3d9e);border-color:transparent;color:#fff}
     .gd-gd-strip{display:grid;grid-auto-flow:column;grid-auto-columns:84px;justify-content:start;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:thin}
     .gd-gd-strip button{border:2px solid transparent;border-radius:14px;padding:4px 4px 6px;background:#111838;color:var(--gd-sub);font:inherit;font-size:12px;font-weight:900;cursor:pointer;display:grid;gap:4px;justify-items:center;position:relative}
@@ -500,7 +505,7 @@
     .gd-gd-pay .odds h4{margin:0 0 2px;font-size:13px;color:#fff}
     .gd-gd-pay .odds.cols{grid-template-columns:repeat(auto-fill,minmax(70px,1fr))}
     .gd-gd-pay small{grid-column:1/-1;color:#aeb8e8;font-size:12px;line-height:1.55}
-    .gd-gd-tips{margin:0;padding-left:18px;color:#cfd5f5;font-size:13px;line-height:1.8}
+    .gd-gd-foot{margin:14px 0 0;color:#7f89b8;font-size:11px;text-align:center}
     .gd-gd-pager{display:flex;justify-content:space-between;align-items:center;gap:10px;padding-top:4px}
     .gd-gd-pager button{border:1px solid #35406d;border-radius:999px;padding:8px 14px;background:#111838;color:#d6dcff;font:inherit;font-weight:900;cursor:pointer;min-width:0;max-width:44%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .gd-gd-pager button:disabled{opacity:.35;cursor:default}
@@ -509,7 +514,7 @@
     .gd-gd-table table{width:100%;border-collapse:collapse;font-size:13px;min-width:280px}
     .gd-gd-table th{background:#111838;color:var(--gd-gold);font-weight:900;text-align:left;padding:8px 10px;white-space:nowrap}
     .gd-gd-table td{padding:7px 10px;border-top:1px solid var(--gd-line);color:#d6dcff;background:#151b3d}
-    .gd-gd-table td img{width:34px;height:34px;object-fit:contain;display:block}
+    .gd-gd-table td img{width:34px;height:34px;object-fit:contain;display:block}.gd-gd-table td img.wide{width:92px;height:35px}.gd-gd-table td{white-space:normal}.gd-gd-table td:not(:last-child){white-space:nowrap}
     .gd-gd-table td .sym{display:flex;align-items:center;gap:10px;font-weight:900;color:#fff}
     .gd-gd-table td .ic{font-size:22px}
     .gd-gd-table tbody tr:nth-child(even) td{background:#121838}
@@ -558,7 +563,7 @@
   };
   // GD獨家的真實畫面（遊戲實際截圖與動態圖，放在 /slots/guide/<media>/，不經閘道）
   const shot = (g, n) => (g.media ? `<img class="gd-gd-shot" src="${GUIDE_MEDIA}/${g.media}/${n}.webp" alt="" loading="lazy">` : '');
-  const cell = (c) => (c && typeof c === 'object' ? `<span class="sym">${c.img ? `<img src="${esc(c.img)}" alt="" loading="lazy">` : `<span class="ic">${c.icon}</span>`}${c.label ? esc(c.label) : ''}</span>` : esc(c));
+  const cell = (c) => (c && typeof c === 'object' ? `<span class="sym">${c.img ? `<img src="${esc(c.img)}" alt="${esc(c.label || '')}"${c.wide ? ' class="wide"' : ''} loading="lazy">` : `<span class="ic">${c.icon}</span>`}${c.label && !c.wide ? esc(c.label) : ''}</span>` : esc(c));
   const ruleTable = (t) => `<p class="gd-gd-hint">${esc(t.hint || '')}</p><div class="gd-gd-table"><table><thead><tr>${t.cols.map((c) => `<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${t.rows.map((r) => `<tr>${r.map((c) => `<td>${cell(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
 
   /**
@@ -634,7 +639,7 @@
           ${g.fair.id ? '' : '<small>這款的回合驗證頁接入中，驗證頁可先看教學範例；遊戲內已可查看。</small>'}
         </div>
       </div></section>` : ''}
-      <section class="gd-gd-sec"><h3><small>小提示</small>玩之前先知道</h3><ul class="gd-gd-tips">${g.tips.map((t) => `<li>${esc(t)}</li>`).join('')}<li>如遇程式故障，所有遊戲及派彩一律作廢。</li></ul></section>
+      <p class="gd-gd-foot">如遇程式故障，所有遊戲及派彩一律作廢。</p>
       <nav class="gd-gd-pager"><button data-gd-step="-1" ${page === 0 ? 'disabled' : ''}>‹ ${page > 0 ? esc(list[page - 1].name) : '上一款'}</button><span>${page + 1} / ${list.length}</span><button data-gd-step="1" ${page === list.length - 1 ? 'disabled' : ''}>${page < list.length - 1 ? esc(list[page + 1].name) : '下一款'} ›</button></nav>
     </div>`;
     const go = (p) => { page = Math.max(0, Math.min(list.length - 1, p)); render(); panel.scrollTop = 0; $('.gd-gd-strip .on', panel)?.scrollIntoView({ block: 'nearest', inline: 'center' }); };
