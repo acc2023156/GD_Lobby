@@ -639,7 +639,7 @@
           ${g.fair.id ? '' : '<small>這款的回合驗證頁接入中，驗證頁可先看教學範例；遊戲內已可查看。</small>'}
         </div>
       </div></section>` : ''}
-      <p class="gd-gd-foot">如遇程式故障，所有遊戲及派彩一律作廢。</p>
+      <p class="gd-gd-foot">遊戲結果以伺服器紀錄為準；系統異常時該局無效並退還投注。</p>
       <nav class="gd-gd-pager"><button data-gd-step="-1" ${page === 0 ? 'disabled' : ''}>‹ ${page > 0 ? esc(list[page - 1].name) : '上一款'}</button><span>${page + 1} / ${list.length}</span><button data-gd-step="1" ${page === list.length - 1 ? 'disabled' : ''}>${page < list.length - 1 ? esc(list[page + 1].name) : '下一款'} ›</button></nav>
     </div>`;
     const go = (p) => { page = Math.max(0, Math.min(list.length - 1, p)); render(); panel.scrollTop = 0; $('.gd-gd-strip .on', panel)?.scrollIntoView({ block: 'nearest', inline: 'center' }); };
