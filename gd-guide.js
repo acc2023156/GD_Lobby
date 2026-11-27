@@ -425,11 +425,10 @@
         },
       ],
       tips: [],
-      // 尊榮廳試玩實錄（含遊戲音效），倍率照正常機率、沒有改過
       videos: [
-        { title: 'BOSS 擊殺轉盤 ×5', src: `${GUIDE_MEDIA}/fish/boss-wheel.mp4`, poster: `${GUIDE_MEDIA}/fish/boss-wheel.jpg`, dur: '50 秒' },
-        { title: '鬼蝠魟 BIG WIN', src: `${GUIDE_MEDIA}/fish/manta-bigwin.mp4`, poster: `${GUIDE_MEDIA}/fish/manta-bigwin.jpg`, dur: '24 秒' },
-        { title: '擊殺雙頭企鵝王', src: `${GUIDE_MEDIA}/fish/penguin-boss.mp4`, poster: `${GUIDE_MEDIA}/fish/penguin-boss.jpg`, dur: '38 秒' },
+        { title: '特色爆分', src: `${GUIDE_MEDIA}/fish/v1-feature.mp4`, poster: `${GUIDE_MEDIA}/fish/v1-feature.jpg`, dur: '27 秒' },
+        { title: '砲台升級・五大 BOSS', src: `${GUIDE_MEDIA}/fish/v2-cannon-boss.mp4`, poster: `${GUIDE_MEDIA}/fish/v2-cannon-boss.jpg`, dur: '41 秒' },
+        { title: '海盜船・海底寶箱', src: `${GUIDE_MEDIA}/fish/v3-ship-chest.mp4`, poster: `${GUIDE_MEDIA}/fish/v3-ship-chest.jpg`, dur: '35 秒' },
       ],
     }];
   })();
